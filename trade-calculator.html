@@ -845,6 +845,13 @@ function calcPPG(pid, statsData, scoring) {
     return Math.max(0, total / gp);
 }
 
+function calcSeasonPts(pid, statsData, scoring) {
+    const s = statsData[pid];
+    if (!s) return 0;
+    const total = calcRawPts(s, scoring);
+    return total !== null ? Math.max(0, total) : 0;
+}
+
 function parseStarterSlots(rosterPositions) {
     const slots = {};
     for (const s of (rosterPositions || [])) {
@@ -904,7 +911,7 @@ function calcOptimalLineup(playerIds, reserve, taxi, playersData, statsData, sco
     return Math.round(total * 10) / 10;
 }
 
-function assessTeam(roster, playersData, statsData, leagueInfo, users, nflStarterSet = {}, valueIndex = {}) {
+function assessTeam(roster, playersData, statsData, leagueInfo, users, nflStarterSet = {}) {
     const scoring   = leagueInfo?.scoring_settings;
     const rosterPos = leagueInfo?.roster_positions || [];
     const user      = users.find(u => u.user_id === roster.owner_id);
@@ -958,14 +965,9 @@ function assessTeam(roster, playersData, statsData, leagueInfo, users, nflStarte
         else if (actual >= ideal)            status = 'surplus';  // starters covered + solid depth
         else                                 status = 'ok';       // starters covered, thin on depth
 
-        // Sort display order by the same signal used for green/gray (FC value, PPG fallback)
-        // so rank position and color are always consistent.
+        // Sort display order by 2025 total season points — same signal as green/gray.
         const sortedIds = [...playerIds]
-            .map(id => {
-                const fcVal = getPlayerValue(id, valueIndex).value;
-                const ppg   = calcPPG(id, statsData, scoring);
-                return { id, score: fcVal > 0 ? fcVal : ppg * 300 };
-            })
+            .map(id => ({ id, score: calcSeasonPts(id, statsData, scoring) }))
             .sort((a,b) => b.score - a.score)
             .map(p => p.id);
         posAssessment[pos] = { actual, ideal, diff, nflStarters, nflStarterIds, sortedIds, startingReq, ptTarget, projectedPts, status };
@@ -1054,7 +1056,7 @@ function assessTeam(roster, playersData, statsData, leagueInfo, users, nflStarte
 //   • PPG scaled to the same 0–10 000 range is the fallback for players
 //     absent from FC (e.g., injured starters with no current-year entry)
 // Pool = LINEUP_STARTERS[pos] × 32 NFL teams (original strict sizing).
-// Rank every player in playersData by FC dynasty value and return
+// Rank every player in playersData by 2025 total season points and return
 // a Set of the top-N ids per position, where N = NFL_STARTER_POOL[pos].
 function calcNflStarterSet(playersData, valueIndex, statsData, scoring) {
     const byPos = {};
@@ -1062,10 +1064,7 @@ function calcNflStarterSet(playersData, valueIndex, statsData, scoring) {
         const pos = normPos(p.position);
         if (!pos || !(pos in NFL_STARTER_POOL)) continue;
         if (!byPos[pos]) byPos[pos] = [];
-        const fcVal = getPlayerValue(id, valueIndex).value;
-        const ppg   = calcPPG(id, statsData || {}, scoring || {});
-        // Use FC value when available; fall back to PPG-based score
-        const score = fcVal > 0 ? fcVal : ppg * 300;
+        const score = calcSeasonPts(id, statsData || {}, scoring || {});
         if (score > 0) byPos[pos].push({ id, score });
     }
     const result = {};
@@ -1413,7 +1412,7 @@ function TradeCalculator() {
         const nflStarterSet = Object.keys(valueIndex).length
             ? calcNflStarterSet(playersData, valueIndex, statsData, scoring)
             : {};
-        return allRosters.map(r => assessTeam(r, playersData, statsData, leagueInfo, leagueUsers, nflStarterSet, valueIndex));
+        return allRosters.map(r => assessTeam(r, playersData, statsData, leagueInfo, leagueUsers, nflStarterSet));
     }, [allRosters, playersData, statsData, leagueInfo, leagueUsers, valueIndex]);
 
     const myAssessment = useMemo(() =>
