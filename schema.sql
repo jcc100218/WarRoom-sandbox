@@ -48,6 +48,12 @@ create table if not exists public.fa_targets (
     unique (username, league_id)
 );
 
+-- ── DROP EXISTING POLICIES (safe re-run) ─────────────────────
+drop policy if exists "users_all"      on public.users;
+drop policy if exists "calendar_all"   on public.calendar_events;
+drop policy if exists "earnings_all"   on public.earnings;
+drop policy if exists "fa_targets_all" on public.fa_targets;
+
 -- ── ROW LEVEL SECURITY ────────────────────────────────────────
 -- Each owner can only read/write their own rows.
 -- The client passes the Sleeper username in a custom header (x-owner-username)
