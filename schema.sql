@@ -80,6 +80,12 @@ create index if not exists idx_calendar_username on public.calendar_events (user
 create index if not exists idx_earnings_username  on public.earnings (username);
 create index if not exists idx_fa_username        on public.fa_targets (username);
 
+-- ── THEME & GIFT COLUMNS (migration) ─────────────────────────
+-- Run these if upgrading an existing schema:
+alter table public.users add column if not exists password_hash text;
+alter table public.users add column if not exists display_name  text;
+alter table public.users add column if not exists is_gifted     boolean default false;
+
 -- ── DONE ──────────────────────────────────────────────────────
 -- After running this file, copy your project URL and anon key
 -- from Supabase → Settings → API and paste them into supabase-client.js
