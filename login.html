@@ -223,7 +223,16 @@
     const errorEl = document.getElementById('errorMessage');
     const loginForm = document.getElementById('loginForm');
 
-    // Simple SHA-256 hash function
+    // Pre-fill username from ?for= URL param (gifted dashboard links)
+    const urlParams = new URLSearchParams(window.location.search);
+    const forUsername = urlParams.get('for');
+    if (forUsername) {
+        const usernameInput = document.getElementById('username');
+        usernameInput.value = forUsername;
+        usernameInput.readOnly = true;
+        usernameInput.style.opacity = '0.7';
+    }
+
     async function hashPassword(password) {
         const encoder = new TextEncoder();
         const data = encoder.encode(password);
@@ -244,11 +253,9 @@
         try {
             const auth = JSON.parse(existingAuth);
             if (auth.username && auth.passwordHash) {
-                // Already authenticated, redirect to dashboard
                 window.location.href = 'index.html';
             }
         } catch (e) {
-            // Invalid auth data, clear it
             localStorage.removeItem(AUTH_KEY);
         }
     }
@@ -264,63 +271,64 @@
             return;
         }
 
-        // Check if this is first-time setup or returning user
-        const existingAuth = localStorage.getItem(AUTH_KEY);
-        
-        if (existingAuth) {
-            // Returning user - verify password
-            try {
-                const auth = JSON.parse(existingAuth);
-                const inputHash = await hashPassword(password);
+        const loginBtn = document.querySelector('.login-btn');
+        const existingLocal = localStorage.getItem(AUTH_KEY);
 
+        if (existingLocal) {
+            // Returning user with local credentials — verify locally
+            try {
+                const auth = JSON.parse(existingLocal);
+                const inputHash = await hashPassword(password);
                 if (auth.username === username && auth.passwordHash === inputHash) {
-                    // Correct credentials
                     window.location.href = 'index.html';
                 } else {
                     showError('Incorrect username or password');
                 }
-            } catch (e) {
+            } catch {
                 showError('Authentication error. Please try again.');
             }
-        } else {
-            // First-time setup - validate Sleeper username then create account
-            try {
-                const loginBtn = document.querySelector('.login-btn');
-                loginBtn.textContent = 'Verifying Sleeper username...';
-                loginBtn.disabled = true;
+            return;
+        }
 
-                const resp = await fetch(`https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`);
-                if (!resp.ok || resp.status === 404) {
-                    showError('Sleeper username not found. Please check and try again.');
-                    loginBtn.textContent = 'Access Dashboard';
-                    loginBtn.disabled = false;
-                    return;
-                }
-                const sleeperUser = await resp.json();
-                if (!sleeperUser || !sleeperUser.user_id) {
-                    showError('Sleeper username not found. Please check and try again.');
-                    loginBtn.textContent = 'Access Dashboard';
-                    loginBtn.disabled = false;
-                    return;
-                }
-
+        // No local auth — check Supabase first (gifted accounts)
+        loginBtn.textContent = 'Checking...';
+        loginBtn.disabled = true;
+        try {
+            const result = await window.OD.verifySupabasePassword(username, password);
+            if (result && result.match) {
+                // Gifted user authenticated via Supabase
                 const passwordHash = await hashPassword(password);
-                const auth = {
-                    username: username,
-                    passwordHash: passwordHash,
+                localStorage.setItem(AUTH_KEY, JSON.stringify({
+                    username,
+                    passwordHash,
+                    isGifted: result.isGifted,
                     createdAt: new Date().toISOString()
-                };
-
-                localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
-                // Sync username to Team Comps page so it auto-logs in
+                }));
                 localStorage.setItem('od_locked_username_v2', username);
                 window.location.href = 'index.html';
-            } catch (e) {
-                showError('Failed to verify Sleeper username. Check your connection and try again.');
-                const loginBtn = document.querySelector('.login-btn');
+                return;
+            }
+        } catch {}
+
+        // Not a gifted account — first-time self-setup: validate Sleeper username
+        loginBtn.textContent = 'Verifying Sleeper username...';
+        try {
+            const resp = await fetch(`https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`);
+            const sleeperUser = resp.ok ? await resp.json() : null;
+            if (!sleeperUser || !sleeperUser.user_id) {
+                showError('Sleeper username not found. Check spelling and try again.');
                 loginBtn.textContent = 'Access Dashboard';
                 loginBtn.disabled = false;
+                return;
             }
+            const passwordHash = await hashPassword(password);
+            localStorage.setItem(AUTH_KEY, JSON.stringify({ username, passwordHash, createdAt: new Date().toISOString() }));
+            localStorage.setItem('od_locked_username_v2', username);
+            window.location.href = 'index.html';
+        } catch {
+            showError('Failed to verify Sleeper username. Check your connection and try again.');
+            loginBtn.textContent = 'Access Dashboard';
+            loginBtn.disabled = false;
         }
     });
 </script>

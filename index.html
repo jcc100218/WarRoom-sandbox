@@ -890,6 +890,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="supabase-client.js"></script>
+<script src="themes.js"></script>
+<script>window.applyStoredTheme();</script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -968,49 +970,6 @@
 
     function saveEarnings(entries) {
         window.OD.saveEarnings(entries);
-    }
-
-    // ===== FULL DATA BACKUP / RESTORE =====
-    function exportAllData(calendarEvents, earningsEntries, username) {
-        const payload = {
-            version: 1,
-            exportedAt: new Date().toISOString(),
-            username: username || '',
-            calendar: calendarEvents,
-            earnings: earningsEntries
-        };
-        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const dateStr = new Date().toISOString().slice(0, 10);
-        a.href = url;
-        a.download = `od-backup-${dateStr}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-
-    function importAllData(file, onSuccess, onError) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const parsed = JSON.parse(e.target.result);
-                if (typeof parsed !== 'object' || parsed === null) throw new Error('Invalid file');
-                const calendar = Array.isArray(parsed.calendar) ? parsed.calendar : null;
-                const earnings = Array.isArray(parsed.earnings) ? parsed.earnings : null;
-                if (!calendar && !earnings) throw new Error('No recognisable data found in file');
-                onSuccess({ calendar, earnings });
-            } catch (err) {
-                onError(err.message || 'Could not read backup file');
-            }
-        };
-        reader.readAsText(file);
-    }
-
-    function hasUserData(calendarEvents, earningsEntries) {
-        const defaultIds = new Set(DEFAULT_EVENTS.map(d => d.id));
-        const hasCustomCalendar = calendarEvents.some(e => !defaultIds.has(e.id));
-        const hasEarnings = earningsEntries.length > 0;
-        return hasCustomCalendar || hasEarnings;
     }
 
     function exportCalendarEvents(events) {
@@ -1420,153 +1379,141 @@
     };
 
     // Settings Modal
-    function SettingsModal({ onClose, calendarEvents, earningsEntries, onRestore }) {
-        const [restoreMsg, setRestoreMsg] = React.useState('');
-        const fileInputRef = React.useRef(null);
+    function SettingsModal({ onClose, activeTheme, onThemeChange }) {
+        const [pwMsg, setPwMsg] = React.useState('');
+        const [currentPw, setCurrentPw] = React.useState('');
+        const [newPw, setNewPw] = React.useState('');
+        const [confirmPw, setConfirmPw] = React.useState('');
+        const [displayName, setDisplayName] = React.useState(activeTheme.displayName || '');
+        const [selectedTeam, setSelectedTeam] = React.useState(activeTheme.teamId || 'default');
 
-        function handleExport() {
-            exportAllData(calendarEvents, earningsEntries, sleeperUsername);
+        const isGiftedAccount = React.useMemo(() => {
+            try {
+                const auth = JSON.parse(localStorage.getItem('od_auth_v1') || '{}');
+                return !!auth.isGifted;
+            } catch { return false; }
+        }, []);
+
+        function handleThemeSelect(teamId) {
+            setSelectedTeam(teamId);
+            const updated = { ...activeTheme, teamId, displayName };
+            onThemeChange(updated);
         }
 
-        function handleFileChange(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            importAllData(
-                file,
-                ({ calendar, earnings }) => {
-                    onRestore({ calendar, earnings });
-                    const parts = [];
-                    if (calendar) parts.push(`${calendar.length} calendar events`);
-                    if (earnings) parts.push(`${earnings.length} earnings entries`);
-                    setRestoreMsg(`✓ Restored: ${parts.join(' and ')}`);
-                },
-                (msg) => setRestoreMsg(`✗ ${msg}`)
-            );
-            e.target.value = '';
+        function handleDisplayNameSave() {
+            const updated = { ...activeTheme, teamId: selectedTeam, displayName };
+            onThemeChange(updated);
         }
+
+        async function handleChangePassword() {
+            setPwMsg('');
+            if (!currentPw || !newPw || !confirmPw) { setPwMsg('✗ Fill in all fields'); return; }
+            if (newPw !== confirmPw) { setPwMsg('✗ New passwords do not match'); return; }
+            if (newPw.length < 6) { setPwMsg('✗ Password must be at least 6 characters'); return; }
+            try {
+                // Verify current password against stored hash
+                const AUTH_KEY = 'od_auth_v1';
+                const auth = JSON.parse(localStorage.getItem(AUTH_KEY) || '{}');
+                const encoder = new TextEncoder();
+                const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(currentPw));
+                const currentHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+
+                if (auth.passwordHash && auth.passwordHash !== currentHash) {
+                    // Also try Supabase in case this is a gifted account
+                    const result = await window.OD.verifySupabasePassword(sleeperUsername, currentPw);
+                    if (!result || !result.match) {
+                        setPwMsg('✗ Current password is incorrect');
+                        return;
+                    }
+                }
+                // Update Supabase
+                await window.OD.updatePassword(sleeperUsername, newPw);
+                // Update localStorage
+                const newHashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(newPw));
+                const newHash = Array.from(new Uint8Array(newHashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+                localStorage.setItem(AUTH_KEY, JSON.stringify({ ...auth, passwordHash: newHash, isGifted: false }));
+                setCurrentPw(''); setNewPw(''); setConfirmPw('');
+                setPwMsg('✓ Password updated');
+            } catch (e) {
+                setPwMsg('✗ Failed to update password');
+            }
+        }
+
+        const sectionStyle = { marginBottom: '1.25rem', padding: '1rem', background: 'rgba(212,175,55,0.07)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px' };
+        const sectionTitle = { fontFamily: 'Bebas Neue, cursive', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.12em', marginBottom: '0.75rem' };
+        const inputStyle = { width: '100%', padding: '0.55rem 0.75rem', background: 'var(--black)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', color: 'var(--white)', fontFamily: 'Oswald, sans-serif', fontSize: '0.85rem', marginBottom: '0.5rem' };
+        const btnPrimary = { flex: 1, padding: '0.6rem', background: 'var(--gold)', border: 'none', borderRadius: '6px', color: 'var(--black)', fontFamily: 'Oswald, sans-serif', fontSize: '0.82rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' };
+        const btnOutline = { flex: 1, padding: '0.6rem', background: 'transparent', border: '1px solid var(--gold)', borderRadius: '6px', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif', fontSize: '0.82rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' };
 
         return (
-            <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'rgba(0, 0, 0, 0.8)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: '1rem'
-            }} onClick={onClose}>
-                <div style={{
-                    background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)',
-                    border: '3px solid var(--gold)',
-                    borderRadius: '12px',
-                    padding: '2rem',
-                    maxWidth: '400px',
-                    width: '100%',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.8)'
-                }} onClick={(e) => e.stopPropagation()}>
-                    <h2 style={{
-                        fontFamily: 'Bebas Neue, cursive',
-                        fontSize: '1.5rem',
-                        color: 'var(--gold)',
-                        marginBottom: '1.5rem',
-                        textAlign: 'center',
-                        letterSpacing: '0.1em'
-                    }}>SETTINGS</h2>
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }} onClick={onClose}>
+                <div style={{ background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '3px solid var(--gold)', borderRadius: '12px', padding: '1.5rem', maxWidth: '440px', width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.8)', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                    <h2 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.5rem', color: 'var(--gold)', marginBottom: '1.25rem', textAlign: 'center', letterSpacing: '0.1em' }}>SETTINGS</h2>
 
-                    <div style={{ marginBottom: '1.5rem' }}>
-                        <div style={{
-                            fontSize: '0.9rem',
-                            color: 'var(--silver)',
-                            marginBottom: '0.5rem'
-                        }}>
-                            Logged in as: <strong style={{ color: 'var(--white)' }}>{sleeperUsername}</strong>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--silver)', marginBottom: '1.25rem' }}>
+                        Logged in as: <strong style={{ color: 'var(--white)' }}>{sleeperUsername}</strong>
+                        {isGiftedAccount && <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', color: 'var(--gold)', background: 'rgba(212,175,55,0.15)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>GIFTED — change your password below</span>}
+                    </div>
+
+                    {/* ── TEAM THEME ── */}
+                    <div style={sectionStyle}>
+                        <div style={sectionTitle}>TEAM THEME</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginBottom: '0.75rem' }}>Pick your NFL team colors</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.35rem', marginBottom: '0.75rem' }}>
+                            {window.NFL_THEMES.map(team => (
+                                <div
+                                    key={team.id}
+                                    onClick={() => handleThemeSelect(team.id)}
+                                    title={`${team.city} ${team.name}`}
+                                    style={{
+                                        background: team.primary,
+                                        border: selectedTeam === team.id ? `3px solid var(--white)` : `2px solid ${team.primaryDark}`,
+                                        borderRadius: '6px',
+                                        padding: '0.3rem 0.1rem',
+                                        textAlign: 'center',
+                                        cursor: 'pointer',
+                                        fontSize: '0.55rem',
+                                        fontWeight: '700',
+                                        color: '#fff',
+                                        textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                                        letterSpacing: '0.03em',
+                                        lineHeight: 1.2,
+                                        boxShadow: selectedTeam === team.id ? '0 0 8px rgba(255,255,255,0.4)' : 'none',
+                                        transition: 'all 0.15s ease',
+                                        userSelect: 'none',
+                                    }}
+                                >
+                                    {team.abbr}
+                                </div>
+                            ))}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginBottom: '0.5rem' }}>Display name (optional)</div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <input
+                                style={{ ...inputStyle, marginBottom: 0, flex: 1 }}
+                                placeholder={sleeperUsername}
+                                value={displayName}
+                                onChange={e => setDisplayName(e.target.value)}
+                            />
+                            <button onClick={handleDisplayNameSave} style={{ ...btnPrimary, flex: 'none', padding: '0.55rem 0.85rem' }}>Save</button>
                         </div>
                     </div>
 
-                    {/* Data Backup section */}
-                    <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(212,175,55,0.07)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px' }}>
-                        <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.12em', marginBottom: '0.75rem' }}>
-                            DATA BACKUP
-                        </div>
-                        <div style={{ fontSize: '0.73rem', color: 'var(--silver)', marginBottom: '0.85rem', lineHeight: 1.5 }}>
-                            Save your earnings and key events to a file. Restore it any time — useful when adding to your home screen or after clearing your browser.
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.6rem' }}>
-                            <button onClick={handleExport} style={{
-                                flex: 1,
-                                padding: '0.6rem',
-                                background: 'var(--gold)',
-                                border: 'none',
-                                borderRadius: '6px',
-                                color: 'var(--black)',
-                                fontFamily: 'Oswald, sans-serif',
-                                fontSize: '0.82rem',
-                                fontWeight: '700',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.05em',
-                                cursor: 'pointer'
-                            }}>
-                                ↓ Export
-                            </button>
-                            <button onClick={() => fileInputRef.current.click()} style={{
-                                flex: 1,
-                                padding: '0.6rem',
-                                background: 'transparent',
-                                border: '1px solid var(--gold)',
-                                borderRadius: '6px',
-                                color: 'var(--gold)',
-                                fontFamily: 'Oswald, sans-serif',
-                                fontSize: '0.82rem',
-                                fontWeight: '700',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.05em',
-                                cursor: 'pointer'
-                            }}>
-                                ↑ Restore
-                            </button>
-                            <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleFileChange} />
-                        </div>
-                        {restoreMsg && (
-                            <div style={{ marginTop: '0.6rem', fontSize: '0.73rem', color: restoreMsg.startsWith('✓') ? 'var(--win-green)' : '#E74C3C' }}>
-                                {restoreMsg}
-                            </div>
-                        )}
+                    {/* ── CHANGE PASSWORD ── */}
+                    <div style={sectionStyle}>
+                        <div style={sectionTitle}>CHANGE PASSWORD</div>
+                        <input style={inputStyle} type="password" placeholder="Current password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} />
+                        <input style={inputStyle} type="password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
+                        <input style={{ ...inputStyle, marginBottom: '0.75rem' }} type="password" placeholder="Confirm new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
+                        <button onClick={handleChangePassword} style={{ ...btnPrimary, width: '100%', flex: 'none' }}>Update Password</button>
+                        {pwMsg && <div style={{ marginTop: '0.5rem', fontSize: '0.73rem', color: pwMsg.startsWith('✓') ? 'var(--win-green)' : '#E74C3C' }}>{pwMsg}</div>}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '1rem', flexDirection: 'column' }}>
-                        <button onClick={handleLogout} style={{
-                            padding: '0.75rem',
-                            background: 'linear-gradient(135deg, #E74C3C 0%, #C0392B 100%)',
-                            border: 'none',
-                            borderRadius: '8px',
-                            color: 'white',
-                            fontFamily: 'Oswald, sans-serif',
-                            fontSize: '0.9rem',
-                            fontWeight: '700',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                            cursor: 'pointer'
-                        }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column' }}>
+                        <button onClick={handleLogout} style={{ padding: '0.75rem', background: 'linear-gradient(135deg, #E74C3C 0%, #C0392B 100%)', border: 'none', borderRadius: '8px', color: 'white', fontFamily: 'Oswald, sans-serif', fontSize: '0.9rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
                             Logout
                         </button>
-
-                        <button onClick={onClose} style={{
-                            padding: '0.75rem',
-                            background: 'var(--black)',
-                            border: '2px solid var(--gold)',
-                            borderRadius: '8px',
-                            color: 'var(--gold)',
-                            fontFamily: 'Oswald, sans-serif',
-                            fontSize: '0.9rem',
-                            fontWeight: '700',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                            cursor: 'pointer'
-                        }}>
+                        <button onClick={onClose} style={{ padding: '0.75rem', background: 'var(--black)', border: '2px solid var(--gold)', borderRadius: '8px', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif', fontSize: '0.9rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
                             Close
                         </button>
                     </div>
@@ -2318,12 +2265,6 @@
 
         const totalEarnings = earningsEntries.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
 
-        // Restore banner — show when the app loads with no user data (fresh PWA install / cleared cache)
-        const [showRestoreBanner, setShowRestoreBanner] = useState(
-            () => !hasUserData(loadCalendarEvents(), loadEarnings())
-        );
-        const restoreBannerFileRef = React.useRef(null);
-
         function handleAddEarning(entry) {
             const updated = [...earningsEntries, entry];
             setEarningsEntries(updated);
@@ -2336,20 +2277,15 @@
             saveEarnings(updated);
         }
 
-        function handleRestore({ calendar, earnings }) {
-            if (calendar) {
-                setCalendarEvents(calendar);
-                saveCalendarEvents(calendar);
-            }
-            if (earnings) {
-                setEarningsEntries(earnings);
-                saveEarnings(earnings);
-            }
-        }
-
         // Calendar state
         const [calendarEvents, setCalendarEvents] = useState(() => loadCalendarEvents());
         const [showCalendar, setShowCalendar] = useState(false);
+
+        // Theme state
+        const [activeTheme, setActiveTheme] = useState(() => {
+            try { return JSON.parse(localStorage.getItem('od_theme')) || {}; } catch { return {}; }
+        });
+        const customDisplayName = activeTheme.displayName || '';
 
         // Cloud sync — load from Supabase on mount and update state if remote data differs
         useEffect(() => {
@@ -2358,6 +2294,12 @@
             }).catch(() => {});
             window.OD.loadEarnings().then(remote => {
                 if (remote && remote.length > 0) setEarningsEntries(remote);
+            }).catch(() => {});
+            window.OD.loadTheme().then(themeData => {
+                if (themeData && Object.keys(themeData).length > 0) {
+                    setActiveTheme(themeData);
+                    if (themeData.teamId) window.applyNFLTheme(themeData.teamId);
+                }
             }).catch(() => {});
         }, []);
         const [showEventForm, setShowEventForm] = useState(false);
@@ -2545,7 +2487,7 @@
                     <div className="header-title">FANTASY FOOTBALL OWNER DASHBOARD</div>
                     <h1 className="owner-name">
                         <img src="icon-192.png" alt="OD Logo" className="owner-logo-small" />
-                        {sleeperUser ? (sleeperUser.display_name || sleeperUser.username || sleeperUsername).toUpperCase() + ' FOOTBALL CLUB' : 'LOADING...'}
+                        {sleeperUser ? (customDisplayName || sleeperUser.display_name || sleeperUser.username || sleeperUsername).toUpperCase() + ' FOOTBALL CLUB' : 'LOADING...'}
                         <img src="icon-192.png" alt="OD Logo" className="owner-logo-small" />
                     </h1>
                     <div className="quote">
@@ -2565,27 +2507,6 @@
                         <path d="M12 1v6m0 6v6m-5.2-7.8l-4.3-4.2m12.9 0l4.3 4.2M1 12h6m6 0h6m-7.8 5.2l-4.2 4.3m0-12.9l4.2 4.3" stroke="var(--gold)"/>
                     </svg>
                 </header>
-
-                {showRestoreBanner && (
-                    <div style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.35)', borderRadius: '8px', padding: '0.7rem 1rem', margin: '0.75rem 1rem 0', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--silver)' }}>
-                        <span style={{ flex: 1 }}>Have a backup file? Restore your earnings and events from a previous session.</span>
-                        <button
-                            onClick={() => restoreBannerFileRef.current.click()}
-                            style={{ background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '5px', padding: '0.35rem 0.9rem', fontFamily: 'Oswald, sans-serif', fontSize: '0.78rem', fontWeight: '700', letterSpacing: '0.05em', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                            ↑ Restore Backup
-                        </button>
-                        <input ref={restoreBannerFileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={e => {
-                            const file = e.target.files[0];
-                            if (!file) return;
-                            importAllData(file, ({ calendar, earnings }) => {
-                                handleRestore({ calendar, earnings });
-                                setShowRestoreBanner(false);
-                            }, () => {});
-                            e.target.value = '';
-                        }} />
-                        <span onClick={() => setShowRestoreBanner(false)} style={{ cursor: 'pointer', color: 'var(--silver)', opacity: 0.6, fontSize: '1.1rem', lineHeight: 1 }}>×</span>
-                    </div>
-                )}
 
                 <div className="main-layout">
                     {/* Left - Key Events */}
@@ -2816,9 +2737,12 @@
                 {showSettings && (
                     <SettingsModal
                         onClose={() => setShowSettings(false)}
-                        calendarEvents={calendarEvents}
-                        earningsEntries={earningsEntries}
-                        onRestore={handleRestore}
+                        activeTheme={activeTheme}
+                        onThemeChange={(themeData) => {
+                            setActiveTheme(themeData);
+                            window.OD.saveTheme(themeData);
+                            if (themeData.teamId) window.applyNFLTheme(themeData.teamId);
+                        }}
                     />
                 )}
 

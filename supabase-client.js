@@ -276,6 +276,125 @@ window.OD.saveTargets = function(leagueId, data) {
 };
 
 // ============================================================
+// THEME
+// ============================================================
+const THEME_LS_KEY = 'od_theme';
+
+async function dbLoadTheme(username) {
+    const db = getClient();
+    if (!db || !isConfigured() || !username) return null;
+    const { data, error } = await db
+        .from('users')
+        .select('theme, display_name')
+        .eq('sleeper_username', username)
+        .maybeSingle();
+    if (error || !data) return null;
+    const theme = data.theme || {};
+    // Merge top-level display_name column into theme object
+    if (data.display_name && !theme.displayName) {
+        theme.displayName = data.display_name;
+    }
+    return theme;
+}
+
+async function dbSaveTheme(username, themeData) {
+    const db = getClient();
+    if (!db || !isConfigured() || !username) return;
+    await ensureUser(username);
+    const update = { theme: themeData };
+    if (themeData.displayName) update.display_name = themeData.displayName;
+    const { error } = await db.from('users').update(update).eq('sleeper_username', username);
+    if (error) console.warn('[OD] theme save error', error);
+}
+
+window.OD.loadTheme = async function() {
+    const username = getCurrentUsername();
+    if (isConfigured() && username) {
+        const remote = await dbLoadTheme(username);
+        if (remote && Object.keys(remote).length > 0) {
+            localStorage.setItem(THEME_LS_KEY, JSON.stringify(remote));
+            return remote;
+        }
+    }
+    try {
+        const raw = localStorage.getItem(THEME_LS_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch {}
+    return {};
+};
+
+window.OD.saveTheme = function(themeData) {
+    localStorage.setItem(THEME_LS_KEY, JSON.stringify(themeData));
+    const username = getCurrentUsername();
+    if (isConfigured() && username) {
+        dbSaveTheme(username, themeData).catch(console.warn);
+    }
+};
+
+// ============================================================
+// GIFT USERS — create a personalised dashboard for a league mate
+// ============================================================
+
+// Hash a password (same SHA-256 approach as login.html)
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Create (or update) a gifted user row in Supabase
+window.OD.createGiftUser = async function({ sleeperUsername, password, teamId, displayName }) {
+    const db = getClient();
+    if (!db || !isConfigured()) throw new Error('Supabase not configured');
+
+    const passwordHash = await hashPassword(password);
+    const theme = { teamId: teamId || 'default', displayName: displayName || '' };
+
+    const { error } = await db.from('users').upsert(
+        {
+            sleeper_username: sleeperUsername,
+            password_hash: passwordHash,
+            display_name: displayName || null,
+            theme,
+            is_gifted: true,
+        },
+        { onConflict: 'sleeper_username' }
+    );
+    if (error) throw error;
+};
+
+// Check Supabase for a user's password hash (used by login for gifted users)
+window.OD.verifySupabasePassword = async function(username, password) {
+    const db = getClient();
+    if (!db || !isConfigured()) return false;
+    const { data, error } = await db
+        .from('users')
+        .select('password_hash, is_gifted')
+        .eq('sleeper_username', username)
+        .maybeSingle();
+    if (error || !data || !data.password_hash) return false;
+    const inputHash = await hashPassword(password);
+    return {
+        match: data.password_hash === inputHash,
+        isGifted: data.is_gifted || false,
+    };
+};
+
+// Update password hash in Supabase (for change-password feature)
+window.OD.updatePassword = async function(username, newPassword) {
+    const db = getClient();
+    if (!db || !isConfigured() || !username) return;
+    const passwordHash = await hashPassword(newPassword);
+    const { error } = await db
+        .from('users')
+        .update({ password_hash: passwordHash, is_gifted: false })
+        .eq('sleeper_username', username);
+    if (error) throw error;
+};
+
+// ============================================================
 // STATUS INDICATOR (injected into page for easy debugging)
 // ============================================================
 window.OD.status = function() {
