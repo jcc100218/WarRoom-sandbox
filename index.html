@@ -850,21 +850,20 @@
         .main-layout {
             display: grid;
             grid-template-columns: 120px 1fr 70px;
+            grid-template-rows: calc(100vh - 200px);
             gap: 0.4rem;
             padding: 0.45rem;
-            padding-bottom: 60px;
-            overflow-x: hidden;
-            min-height: calc(100vh - 120px);
+            overflow: hidden;
         }
 
         .left-column,
         .center-column,
         .right-column {
-            max-height: calc(100vh - 150px);
             overflow-y: auto;
             overflow-x: hidden;
             overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
         }
 
         /* Right column: normal column, not fixed bar */
