@@ -1707,13 +1707,20 @@ function TradeCalculator() {
 
     // Total trade value for a side
     const tradeSideValue = useCallback((ids, pickIds = [], faab = 0) => {
-        const playerSum = ids.reduce((sum, id) => sum + (getPlayerValue(id, valueIndex).value || 0), 0);
-        const pickSum   = pickIds.reduce((sum, pkId) => {
+        const playerSum = ids.reduce((sum, id) => {
+            const v = getPlayerValue(id, valueIndex);
+            // INT-source players: IDP defenders use full tiered value; kickers/others capped at 200
+            const val = v.source === 'internal'
+                ? (IDP_POSITIONS.has(normPos(playersData[id]?.position)) ? (v.value || 0) : Math.min(v.value, 200))
+                : (v.value || 0);
+            return sum + val;
+        }, 0);
+        const pickSum = pickIds.reduce((sum, pkId) => {
             const round = Number(pkId.split('-')[2]); // "PICK-year-round-rosterId"
             return sum + (PICK_VALUES[round] || 100);
         }, 0);
         return playerSum + pickSum + Math.round(faab * FAAB_RATE);
-    }, [valueIndex]);
+    }, [valueIndex, playersData]);
 
     // Sorted + filtered assessments for audit tab
     const sortedAssessments = useMemo(() => {
