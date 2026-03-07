@@ -1571,6 +1571,7 @@ function TradeCalculator() {
 
     // Audit — expanded detail panel
     const [selectedAuditTeam, setSelectedAuditTeam] = useState(null); // rosterId
+    const [showEliteModal, setShowEliteModal] = useState(false);
 
     // Bootstrap
     useEffect(() => { boot(); }, []);
@@ -2088,8 +2089,55 @@ function TradeCalculator() {
                     <div className="summary-stat"><span className="summary-val">{eliteCount}</span><span className="summary-lbl">Elite Teams</span></div>
                     <div className="summary-stat"><span className="summary-val" style={{ color:'var(--loss-red)' }}>{highPanic}</span><span className="summary-lbl">High Panic</span></div>
                     <div className="summary-stat"><span className="summary-val">{WEEKLY_TARGET}</span><span className="summary-lbl">Wk Target</span></div>
-                    <div className="summary-stat"><span className="summary-val">{elitePlayerSet.size}</span><span className="summary-lbl">Elite Players</span></div>
+                    <div className="summary-stat" style={{ cursor:'pointer' }} onClick={() => setShowEliteModal(true)}><span className="summary-val" style={{ color:'var(--gold)' }}>{elitePlayerSet.size}</span><span className="summary-lbl" style={{ color:'var(--gold)', opacity:0.8 }}>Elite Players</span></div>
                 </div>
+
+                {/* ── Elite Players Modal ── */}
+                {showEliteModal && (() => {
+                    // Build list: [{name, pos, ownerName}] sorted by position then name
+                    const eliteList = [];
+                    for (const a of assessments) {
+                        for (const [pos, ids] of Object.entries(a.posGroups || {})) {
+                            for (const id of ids) {
+                                if (elitePlayerSet.has(id)) {
+                                    const p = playersData[id];
+                                    if (p) eliteList.push({
+                                        name: `${p.first_name||''} ${p.last_name||''}`.trim(),
+                                        pos: normPos(p.position) || pos,
+                                        ownerName: a.ownerName,
+                                        teamName: a.teamName,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    eliteList.sort((a,b) => (POS_ORDER[a.pos]??9)-(POS_ORDER[b.pos]??9) || a.name.localeCompare(b.name));
+                    // Group by position
+                    const byPos = {};
+                    for (const p of eliteList) { (byPos[p.pos] = byPos[p.pos]||[]).push(p); }
+                    return (
+                        <div onClick={() => setShowEliteModal(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' }}>
+                            <div onClick={e => e.stopPropagation()} style={{ background:'#13171e', border:'1px solid rgba(212,175,55,0.35)', borderRadius:8, padding:'1.2rem', maxWidth:420, width:'100%', maxHeight:'80vh', overflowY:'auto' }}>
+                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.8rem' }}>
+                                    <div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1.2rem', color:'var(--gold)', letterSpacing:'0.08em' }}>★ ELITE PLAYERS ({eliteList.length})</div>
+                                    <button onClick={() => setShowEliteModal(false)} style={{ background:'none', border:'none', color:'var(--silver)', fontSize:'1.1rem', cursor:'pointer', opacity:0.6, lineHeight:1 }}>✕</button>
+                                </div>
+                                <div style={{ fontSize:'0.55rem', color:'var(--silver)', opacity:0.45, marginBottom:'0.8rem' }}>Top 5 at their position league-wide</div>
+                                {Object.entries(byPos).map(([pos, players]) => (
+                                    <div key={pos} style={{ marginBottom:'0.6rem' }}>
+                                        <div style={{ fontSize:'0.6rem', fontWeight:700, color:'var(--silver)', opacity:0.5, letterSpacing:'0.1em', marginBottom:'0.3rem' }}>{pos}</div>
+                                        {players.map((p, i) => (
+                                            <div key={i} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0.3rem 0.4rem', marginBottom:'0.2rem', background:'rgba(212,175,55,0.06)', border:'1px solid rgba(212,175,55,0.18)', borderRadius:4 }}>
+                                                <span style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--gold)' }}>★ {p.name}</span>
+                                                <span style={{ fontSize:'0.58rem', color:'var(--silver)', opacity:0.6, textAlign:'right' }}>{p.ownerName}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 {/* ── MY TEAM — Featured ── */}
                 {myAssessment && (
