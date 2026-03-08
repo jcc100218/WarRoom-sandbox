@@ -421,13 +421,25 @@
         .ta-analyzer-wrap { max-width:none; }
 
         /* ── Trade Analyzer — 3-column layout with scouting panel ─────────── */
-        .ta-3col { display:grid; grid-template-columns:1fr; gap:1.25rem; }
-        @media(min-width:800px){ .ta-3col { grid-template-columns:1fr 1fr; } }
-        @media(min-width:1150px){ .ta-3col { grid-template-columns:1fr 1fr 300px; } }
+        /* Mobile (iPhone): trade sides side-by-side on top, teams panel below */
+        .ta-3col { display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; }
+        @media(min-width:800px){ .ta-3col { grid-template-columns:1fr 1fr; gap:1.25rem; } }
+        @media(min-width:1150px){ .ta-3col { grid-template-columns:1fr 1fr 300px; gap:1.25rem; } }
 
         /* Scouting panel */
-        .scout-panel { background:var(--off-black); border:1px solid rgba(212,175,55,0.2); border-radius:8px; padding:0.75rem; overflow-y:auto; max-height:660px; display:flex; flex-direction:column; gap:0.45rem; grid-row: 1; }
-        @media(min-width:1150px){ .scout-panel { grid-column:3; grid-row:1; } }
+        .scout-panel { background:var(--off-black); border:1px solid rgba(212,175,55,0.2); border-radius:8px; padding:0.75rem; overflow-y:auto; max-height:320px; display:flex; flex-direction:column; gap:0.45rem; grid-column:1 / -1; grid-row:2; }
+        @media(min-width:800px){ .scout-panel { max-height:400px; } }
+        @media(min-width:1150px){ .scout-panel { grid-column:3; grid-row:1; max-height:660px; } }
+
+        /* Tighten side panels on small phones */
+        @media(max-width:480px){
+            .ta-side { padding:0.5rem 0.45rem; gap:0.35rem; }
+            .ta-player-row { padding:0.35rem 0.45rem; }
+            .ta-roster-item { padding:0.3rem 0.45rem; font-size:0.72rem; }
+            .ta-search { font-size:0.75rem; padding:0.35rem 0.45rem; }
+            .ta-roster-filter { font-size:0.72rem; padding:0.3rem 0.45rem; }
+            .ta-total-val { font-size:1.2rem; }
+        }
         .scout-team-card { background:var(--charcoal); border:1px solid rgba(255,255,255,0.07); border-radius:6px; padding:0.6rem 0.7rem; cursor:pointer; transition:border-color 0.15s, background 0.15s; display:flex; flex-direction:column; gap:0.3rem; }
         .scout-team-card:hover { border-color:rgba(212,175,55,0.4); background:rgba(212,175,55,0.04); }
         .scout-team-card.scout-selected { border-color:var(--gold); background:rgba(212,175,55,0.08); }
