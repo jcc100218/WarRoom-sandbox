@@ -591,9 +591,11 @@ async function fetchSeasonStats(year) {
 }
 
 // ─── AI BETA FLAG ─────────────────────────────────────────────────────────────
-// To enable: open browser console and run:  localStorage.setItem('od_ai_beta','true')
-// To disable:                               localStorage.removeItem('od_ai_beta')
-const AI_BETA = localStorage.getItem('od_ai_beta') === 'true';
+// Enable via URL param:  trade-calculator.html?ai=1  (bookmark this on iPad)
+// Enable via console:    localStorage.setItem('od_ai_beta','true')
+const _aiParam = new URLSearchParams(location.search).get('ai') === '1';
+if (_aiParam) localStorage.setItem('od_ai_beta', 'true'); // persist after first visit
+const AI_BETA = _aiParam || localStorage.getItem('od_ai_beta') === 'true';
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const SEASON           = '2026';
