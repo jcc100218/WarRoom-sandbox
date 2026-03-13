@@ -228,6 +228,16 @@
       const [aiError,     setAiError]     = useState(null);
       const [aiChatInput, setAiChatInput] = useState('');
 
+      // Mock Draft state
+      const [mockMySlot,    setMockMySlot]    = useState(1);
+      const [mockRounds,    setMockRounds]    = useState(3);
+      const [mockOwnerDNA,  setMockOwnerDNA]  = useState({});
+      const [mockResults,   setMockResults]   = useState(null);
+      const [mockCurrentPick, setMockCurrentPick] = useState(0);
+      const [mockIsPlaying, setMockIsPlaying] = useState(false);
+      const [mockLoading,   setMockLoading]   = useState(false);
+      const [mockError,     setMockError]     = useState(null);
+
       // Auto-load on mount if we have URL params
       useEffect(() => {
         if (urlParams.username) {
@@ -252,6 +262,14 @@
             setPlayers(mockPlayers);
           });
       }, []);
+
+      // Auto-advance mock draft picks
+      useEffect(() => {
+        if (!mockIsPlaying || !mockResults) return;
+        if (mockCurrentPick >= mockResults.length) { setMockIsPlaying(false); return; }
+        const t = setTimeout(() => setMockCurrentPick(p => p + 1), 1100);
+        return () => clearTimeout(t);
+      }, [mockIsPlaying, mockCurrentPick, mockResults]);
 
       const fetchSleeperUser = async (username, season) => {
         if (!username) {
@@ -651,6 +669,47 @@
           setAiLoading(false);
         }
       }
+      // ---- Mock Draft helpers ---------------------------------------------
+      function buildMockContext() {
+        const numSlots = Object.keys(draftSlotOwners).length || leagueUsers.length || 12;
+        const draftSlots = Array.from({ length: numSlots }, (_, i) => {
+          const slot = i + 1;
+          const ownerInfo = draftSlotOwners[slot];
+          const leagueUser = leagueUsers[i];
+          const name = ownerInfo?.displayName || leagueUser?.display_name || `Team ${slot}`;
+          return { slot, name, dna: mockOwnerDNA[slot] || 'Unknown', needs: [] };
+        });
+        const topPlayers = players.slice(0, numSlots * mockRounds + 20).map(p => ({
+          name: p.name, pos: p.pos, tier: p.tier,
+        }));
+        return { numTeams: numSlots, numRounds: mockRounds, draftType: 'snake', mySlot: mockMySlot, draftSlots, players: topPlayers, leagueName: selectedLeague?.name || 'Mock Draft' };
+      }
+
+      async function runMockDraft() {
+        setMockLoading(true); setMockError(null); setMockResults(null); setMockCurrentPick(0); setMockIsPlaying(false);
+        try {
+          const ctx = buildMockContext();
+          const resp = await fetch(`${SUPABASE_URL}/functions/v1/ai-analyze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'apikey': SUPABASE_ANON_KEY },
+            body: JSON.stringify({ type: 'mock_draft', context: ctx }),
+          });
+          if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || `HTTP ${resp.status}`); }
+          const result = await resp.json();
+          const picks = result.picks || (() => {
+            try { return JSON.parse(result.analysis); }
+            catch { const m = result.analysis?.match(/\[[\s\S]*\]/); return m ? JSON.parse(m[0]) : null; }
+          })();
+          if (!picks?.length) throw new Error('AI returned no picks — try again.');
+          setMockResults(picks);
+          setMockCurrentPick(1);
+          setMockIsPlaying(true);
+        } catch(e) {
+          setMockError(e.message);
+        } finally {
+          setMockLoading(false);
+        }
+      }
       // ---------------------------------------------------------------------
 
       const picksByRound = draftOrder.reduce((acc, pick) => {
@@ -946,6 +1005,14 @@
                       >
                         Ask AI
                       </button>
+                      <button
+                        onClick={() => setAiMode('mock_draft')}
+                        className={`flex-1 px-1 md:px-2 py-0.5 md:py-1 rounded text-[10px] md:text-xs font-semibold font-oswald uppercase tracking-wide ${
+                          aiMode === 'mock_draft' ? 'border border-gold text-gold bg-gold/10' : 'border border-gold/30 text-silver'
+                        }`}
+                      >
+                        ⚡ Mock Draft
+                      </button>
                     </>
                   )}
                   <button
@@ -1046,6 +1113,120 @@
                     </div>
                   ))}
                 </div>
+              ) : aiMode === 'mock_draft' ? (
+                /* AI Mock Draft panel */
+                (() => {
+                  const numSlots = Object.keys(draftSlotOwners).length || leagueUsers.length || 12;
+                  const slots = Array.from({ length: numSlots }, (_, i) => i + 1);
+                  const DNA_TYPES = ['Unknown', 'Win Now', 'Rebuilder', 'Value Drafter', 'Need Drafter', 'Contrarian', 'Risk Averse', 'Aggressive'];
+                  const POS_BG = { QB: '#EF4444', RB: '#22C55E', WR: '#3B82F6', TE: '#A855F7', EDGE: '#F97316', DL: '#6B7280', LB: '#84CC16', CB: '#06B6D4', S: '#14B8A6', K: '#9CA3AF' };
+
+                  if (mockResults) {
+                    const visible = mockResults.slice(0, mockCurrentPick);
+                    return (
+                      <div className="flex-1 overflow-y-auto scroll-container p-2 md:p-3">
+                        {/* Controls */}
+                        <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-gold/20">
+                          <span className="text-[9px] text-silver font-mono">Pick {Math.min(mockCurrentPick, mockResults.length)}/{mockResults.length}</span>
+                          <div className="flex-1" />
+                          <button onClick={() => setMockIsPlaying(p => !p)}
+                            className="text-gold text-[10px] px-2 py-0.5 border border-gold/40 rounded hover:bg-gold/10 font-oswald">
+                            {mockIsPlaying ? '⏸ Pause' : '▶ Play'}
+                          </button>
+                          <button onClick={() => setMockCurrentPick(mockResults.length)}
+                            className="text-silver text-[10px] px-1.5 py-0.5 border border-gold/20 rounded hover:bg-charcoal font-oswald">
+                            ⏭ All
+                          </button>
+                          <button onClick={() => { setMockResults(null); setMockCurrentPick(0); setMockIsPlaying(false); }}
+                            className="text-silver text-[10px] px-1.5 py-0.5 border border-gold/20 rounded hover:bg-charcoal font-oswald">
+                            ↺
+                          </button>
+                        </div>
+                        {/* Pick cards */}
+                        <div className="space-y-1">
+                          {visible.map(pick => {
+                            const isMe = pick.slot === mockMySlot;
+                            return (
+                              <div key={pick.pick} className={`p-1.5 rounded border text-xs ${isMe ? 'border-gold bg-gold/10' : 'border-gold/15 bg-charcoal/40'}`}>
+                                <div className="flex items-center gap-1 mb-0.5">
+                                  <span className="text-silver opacity-40 font-mono text-[9px] w-7 flex-shrink-0">{pick.round}.{String(pick.slot).padStart(2,'0')}</span>
+                                  <span className="px-1 py-0 rounded text-[8px] font-bold text-black flex-shrink-0"
+                                    style={{ backgroundColor: POS_BG[pick.pos] || '#6B7280' }}>{pick.pos}</span>
+                                  {pick.tier <= 2 && <span className="text-gold text-[8px] flex-shrink-0">★T{pick.tier}</span>}
+                                  <span className="font-bold text-white flex-1 truncate text-[10px]">{pick.player}</span>
+                                  {isMe && <span className="text-gold text-[8px] font-bold flex-shrink-0">MY PICK</span>}
+                                </div>
+                                <div className="text-silver opacity-50 text-[9px] leading-tight truncate pl-7">{pick.owner} · {pick.reason}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {mockIsPlaying && mockCurrentPick < mockResults.length && (
+                          <div className="flex justify-center py-3">
+                            <span style={{display:'inline-block',width:'12px',height:'12px',border:'2px solid rgba(212,175,55,0.3)',borderTopColor:'#D4AF37',borderRadius:'50%',animation:'ai-spin 0.75s linear infinite'}} />
+                          </div>
+                        )}
+                        {mockCurrentPick >= mockResults.length && (
+                          <div className="text-center text-gold text-[10px] opacity-50 pt-3 font-oswald tracking-widest">— DRAFT COMPLETE —</div>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="flex-1 overflow-y-auto scroll-container p-3 md:p-4">
+                      <p className="text-silver text-[10px] mb-3 opacity-60 leading-relaxed">
+                        AI simulates each owner's actual draft behavior based on their DNA — not just BPA.
+                      </p>
+                      {/* My slot */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-gold text-[10px] font-bold whitespace-nowrap">My Slot:</span>
+                        <select value={mockMySlot} onChange={e => setMockMySlot(+e.target.value)}
+                          className="flex-1 bg-charcoal border border-gold/30 rounded px-2 py-0.5 text-[10px] text-white">
+                          {slots.map(s => (
+                            <option key={s} value={s}>Slot {s} — {draftSlotOwners[s]?.displayName || leagueUsers[s-1]?.display_name || `Team ${s}`}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {/* Rounds */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-gold text-[10px] font-bold whitespace-nowrap">Rounds:</span>
+                        <select value={mockRounds} onChange={e => setMockRounds(+e.target.value)}
+                          className="bg-charcoal border border-gold/30 rounded px-2 py-0.5 text-[10px] text-white">
+                          {[2, 3, 4, 5].map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </div>
+                      {/* Owner DNA setup */}
+                      <div className="text-[9px] text-silver mb-1 uppercase tracking-wider opacity-50 font-bold">Owner DNA</div>
+                      <div className="space-y-0.5 mb-4 max-h-52 overflow-y-auto scroll-container">
+                        {slots.map(slot => (
+                          <div key={slot} className={`flex items-center gap-1.5 py-1 px-1.5 rounded ${slot === mockMySlot ? 'bg-gold/10 border border-gold/30' : 'bg-charcoal/30'}`}>
+                            <span className="w-5 text-silver text-center text-[9px] font-mono flex-shrink-0">{slot}</span>
+                            <span className="flex-1 text-white text-[9px] truncate">
+                              {draftSlotOwners[slot]?.displayName || leagueUsers[slot-1]?.display_name || `Team ${slot}`}
+                              {slot === mockMySlot && <span className="text-gold ml-1 text-[8px]">★</span>}
+                            </span>
+                            <select value={mockOwnerDNA[slot] || 'Unknown'}
+                              onChange={e => setMockOwnerDNA(prev => ({...prev, [slot]: e.target.value}))}
+                              className="bg-off-black border border-gold/20 rounded px-1 py-0 text-[8px] text-white flex-shrink-0">
+                              {DNA_TYPES.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
+                          </div>
+                        ))}
+                      </div>
+                      <button onClick={runMockDraft} disabled={mockLoading}
+                        className="w-full px-4 py-2 border border-gold text-gold bg-gold/10 hover:bg-gold/20 disabled:opacity-40 disabled:cursor-not-allowed rounded text-xs font-bold font-oswald tracking-widest uppercase flex items-center justify-center gap-2">
+                        {mockLoading ? (
+                          <>
+                            <span style={{display:'inline-block',width:'10px',height:'10px',border:'2px solid rgba(212,175,55,0.3)',borderTopColor:'#D4AF37',borderRadius:'50%',animation:'ai-spin 0.75s linear infinite'}} />
+                            Simulating Draft...
+                          </>
+                        ) : '⚡ Run AI Mock Draft'}
+                      </button>
+                      {mockError && <div className="mt-3 text-loss-red text-xs">⚠ {mockError}</div>}
+                    </div>
+                  );
+                })()
               ) : (
                 /* AI Scout panel */
                 <div className="flex-1 overflow-y-auto scroll-container p-3 md:p-4">
