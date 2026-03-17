@@ -30,12 +30,6 @@ create table if not exists public.app_users (
 
 -- ── PRODUCTS ───────────────────────────────────────────────────
 -- Seed once; reference by slug in subscriptions.
-insert into public.products (slug, name, description, created_at)
-values
-    ('war_room',   'Fantasy War Room', 'Fantasy football command center — trades, FA, AI analysis, draft boards', now()),
-    ('dynast_hq',  'Dynast HQ',        'Dynasty-specific tools — long-term roster building, prospect tracking, dynasty rankings', now())
-on conflict (slug) do nothing;
-
 create table if not exists public.products (
     id          uuid primary key default gen_random_uuid(),
     slug        text unique not null,           -- 'war_room' | 'dynast_hq'
@@ -44,15 +38,11 @@ create table if not exists public.products (
     created_at  timestamptz default now()
 );
 
--- Re-run insert after table exists (Supabase runs top-to-bottom; use a DO block for safety)
-do $$
-begin
-    insert into public.products (slug, name, description)
-    values
-        ('war_room',  'Fantasy War Room', 'Fantasy football command center — trades, FA, AI analysis, draft boards'),
-        ('dynast_hq', 'Dynast HQ',        'Dynasty-specific tools — long-term roster building, prospect tracking, dynasty rankings')
-    on conflict (slug) do nothing;
-end$$;
+insert into public.products (slug, name, description)
+values
+    ('war_room',  'Fantasy War Room', 'Fantasy football command center — trades, FA, AI analysis, draft boards'),
+    ('dynast_hq', 'Dynast HQ',        'Dynasty-specific tools — long-term roster building, prospect tracking, dynasty rankings')
+on conflict (slug) do nothing;
 
 -- ── SUBSCRIPTIONS ─────────────────────────────────────────────
 create table if not exists public.subscriptions (
