@@ -11,27 +11,63 @@
 const SUPABASE_URL  = 'https://sxshiqyxhhifvtfqawbq.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4c2hpcXl4aGhpZnZ0ZnFhd2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MTExMzAsImV4cCI6MjA4ODI4NzEzMH0.zJi9W986ZLaANiZN6pt6ReFwaQU6yPeidsERIWo2ibI';
 
-// ── Bootstrap Supabase client (loaded via CDN in each HTML file) ──
-let _supabase = null;
-function getClient() {
-    if (!_supabase) {
-        if (typeof window.supabase === 'undefined') {
-            console.warn('[OD] Supabase CDN not loaded — falling back to localStorage only');
-            return null;
+// ── Session token storage ─────────────────────────────────────
+// Returns the best available JWT for the current session.
+// Checks both the legacy Sleeper session (od_session_v1) and the new
+// email-based Fantasy Wars session (fw_session_v1) from landing.html.
+const SESSION_LS_KEY = 'od_session_v1';
+const FW_SESSION_KEY  = 'fw_session_v1';
+
+function getSessionToken() {
+    // ── New email-based session (landing.html → fw-signup/fw-signin) ──
+    try {
+        const raw = localStorage.getItem(FW_SESSION_KEY);
+        if (raw) {
+            const s = JSON.parse(raw);
+            // fw_session_v1 shape: { token, user: { ... } }
+            if (s?.token) return s.token;
         }
-        _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    } catch {}
+
+    // ── Legacy Sleeper session (login.html → get-session-token) ──
+    try {
+        const raw = localStorage.getItem(SESSION_LS_KEY);
+        if (!raw) return null;
+        const s = JSON.parse(raw);
+        if (!s?.token || !s?.expiresAt) return null;
+        // Treat token as expired 5 minutes early to avoid edge-case failures
+        if (Date.now() >= new Date(s.expiresAt).getTime() - 5 * 60 * 1000) return null;
+        return s.token;
+    } catch { return null; }
+}
+
+// ── Bootstrap Supabase client ─────────────────────────────────
+// Uses the session token (JWT) when available so RLS policies apply.
+let _supabase = null;
+let _supabaseToken = null;
+
+function getClient() {
+    if (typeof window.supabase === 'undefined') {
+        console.warn('[OD] Supabase CDN not loaded — falling back to localStorage only');
+        return null;
     }
+    const token = getSessionToken();
+    // Re-create client only when the token changes
+    if (_supabase && _supabaseToken === token) return _supabase;
+    const opts = token
+        ? { global: { headers: { Authorization: `Bearer ${token}` } } }
+        : {};
+    _supabase      = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, opts);
+    _supabaseToken = token;
     return _supabase;
 }
 
-// Returns true when the keys look real (not placeholders)
 function isConfigured() {
     return SUPABASE_URL !== 'YOUR_SUPABASE_URL' &&
            SUPABASE_ANON !== 'YOUR_SUPABASE_ANON_KEY';
 }
 
 // ── Username helper ───────────────────────────────────────────
-// Reads the Sleeper username that login.html stored.
 function getCurrentUsername() {
     try {
         const raw = localStorage.getItem('od_auth_v1');
@@ -45,12 +81,48 @@ function getCurrentUsername() {
 async function ensureUser(username) {
     const db = getClient();
     if (!db || !username) return;
-    // upsert so first-time owners get a row without error
     await db.from('users').upsert(
         { sleeper_username: username },
         { onConflict: 'sleeper_username', ignoreDuplicates: true }
     );
 }
+
+// ============================================================
+// AUTH — Session token acquisition
+// Called after every successful login to obtain a signed JWT
+// that the Supabase RLS policies use for per-user enforcement.
+// ============================================================
+window.OD = window.OD || {};
+
+/**
+ * Acquire (or refresh) a session token from the get-session-token
+ * Edge Function. Stores the result in localStorage.
+ *
+ * @param {string} username   - Sleeper username
+ * @param {string} [password] - Required only for gifted accounts
+ * @returns {{ token, expiresAt, isGifted } | null}
+ */
+window.OD.acquireSessionToken = async function(username, password) {
+    if (!isConfigured() || !username) return null;
+    try {
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/get-session-token`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_ANON,
+            },
+            body: JSON.stringify({ username, password: password || undefined }),
+        });
+        if (!resp.ok) return null;
+        const session = await resp.json();
+        if (!session?.token) return null;
+        localStorage.setItem(SESSION_LS_KEY, JSON.stringify(session));
+        // Reset cached client so next call picks up the new token
+        _supabase = null;
+        _supabaseToken = null;
+        return session;
+    } catch { return null; }
+};
 
 // ============================================================
 // CALENDAR EVENTS
@@ -80,7 +152,6 @@ async function dbSaveCalendarEvents(username, events) {
     if (!db || !isConfigured() || !username) return;
     await ensureUser(username);
 
-    // Upsert all events for this user
     const rows = events.map(e => ({
         id: e.id, username, title: e.title, date: e.date,
         time: e.time || '', league: e.league || '', details: e.details || ''
@@ -100,11 +171,7 @@ async function dbSaveCalendarEvents(username, events) {
     }
 }
 
-// Public API — wraps Supabase with localStorage fallback
-window.OD = window.OD || {};
-
 window.OD.loadCalendarEvents = async function(defaultEvents) {
-    // Always read localStorage first (instant, works offline)
     let local = null;
     try {
         const raw = localStorage.getItem(CALENDAR_LS_KEY);
@@ -115,7 +182,6 @@ window.OD.loadCalendarEvents = async function(defaultEvents) {
     if (isConfigured() && username) {
         const remote = await dbLoadCalendarEvents(username);
         if (remote !== null) {
-            // Merge remote + any new defaults not already in remote
             const remoteIds = new Set(remote.map(e => e.id));
             const missingDefaults = (defaultEvents || []).filter(d => !remoteIds.has(d.id));
             const merged = [...remote, ...missingDefaults];
@@ -124,7 +190,6 @@ window.OD.loadCalendarEvents = async function(defaultEvents) {
         }
     }
 
-    // Fallback to localStorage
     if (local) {
         const localIds = new Set(local.map(e => e.id));
         const missing = (defaultEvents || []).filter(d => !localIds.has(d.id));
@@ -136,15 +201,12 @@ window.OD.loadCalendarEvents = async function(defaultEvents) {
         return local;
     }
 
-    // First ever load — seed defaults
     localStorage.setItem(CALENDAR_LS_KEY, JSON.stringify(defaultEvents || []));
     return defaultEvents || [];
 };
 
 window.OD.saveCalendarEvents = function(events) {
-    // Write to localStorage immediately (sync, works offline)
     localStorage.setItem(CALENDAR_LS_KEY, JSON.stringify(events));
-    // Persist to Supabase in the background
     const username = getCurrentUsername();
     if (isConfigured() && username) {
         dbSaveCalendarEvents(username, events).catch(console.warn);
@@ -182,7 +244,6 @@ async function dbSaveEarnings(username, entries) {
         if (error) console.warn('[OD] earnings save error', error);
     }
 
-    // Delete removed entries
     const { data: existing } = await db.from('earnings').select('id').eq('username', username);
     const keepIds = new Set(entries.map(e => e.id));
     const toDelete = (existing || []).map(r => r.id).filter(id => !keepIds.has(id));
@@ -259,11 +320,7 @@ window.OD.loadTargets = async function(leagueId) {
     const username = getCurrentUsername();
     if (isConfigured() && username) {
         const remote = await dbLoadTargets(username, leagueId);
-        if (remote !== null) {
-            // Don't overwrite localStorage here — the caller may have fresher data
-            // (e.g. a target added just before an auto-reload). saveTargets() handles sync.
-            return remote;
-        }
+        if (remote !== null) return remote;
     }
     return local || { startingBudget: 1000, targets: [] };
 };
@@ -309,6 +366,8 @@ window.OD.saveDisplayName = function(name) {
 
 // ============================================================
 // DIRECT MESSAGES
+// Paginated: load the most recent `limit` messages (default 100),
+// call with offset to page backwards through history.
 // ============================================================
 
 window.OD.sendDM = async function(toUsername, body) {
@@ -320,7 +379,7 @@ window.OD.sendDM = async function(toUsername, body) {
     if (error) throw error;
 };
 
-window.OD.loadDMs = async function() {
+window.OD.loadDMs = async function({ limit = 100, offset = 0 } = {}) {
     const username = getCurrentUsername();
     const db = getClient();
     if (!db || !isConfigured() || !username) return [];
@@ -328,7 +387,8 @@ window.OD.loadDMs = async function() {
         .from('messages')
         .select('*')
         .or(`from_username.eq.${username},to_username.eq.${username}`)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true })
+        .range(offset, offset + limit - 1);
     if (error) return [];
     return data || [];
 };
@@ -345,35 +405,27 @@ window.OD.markDMsRead = async function(fromUsername) {
 };
 
 // ============================================================
-// GIFT USERS — create a personalised dashboard for a league mate
+// GIFT USERS
+// Password is hashed server-side (bcrypt) via the set-password
+// Edge Function — no sensitive crypto happens in the browser.
 // ============================================================
 
-// Hash a password (same SHA-256 approach as login.html)
-async function hashPassword(password) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// Create (or update) a gifted user row in Supabase
 window.OD.createGiftUser = async function({ sleeperUsername, password, displayName }) {
-    const db = getClient();
-    if (!db || !isConfigured()) throw new Error('Supabase not configured');
+    if (!isConfigured()) throw new Error('Supabase not configured');
+    const token = getSessionToken();
+    if (!token) throw new Error('You must be logged in to gift a dashboard');
 
-    const passwordHash = await hashPassword(password);
-
-    const { error } = await db.from('users').upsert(
-        {
-            sleeper_username: sleeperUsername,
-            password_hash: passwordHash,
-            display_name: displayName || null,
-            is_gifted: true,
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/set-password`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'apikey': SUPABASE_ANON,
         },
-        { onConflict: 'sleeper_username' }
-    );
-    if (error) throw error;
+        body: JSON.stringify({ username: sleeperUsername, password, displayName: displayName || undefined }),
+    });
+    const result = await resp.json();
+    if (!resp.ok) throw new Error(result.error || 'Failed to create gift user');
 };
 
 // Check which usernames from a list already have dashboard accounts in Supabase.
@@ -407,28 +459,34 @@ window.OD.verifySupabasePassword = async function(username, password) {
 
 // Update password hash in Supabase (for change-password feature)
 window.OD.updatePassword = async function(username, newPassword) {
-    const db = getClient();
-    if (!db || !isConfigured() || !username) return;
-    const passwordHash = await hashPassword(newPassword);
-    const { error } = await db
-        .from('users')
-        .update({ password_hash: passwordHash, is_gifted: false })
-        .eq('sleeper_username', username);
-    if (error) throw error;
+    if (!isConfigured()) throw new Error('Supabase not configured');
+    const token = getSessionToken();
+    if (!token) throw new Error('You must be logged in to change your password');
+
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/set-password`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'apikey': SUPABASE_ANON,
+        },
+        body: JSON.stringify({ username, password: newPassword }),
+    });
+    const result = await resp.json();
+    if (!resp.ok) throw new Error(result.error || 'Failed to update password');
 };
 
 // ============================================================
-// AI ANALYSIS — hidden beta feature
-// Calls the Supabase Edge Function which proxies Claude API.
-// Enabled by setting localStorage key: od_ai_beta = 'true'
+// AI ANALYSIS
 // ============================================================
 
 window.OD.callAI = async function({ type, context }) {
+    const token = getSessionToken();
     const response = await fetch(`${SUPABASE_URL}/functions/v1/ai-analyze`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_ANON}`,
+            'Authorization': `Bearer ${token || SUPABASE_ANON}`,
             'apikey': SUPABASE_ANON,
         },
         body: JSON.stringify({ type, context }),
@@ -437,7 +495,7 @@ window.OD.callAI = async function({ type, context }) {
         const err = await response.json().catch(() => ({}));
         throw new Error(err.error || `AI call failed (${response.status})`);
     }
-    return response.json(); // { analysis: string }
+    return response.json();
 };
 
 window.OD.saveAIAnalysis = async function(leagueId, type, contextSummary, analysis) {
@@ -470,8 +528,6 @@ window.OD.loadAIHistory = async function(leagueId) {
 
 // ============================================================
 // OWNER DNA PROFILES
-// Persists { ownerId: DNA_TYPE_KEY } maps to Supabase so they
-// survive cache clears.  Falls back to localStorage gracefully.
 // ============================================================
 const DNA_LS_KEY = id => `od_owner_dna_v1_${id}`;
 
@@ -507,7 +563,6 @@ window.OD.loadDNA = async function(leagueId) {
     if (isConfigured() && username) {
         const remote = await dbLoadDNA(username, leagueId);
         if (remote !== null) {
-            // Merge: remote is source of truth, but keep any local keys not yet synced
             const merged = { ...local, ...remote };
             localStorage.setItem(DNA_LS_KEY(leagueId), JSON.stringify(merged));
             return merged;
@@ -525,22 +580,59 @@ window.OD.saveDNA = function(leagueId, dnaMap) {
 };
 
 // ============================================================
-// STATUS INDICATOR (injected into page for easy debugging)
+// USER PROFILE — tier, platforms, onboarding status
+//
+// Required Supabase SQL (run once in SQL editor):
+//   ALTER TABLE users ADD COLUMN IF NOT EXISTS tier text DEFAULT 'free';
+//   ALTER TABLE users ADD COLUMN IF NOT EXISTS fantasy_platforms jsonb DEFAULT '[]';
+//   ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_complete boolean DEFAULT false;
+// ============================================================
+
+window.OD.saveProfile = async function(profile) {
+    const username = getCurrentUsername();
+    const db = getClient();
+    if (!db || !isConfigured() || !username) return;
+    await ensureUser(username);
+    const { error } = await db.from('users').update({
+        tier:                profile.tier               || 'free',
+        fantasy_platforms:   profile.platforms          || ['sleeper'],
+        onboarding_complete: profile.onboardingComplete || false,
+    }).eq('sleeper_username', username);
+    if (error) console.warn('[OD] profile save error', error);
+};
+
+window.OD.loadProfile = async function() {
+    const username = getCurrentUsername();
+    const db = getClient();
+    if (!db || !isConfigured() || !username) return null;
+    const { data, error } = await db
+        .from('users')
+        .select('tier, fantasy_platforms, onboarding_complete')
+        .eq('sleeper_username', username)
+        .maybeSingle();
+    if (error || !data) return null;
+    return {
+        tier:               data.tier               || 'free',
+        platforms:          data.fantasy_platforms  || ['sleeper'],
+        onboardingComplete: data.onboarding_complete || false,
+    };
+};
+
+// ============================================================
+// STATUS INDICATOR
 // ============================================================
 window.OD.status = function() {
     if (!isConfigured()) return console.log('[OD] Supabase not configured — using localStorage only');
     const db = getClient();
     if (!db) return console.log('[OD] Supabase CDN not loaded');
+    const token = getSessionToken();
     console.log('[OD] Supabase connected:', SUPABASE_URL);
     console.log('[OD] Current user:', getCurrentUsername() || '(not logged in)');
+    console.log('[OD] Session token:', token ? 'valid' : 'none — DB writes will be blocked by RLS');
 };
 
 // ============================================================
 // AUTO-UPDATE POLLING
-// Polls this page's own URL via HEAD every 2 minutes.
-// When the ETag/Last-Modified changes (new deploy on GitHub
-// Pages), shows a brief toast then silently reloads — so all
-// owners always run the latest version without manual refresh.
 // ============================================================
 (function startAutoUpdatePoller() {
     if (typeof fetch === 'undefined' || typeof window === 'undefined') return;
@@ -550,7 +642,6 @@ window.OD.status = function() {
     async function getSignature() {
         try {
             const r = await fetch(location.href, { method: 'HEAD', cache: 'no-store' });
-            // Prefer ETag; fall back to Last-Modified
             return r.headers.get('etag') || r.headers.get('last-modified') || null;
         } catch { return null; }
     }
@@ -569,13 +660,12 @@ window.OD.status = function() {
         setTimeout(() => location.reload(), 1500);
     }
 
-    // Wait 5 s for page to fully settle, then capture baseline
     setTimeout(async () => {
         baseline = await getSignature();
         setInterval(async () => {
             if (!baseline) { baseline = await getSignature(); return; }
             const current = await getSignature();
             if (current && current !== baseline) reload();
-        }, 2 * 60 * 1000); // poll every 2 minutes
+        }, 2 * 60 * 1000);
     }, 5000);
 })();

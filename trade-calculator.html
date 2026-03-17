@@ -574,11 +574,15 @@ const fetchLeagueInfo = id     => apiFetch(`${SLEEPER_BASE}/league/${id}`);
 const fetchLeagueUsers= id     => apiFetch(`${SLEEPER_BASE}/league/${id}/users`);
 const fetchTradedPicks= id     => apiFetch(`${SLEEPER_BASE}/league/${id}/traded_picks`);
 
-let _playersCache = null;
+let _playersCacheData = null;
+let _playersCacheTime = 0;
+const PLAYERS_TTL_MS = 60 * 60 * 1000; // 1 hour — player statuses/injuries change
 async function fetchPlayers() {
-    if (_playersCache) return _playersCache;
-    _playersCache = await apiFetch(`${SLEEPER_BASE}/players/nfl`);
-    return _playersCache;
+    const now = Date.now();
+    if (_playersCacheData && (now - _playersCacheTime) < PLAYERS_TTL_MS) return _playersCacheData;
+    _playersCacheData = await apiFetch(`${SLEEPER_BASE}/players/nfl`);
+    _playersCacheTime = now;
+    return _playersCacheData;
 }
 let _statsCache = {};
 async function fetchSeasonStats(year) {
@@ -595,7 +599,8 @@ async function fetchSeasonStats(year) {
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const SEASON           = '2026';
 const AVAILABLE_YEARS  = ['2023', '2024', '2025', '2026'];
-const STATS_YEAR = '2025';
+// NFL regular season runs Sept–Jan; before Sept, stats year is the prior calendar year
+const STATS_YEAR = (() => { const d = new Date(); return String(d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1); })();
 
 // Psycho League baseline (user-defined)
 const WEEKLY_TARGET = 243;
@@ -825,10 +830,13 @@ function saveDNA(lid, data) {
 // ─── FANTASYCALC MARKET VALUE ENGINE ─────────────────────────────────────────
 // FantasyCalc public API — dynasty, 2QB/SuperFlex, full PPR
 const FC_URL = 'https://api.fantasycalc.com/values/current?isDynasty=true&numQbs=2&ppr=1&superflex=true';
-let _fcCache = null;
+const FC_TTL_MS = 30 * 60 * 1000; // 30 minutes — values shift daily with news/injuries
+let _fcCacheData = null;
+let _fcCacheTime = 0;
 
 async function fetchFantasyCalcValues() {
-    if (_fcCache) return _fcCache;
+    const now = Date.now();
+    if (_fcCacheData && (now - _fcCacheTime) < FC_TTL_MS) return _fcCacheData;
     try {
         const r = await fetch(FC_URL);
         if (!r.ok) throw new Error(`FC HTTP ${r.status}`);
@@ -839,12 +847,13 @@ async function fetchFantasyCalcValues() {
             const sid = entry.player?.sleeperId || entry.player?.maybeSleeperID;
             if (sid) idx[String(sid)] = { value: entry.value || 0, trend: entry.trend30Day || 0, rank: entry.overallRank || 999, posRank: entry.positionRank || 999, source: 'fc' };
         }
-        _fcCache = idx;
+        _fcCacheData = idx;
+        _fcCacheTime = now;
         return idx;
     } catch(e) {
         console.warn('FantasyCalc fetch failed:', e.message);
-        _fcCache = {};
-        return {};
+        if (!_fcCacheData) _fcCacheData = {};
+        return _fcCacheData;
     }
 }
 
@@ -1329,6 +1338,7 @@ function assessTeam(roster, playersData, statsData, leagueInfo, users, nflStarte
     );
 
     // Health score: 60% scoring + 40% coverage  (kept as a diagnostic 0-100 number)
+    // Projection bonus lifts ELITE teams above CONTENDER teams with equal coverage
     const scoringScore  = Math.min(60, (weeklyPts / WEEKLY_TARGET) * 60);
     let coverageScore   = 0;
     const hasValueData = Object.keys(nflStarterSet).length > 0;
@@ -1340,7 +1350,8 @@ function assessTeam(roster, playersData, statsData, leagueInfo, users, nflStarte
             : Math.min(1, data.actual / data.ideal);
         coverageScore += ratio * ((POS_WEIGHTS[pos]||0) / TOTAL_WEIGHT) * 40;
     }
-    const healthScore = Math.round(scoringScore + coverageScore);
+    const projBonus   = weeklyPts > WEEKLY_TARGET + 10 ? 3 : weeklyPts >= WEEKLY_TARGET ? 1 : 0;
+    const healthScore = Math.min(100, Math.round(scoringScore + coverageScore + projBonus));
 
     // ── Tier classification ─────────────────────────────────────────────────
     // Driven PURELY by weekly scoring vs the 243 target so that deep dynasty
@@ -1712,7 +1723,7 @@ function TradeCalculator() {
     const [tradedPicks, setTradedPicks] = useState([]);
     const [loading,     setLoading]     = useState(false);
 
-    const [activeTab,    setActiveTab]    = useState('guide');
+    const [activeTab,    setActiveTab]    = useState(() => sessionStorage.getItem('tc_activeTab') || 'guide');
     const [myRosterId,   setMyRosterId]   = useState(null);
     const [ownerDna,      setOwnerDna]      = useState({});   // { ownerId: DNA_TYPE_KEY }
     const [ownerDraftDna, setOwnerDraftDna] = useState({});  // { ownerId: { label, tendency, ... } }
@@ -2119,7 +2130,7 @@ function TradeCalculator() {
                 </div>
 
                 <div style={{ textAlign:'center', marginTop:'1.5rem' }}>
-                    <button className="outcome-btn primary" onClick={() => setActiveTab('audit')} style={{ fontSize:'0.8rem', padding:'0.5rem 1.5rem' }}>
+                    <button className="outcome-btn primary" onClick={() => { sessionStorage.setItem('tc_activeTab', 'audit'); setActiveTab('audit'); }} style={{ fontSize:'0.8rem', padding:'0.5rem 1.5rem' }}>
                         Start with Roster Audit →
                     </button>
                 </div>
@@ -3331,8 +3342,8 @@ function TradeCalculator() {
                 {/* Source indicator */}
                 <div style={{ fontSize:'0.62rem', color:'var(--silver)', opacity:0.45, marginBottom:'0.75rem', lineHeight:1.5 }}>
                     {fcReady
-                        ? <>Values sourced from <strong style={{ color:'var(--gold)' }}>FantasyCalc</strong> (dynasty 2QB/SF, full PPR). IDP defenders use 2025 total-points tiers <span className="source-badge">ELITE</span><span className="source-badge">T1</span><span className="source-badge">T2</span><span className="source-badge">T3</span>; kickers use percentile rank <span className="source-badge">INT</span>.</>
-                        : <>FantasyCalc unavailable — showing internal stats-based values only. IDP defenders use 2025 total-points tiers <span className="source-badge">ELITE</span><span className="source-badge">T1</span><span className="source-badge">T2</span><span className="source-badge">T3</span>.</>
+                        ? <>Values sourced from <strong style={{ color:'var(--gold)' }}>FantasyCalc</strong> (dynasty 2QB/SF, full PPR). IDP defenders use {STATS_YEAR} total-points tiers <span className="source-badge">ELITE</span><span className="source-badge">T1</span><span className="source-badge">T2</span><span className="source-badge">T3</span>; kickers use percentile rank <span className="source-badge">INT</span>.</>
+                        : <>FantasyCalc unavailable — showing internal stats-based values only. IDP defenders use {STATS_YEAR} total-points tiers <span className="source-badge">ELITE</span><span className="source-badge">T1</span><span className="source-badge">T2</span><span className="source-badge">T3</span>.</>
                     }
                 </div>
 
@@ -3785,8 +3796,18 @@ function TradeCalculator() {
                 return { ...base, myTeam: { owner: myAssessment.ownerName, record: `${myAssessment.wins}-${myAssessment.losses}`, tier: myAssessment.tier, healthScore: myAssessment.healthScore, needs: needsToStrings(myAssessment.needs), strengths: myAssessment.strengths, posture: calcOwnerPosture(myAssessment, myDnaKey) }, partners };
             }
 
-            // chat
-            return { ...base, teams: teamSummaries, question: aiChatInput };
+            // chat — include per-team player lists so the AI knows who has who
+            const teamsWithRosters = assessments.map(a => {
+                const summary = teamSummaries.find(s => s.owner === a.ownerName) || {};
+                const players = Object.values(a.posGroups || {}).flat().map(id => {
+                    const p = playersData[id];
+                    if (!p) return null;
+                    const v = getPlayerValue(id, valueIndex);
+                    return `${normPos(p.position)} ${(p.first_name||'')} ${(p.last_name||'')}`.trim() + (v.value > 0 ? ` (val:${v.value})` : '');
+                }).filter(Boolean);
+                return { ...summary, players };
+            });
+            return { ...base, teams: teamsWithRosters, question: aiChatInput };
         }
 
         async function runAnalysis() {
@@ -3948,7 +3969,7 @@ function TradeCalculator() {
                     <button
                         key={t.key}
                         className={`tab-btn${activeTab===t.key?' active':''}`}
-                        onClick={() => setActiveTab(t.key)}
+                        onClick={() => { sessionStorage.setItem('tc_activeTab', t.key); setActiveTab(t.key); }}
                     >
                         {t.label}
                     </button>

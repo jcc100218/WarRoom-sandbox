@@ -16,6 +16,43 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ── Rate limiting ─────────────────────────────────────────────
+// 10 AI requests per user per minute to protect Anthropic API costs.
+// Uses Deno KV (shared across Edge Function instances).
+const RATE_LIMIT_MAX     = 10;
+const RATE_LIMIT_WINDOW  = 60 * 1000; // 1 minute in ms
+
+function extractUsernameFromJWT(authHeader: string | null): string {
+    if (!authHeader) return 'anonymous';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    try {
+        const [, payload] = token.split('.');
+        const decoded = JSON.parse(atob(payload));
+        return decoded?.app_metadata?.sleeper_username
+            ?? decoded?.sub
+            ?? 'anonymous';
+    } catch { return 'anonymous'; }
+}
+
+async function checkRateLimit(identifier: string): Promise<{ allowed: boolean; retryAfterMs?: number }> {
+    try {
+        const kv = await Deno.openKv();
+        const bucket = Math.floor(Date.now() / RATE_LIMIT_WINDOW);
+        const key = ['rate_limit', 'ai_analyze', identifier, bucket];
+        const entry = await kv.get<number>(key);
+        const count = entry.value ?? 0;
+        if (count >= RATE_LIMIT_MAX) {
+            const windowEnd = (bucket + 1) * RATE_LIMIT_WINDOW;
+            return { allowed: false, retryAfterMs: windowEnd - Date.now() };
+        }
+        await kv.set(key, count + 1, { expireIn: RATE_LIMIT_WINDOW });
+        return { allowed: true };
+    } catch {
+        // If KV is unavailable, allow the request (fail open)
+        return { allowed: true };
+    }
+}
+
 // ── Prompt builders ───────────────────────────────────────────────────────────
 
 function buildSystemPrompt(): string {
@@ -91,7 +128,11 @@ function buildTeamPrompt(ctx: any): string {
         ? `**MY NEGOTIATION STRATEGY** — I am ${t.owner}. Based on my ${t.dna} DNA and current roster situation, how should I approach trade negotiations? What leverage do I have, what should I lead with, and what traps should I avoid?`
         : `**NEGOTIATION PLAYBOOK** — ${ctx.myOwner ? `I am ${ctx.myOwner} looking to trade with ${t.owner}.` : ''} Based on ${t.owner}'s ${t.dna} DNA profile, how should I approach negotiating with this owner? What buttons to push, what to avoid, how to frame offers?`;
 
-    return `Provide a comprehensive scouting report on **${t.owner}**'s team in ${ctx.leagueName}.${isMyTeam ? ' This is MY OWN team — give me honest self-assessment and first-person strategic advice.' : ''}
+    const tradeMovesSection = isMyTeam
+        ? `**TOP RECOMMENDED MOVES** — 2-3 specific, value-balanced trades I (${t.owner}) should pursue to improve my team. For each: name the player I want to acquire, what I should offer from MY OWN roster in return, and why the other owner says yes.`
+        : `**TOP RECOMMENDED MOVES** — I am ${ctx.myOwner || 'the logged-in owner'}. Give me 2-3 specific players I should target from ${t.owner}'s roster. For each: (1) name the ${t.owner} player I want, (2) describe what I should offer FROM MY OWN ASSETS — NOT ${t.owner}'s players, (3) explain why ${t.owner} would accept. CRITICAL: I am making the offer. Do NOT suggest ${t.owner} trade their own players to themselves.`;
+
+    return `Provide a comprehensive scouting report on **${t.owner}**'s team in ${ctx.leagueName}.${isMyTeam ? ' This is MY OWN team — give me honest self-assessment and first-person strategic advice.' : ` I am ${ctx.myOwner || 'the logged-in owner'} scouting this team for trade opportunities.`}
 
 **TEAM OVERVIEW:** ${t.record} | ${t.tier} | Health: ${t.healthScore}/100 | ${t.weeklyPts} pts/wk | Posture: ${t.posture}
 **OWNER DNA:** ${t.dna}${t.dnaDescription ? ` — ${t.dnaDescription}` : ''}
@@ -104,7 +145,7 @@ function buildTeamPrompt(ctx: any): string {
 ${rosterStr || 'No roster data available'}
 
 **TOP 10 BY VALUE:** ${topValues || 'N/A'}
-${ctx.myOwner && !isMyTeam ? `**I am:** ${ctx.myOwner}\n` : ''}
+${ctx.myOwner && !isMyTeam ? `**MY TEAM (the owner requesting this analysis):** ${ctx.myOwner}\n` : ''}
 
 TRADE RECOMMENDATION RULES (strictly enforce):
 - Values are on a 0-10,000 scale. Only propose trades where combined values are within ~20% of each other.
@@ -112,6 +153,7 @@ TRADE RECOMMENDATION RULES (strictly enforce):
 - Respect positional market rates: elite RBs and QBs command premium return; DBs, LBs, and depth pieces do not.
 - A player with a high value (4,000+) is likely a borderline elite — do not frame them as depth or "cheap filler."
 - Only recommend trades that a reasonable opposing owner would actually accept.
+- When analyzing another owner's team, all trade offers come FROM the requesting owner — never from the team being analyzed.
 
 Provide:
 **TEAM IDENTITY** — What type of contender/rebuilder/pretender is this? (2-3 sentences)
@@ -119,7 +161,7 @@ Provide:
 **CRITICAL WEAKNESSES** — Where are the real gaps? Be brutally honest
 **DRAFT CAPITAL & FAAB** — Zero-pick years are a crisis. Pick-rich years are leverage. Assess accordingly and state what it means for their ability to add talent.
 **TRADE OUTLOOK** — Buyer, seller, or holding? What should they target vs. deal away?
-**TOP RECOMMENDED MOVES** — 2-3 specific, value-balanced trade ideas. For each: name the target, what to offer, why the other owner says yes.
+${tradeMovesSection}
 ${negotiationSection}`;
 }
 
@@ -393,6 +435,61 @@ ${faStr || 'No FA data'}
 **Question:** ${ctx.question}`;
 }
 
+// ── Live NFL news (ESPN RSS, best-effort) ─────────────────────────────────────
+
+async function fetchLiveNFLNews(): Promise<string> {
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 5000);
+        const r = await fetch('https://www.espn.com/espn/rss/nfl/news', {
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (!r.ok) return '';
+        const xml = await r.text();
+        const items: string[] = [];
+        // Match CDATA and plain <title> tags inside <item> blocks
+        const re = /<item>[\s\S]*?<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/g;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(xml)) !== null && items.length < 12) {
+            const t = m[1].replace(/<[^>]+>/g, '').trim();
+            if (t && t.length > 10) items.push(`• ${t}`);
+        }
+        return items.join('\n');
+    } catch {
+        return '';
+    }
+}
+
+// ── General chat prompt ───────────────────────────────────────────────────────
+
+function buildChatPrompt(ctx: any, liveNews: string): string {
+    const teamsStr = (ctx.teams || []).map((t: any) => {
+        const players = (t.players || []).slice(0, 12).join(', ');
+        return `  ${t.owner} (${t.record || '?'}) | ${t.tier || '?'} | Health:${t.healthScore ?? '?'} | Needs:${(t.needs||[]).join(',')||'—'} | Strengths:${(t.strengths||[]).join(',')||'—'}${players ? `\n    Roster: ${players}` : ''}`;
+    }).join('\n');
+
+    const newsSection = liveNews
+        ? `\n**LIVE NFL NEWS (fetched now from ESPN):**\n${liveNews}\n`
+        : '';
+
+    return `You are answering a dynasty fantasy football question for **${ctx.myOwner || 'an owner'}** in **${ctx.leagueName}** (${ctx.season} season).
+
+**ALL TEAMS IN THE LEAGUE:**
+${teamsStr || 'No team data available'}
+${newsSection}
+**QUESTION:** ${ctx.question}
+
+Answer thoroughly and specifically. Reference real players, owners, and league data where relevant.
+- If asking about a specific player: comment on their dynasty value, role, age, and injury status if known from the news above.
+- If asking about trades: factor in both teams' needs, tier, and roster composition from the data above.
+- If asking about targeting a player: identify which team owns them and suggest a realistic offer.
+- If asking about NFL news/injuries: use the live news headlines above.
+- If asking general strategy: tailor advice to the owner's league context.
+Keep the response focused and actionable. Use **bold headers** to organize if the answer is multi-part.`;
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -411,6 +508,24 @@ Deno.serve(async (req) => {
             );
         }
 
+        // ── Rate limit check ──────────────────────────────────────────────
+        const identifier = extractUsernameFromJWT(req.headers.get('Authorization'));
+        const rateCheck  = await checkRateLimit(identifier);
+        if (!rateCheck.allowed) {
+            const retryAfterSec = Math.ceil((rateCheck.retryAfterMs ?? RATE_LIMIT_WINDOW) / 1000);
+            return new Response(
+                JSON.stringify({ error: `Rate limit exceeded. Try again in ${retryAfterSec}s.` }),
+                {
+                    status: 429,
+                    headers: {
+                        ...corsHeaders,
+                        'Content-Type': 'application/json',
+                        'Retry-After': String(retryAfterSec),
+                    },
+                }
+            );
+        }
+
         const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
         if (!apiKey) {
             return new Response(
@@ -421,15 +536,19 @@ Deno.serve(async (req) => {
 
         const anthropic = new Anthropic({ apiKey });
 
+        // Fetch live NFL news for chat mode (best-effort, non-blocking on failure)
+        const liveNews = type === 'chat' ? await fetchLiveNFLNews() : '';
+
         let userPrompt: string;
         switch (type) {
-            case 'league':     userPrompt = buildLeaguePrompt(context);    break;
-            case 'team':       userPrompt = buildTeamPrompt(context);      break;
-            case 'partners':   userPrompt = buildPartnersPrompt(context);  break;
-            case 'fa_targets': userPrompt = buildFATargetsPrompt(context); break;
-            case 'rookies':    userPrompt = buildRookiesPrompt(context);   break;
-            case 'fa_chat':    userPrompt = buildFAChatPrompt(context);    break;
-            case 'mock_draft': userPrompt = buildMockDraftPrompt(context); break;
+            case 'league':     userPrompt = buildLeaguePrompt(context);           break;
+            case 'team':       userPrompt = buildTeamPrompt(context);             break;
+            case 'partners':   userPrompt = buildPartnersPrompt(context);         break;
+            case 'fa_targets': userPrompt = buildFATargetsPrompt(context);        break;
+            case 'rookies':    userPrompt = buildRookiesPrompt(context);          break;
+            case 'fa_chat':    userPrompt = buildFAChatPrompt(context);           break;
+            case 'mock_draft': userPrompt = buildMockDraftPrompt(context);        break;
+            case 'chat':       userPrompt = buildChatPrompt(context, liveNews);   break;
             default:
                 return new Response(
                     JSON.stringify({ error: `Unknown analysis type: ${type}` }),
