@@ -924,8 +924,8 @@
         showAlert('Signup', 'success', 'Account created! Redirecting…');
         setTimeout(() => { window.location.href = 'index.html'; }, 1000);
 
-      } catch {
-        showAlert('Signup', 'error', 'Network error. Check your connection and try again.');
+      } catch (err) {
+        showAlert('Signup', 'error', 'Network error: ' + (err?.message || String(err)));
         btn.disabled = false;
         btn.textContent = 'Create Free Account';
       }
@@ -964,8 +964,8 @@
         showAlert('Signin', 'success', 'Welcome back! Redirecting…');
         setTimeout(() => { window.location.href = 'index.html'; }, 800);
 
-      } catch {
-        showAlert('Signin', 'error', 'Network error. Check your connection and try again.');
+      } catch (err) {
+        showAlert('Signin', 'error', 'Network error: ' + (err?.message || String(err)));
         btn.disabled = false;
         btn.textContent = 'Sign In';
       }
