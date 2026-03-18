@@ -484,52 +484,53 @@
     <div class="step-panel active" id="step1">
       <p class="step-eyebrow">Step 1 of 4</p>
       <h1 class="step-heading">Choose Your<br><span style="color:var(--gold)">Arsenal</span></h1>
-      <p class="step-sub">Pick the plan that fits how you play. You can upgrade anytime from your settings.</p>
+      <p class="step-sub">Pick the plan that fits how you play. Upgrade anytime from settings. No contract required.</p>
 
-      <div class="plan-grid">
+      <div class="plan-grid" style="grid-template-columns: 1fr 1fr;">
 
-        <!-- Free -->
-        <div class="plan-card" id="plan-free" onclick="selectPlan('free')">
+        <!-- Standard -->
+        <div class="plan-card" id="plan-standard" onclick="selectPlan('standard')">
           <div class="plan-icon">⚔️</div>
-          <div class="plan-name">War Room Free</div>
-          <div class="plan-price">$0 <span>forever</span></div>
+          <div class="plan-name">Standard</div>
+          <div class="plan-price">$9.95 <span>/ month</span></div>
           <ul class="plan-features">
-            <li><span class="pf-check">✦</span> League calendar &amp; scheduling</li>
-            <li><span class="pf-check">✦</span> Earnings &amp; payout tracker</li>
-            <li><span class="pf-check">✦</span> Free agency &amp; FAAB tool</li>
-            <li><span class="pf-check">✦</span> Draft board builder</li>
-            <li><span class="pf-check">✦</span> Multi-platform league view</li>
+            <li><span class="pf-check">✦</span> Fantasy War Room <em style="color:var(--muted);font-size:0.7rem;">or Dynasty HQ</em></li>
+            <li><span class="pf-check">✦</span> All tools in your chosen product</li>
+            <li><span class="pf-check">✦</span> AI — 20 queries / month included</li>
+            <li><span class="pf-check">✦</span> BYO AI key (Claude, Genesis, ChatGPT, Grok)</li>
+            <li><span class="pf-check">✦</span> No contract · cancel anytime</li>
           </ul>
+
+          <!-- Product sub-selector (shown after selecting Standard) -->
+          <div id="standardProductPicker" style="display:none; margin-top:0.75rem; border-top:1px solid rgba(255,255,255,0.08); padding-top:0.75rem;">
+            <p style="font-size:0.68rem;color:var(--gold);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.5rem;">Choose Your Product</p>
+            <div style="display:flex;gap:0.5rem;">
+              <label id="spWarRoom" onclick="selectStandardProduct('war_room')" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0.25rem;padding:0.5rem 0.4rem;border:2px solid rgba(212,175,55,0.35);border-radius:8px;cursor:pointer;transition:all 0.2s;background:rgba(212,175,55,0.08);">
+                <span style="font-size:1.1rem;">⚔️</span>
+                <span style="font-size:0.68rem;font-weight:600;color:var(--white);">War Room</span>
+                <span style="font-size:0.58rem;color:var(--gold);">Live Now</span>
+              </label>
+              <label id="spDynastyHQ" onclick="selectStandardProduct('dynasty_hq')" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0.25rem;padding:0.5rem 0.4rem;border:2px solid rgba(192,192,192,0.15);border-radius:8px;cursor:not-allowed;opacity:0.45;">
+                <span style="font-size:1.1rem;">🏛️</span>
+                <span style="font-size:0.68rem;font-weight:600;color:var(--white);">Dynasty HQ</span>
+                <span style="font-size:0.58rem;color:var(--muted);">Coming Soon</span>
+              </label>
+            </div>
+          </div>
         </div>
 
         <!-- Pro -->
         <div class="plan-card" id="plan-pro" onclick="selectPlan('pro')">
-          <span class="plan-badge">Most Popular</span>
-          <div class="plan-icon">🏛️</div>
-          <div class="plan-name">Dynasty HQ Pro</div>
-          <div class="plan-price">$9.99 <span>/ month</span></div>
+          <span class="plan-badge">Best Value</span>
+          <div class="plan-icon">🏆</div>
+          <div class="plan-name">Pro Bundle</div>
+          <div class="plan-price">$14.95 <span>/ month</span></div>
           <ul class="plan-features">
-            <li><span class="pf-check">✦</span> Everything in Free</li>
-            <li><span class="pf-check">✦</span> AI league &amp; team analysis</li>
-            <li><span class="pf-check">✦</span> AI trade recommendations</li>
-            <li><span class="pf-check">✦</span> Owner DNA profiles</li>
-            <li><span class="pf-check">✦</span> Mock draft simulator</li>
-            <li><span class="pf-check">✦</span> Rookie draft strategy AI</li>
-          </ul>
-        </div>
-
-        <!-- Power -->
-        <div class="plan-card" id="plan-power" onclick="selectPlan('power')">
-          <div class="plan-icon">⚡</div>
-          <div class="plan-name">Dynasty HQ Power</div>
-          <div class="plan-price">$0 <span>bring your key</span></div>
-          <ul class="plan-features">
-            <li><span class="pf-check">✦</span> Everything in Pro</li>
-            <li><span class="pf-check">✦</span> Advanced AI decision engine</li>
-            <li><span class="pf-check">✦</span> Real-time matchup intelligence</li>
-            <li><span class="pf-check">✦</span> Predictive roster modeling</li>
-            <li><span class="pf-check">✦</span> AI trade negotiation assistant</li>
-            <li><span class="pf-check">✦</span> Your own Claude API key</li>
+            <li><span class="pf-check">✦</span> Fantasy War Room + Dynasty HQ</li>
+            <li><span class="pf-check">✦</span> All tools across both products</li>
+            <li><span class="pf-check">✦</span> AI — 200 queries / month included</li>
+            <li><span class="pf-check">✦</span> BYO AI key (Claude, Genesis, ChatGPT, Grok)</li>
+            <li><span class="pf-check">✦</span> No contract · cancel anytime</li>
           </ul>
         </div>
 
@@ -540,74 +541,108 @@
 
 
     <!-- ═══════════════════════════════════════════════════════
-         STEP 2a — PAYMENT (Pro)
+         STEP 2a — PAYMENT
     ═══════════════════════════════════════════════════════ -->
     <div class="step-panel" id="step2pay">
       <p class="step-eyebrow">Step 2 of 4</p>
-      <h1 class="step-heading">Unlock<br><span style="color:var(--gold)">Dynasty HQ Pro</span></h1>
-      <p class="step-sub">Full AI suite powered by Claude on our servers. No API key needed — we handle everything.</p>
+      <h1 class="step-heading" id="payHeading">Activate Your<br><span style="color:var(--gold)">Plan</span></h1>
+      <p class="step-sub" id="paySubtitle">All features unlocked. AI included. No contract required.</p>
 
       <div class="payment-box">
-        <div class="payment-icon">🏛️</div>
-        <div class="payment-title">Dynasty HQ Pro</div>
-        <div class="payment-sub">
-          AI trade analysis, Owner DNA profiles, mock draft simulator, rookie draft strategy, and real-time matchup intelligence — all powered by Claude AI.
+        <div class="payment-icon" id="payIcon">⚔️</div>
+        <div class="payment-title" id="payTitle">Fantasy War Room — Standard</div>
+        <div class="payment-sub" id="paySub">
+          Full access to all War Room tools — Team Comparison, Behavioral Trade Calculator, Draft War Room, Free Agency Tracker, Calendar, Trophy Case, and Direct Messaging. AI included (20 queries/mo).
         </div>
-        <div class="payment-price">$9.99 <span>/ month</span></div>
+        <div class="payment-price" id="payPrice">$9.95 <span>/ month</span></div>
         <button class="cta-btn" id="stripeBtn" onclick="goToStripe()">Proceed to Secure Checkout →</button>
         <p class="stripe-note">Secured by <a href="https://stripe.com" target="_blank" rel="noopener">Stripe</a> &middot; Cancel anytime &middot; No hidden fees</p>
       </div>
 
       <div id="alertPayment" class="alert"></div>
-      <span class="skip-link" onclick="skipPayment()">Skip for now — continue with Free access</span>
+      <span class="skip-link" onclick="skipToAI()">Skip payment — I'll subscribe later in Settings</span>
     </div>
 
 
     <!-- ═══════════════════════════════════════════════════════
-         STEP 2b — CLAUDE API TOKEN (Power)
+         STEP 2b — BYO AI KEY (Optional — available on all plans)
     ═══════════════════════════════════════════════════════ -->
     <div class="step-panel" id="step2token">
       <p class="step-eyebrow">Step 2 of 4</p>
-      <h1 class="step-heading">Connect Your<br><span style="color:var(--gold)">AI Engine</span></h1>
-      <p class="step-sub">Dynasty HQ Power runs on your own Claude API key — giving you full control and zero subscription fees.</p>
+      <h1 class="step-heading">Bring Your<br><span style="color:var(--gold)">AI to the Fight</span></h1>
+      <p class="step-sub">Your plan includes AI queries every month. Want unlimited? Connect your own AI key and take full control.</p>
 
       <div class="token-card">
         <div class="token-perks">
           <div class="token-perk">
             <span class="token-perk-icon">🧠</span>
-            <span><strong style="color:var(--white)">Advanced AI Decision Engine</strong> — get real-time analysis on every roster decision, trade, and draft pick.</span>
+            <span><strong style="color:var(--white)">Your AI, Your Rules</strong> — connect Claude, Genesis, ChatGPT, or Grok. You control usage and billing directly with your provider.</span>
           </div>
           <div class="token-perk">
-            <span class="token-perk-icon">🔀</span>
-            <span><strong style="color:var(--white)">AI Trade Negotiation Assistant</strong> — Claude analyzes your league's scoring, your roster needs, and your opponent's tendencies.</span>
+            <span class="token-perk-icon">⚡</span>
+            <span><strong style="color:var(--white)">Unlimited Queries</strong> — no monthly cap. Your BYO key bypasses the included query limit entirely.</span>
           </div>
           <div class="token-perk">
-            <span class="token-perk-icon">📡</span>
-            <span><strong style="color:var(--white)">Predictive Roster Modeling</strong> — cross-platform analytics with pro-grade scouting tools powered by the latest Claude models.</span>
+            <span class="token-perk-icon">🔒</span>
+            <span><strong style="color:var(--white)">Stored on Device Only</strong> — your key never touches our servers. All AI calls go directly from your browser to your provider.</span>
           </div>
         </div>
 
-        <label class="form-label" for="claudeTokenInput">Your Anthropic API Key</label>
+        <!-- AI Provider selector — matches Dynasty HQ implementation -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+          <div>
+            <label class="form-label" style="margin-bottom:0.4rem;">Provider</label>
+            <select id="ai-provider-sel" class="form-input" style="padding:0.6rem 0.75rem;font-size:0.85rem;" onchange="updateProviderHint()">
+              <option value="anthropic">Claude (Anthropic)</option>
+              <option value="groq">Groq — Free (Llama 3.3)</option>
+              <option value="gemini">Gemini Flash — Free (Google)</option>
+              <option value="openai">GPT-4o (OpenAI)</option>
+              <option value="grok">Grok (xAI)</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="margin-bottom:0.4rem;">Model <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+            <input type="text" id="ai-model-in" class="form-input" placeholder="auto" style="padding:0.6rem 0.75rem;font-size:0.85rem;">
+          </div>
+        </div>
+
+        <p id="provider-hint" class="token-hint" style="margin-bottom:0.85rem;"></p>
+
+        <label class="form-label" for="api-key-in">API Key</label>
         <input
           class="form-input"
           type="password"
-          id="claudeTokenInput"
-          placeholder="sk-ant-api03-..."
+          id="api-key-in"
+          placeholder="Paste API key..."
           autocomplete="off"
           spellcheck="false"
+          style="font-family:monospace;font-size:0.82rem;"
         >
-        <p class="token-hint">
-          Get your key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> &rarr; API Keys.<br>
-          Uses <strong>claude-sonnet-4-6</strong> by default (fastest &amp; most capable). You control usage &amp; billing directly with Anthropic.
-        </p>
-        <div class="security-note">
-          🔒 <span>Your API key is stored <strong>only on your device</strong> (localStorage). It is never sent to our servers — all AI calls go directly from your browser to Anthropic.</span>
+
+        <!-- Optional xAI news key -->
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.06);">
+          <p style="font-size:0.72rem;color:var(--muted);margin-bottom:0.5rem;line-height:1.5;">
+            <strong style="color:var(--silver);">Real-time news (optional)</strong> — Add an xAI key to get live player news from X/Twitter via Grok.
+          </p>
+          <input
+            class="form-input"
+            type="password"
+            id="xai-key-in"
+            placeholder="xai-... (optional)"
+            autocomplete="off"
+            style="font-family:monospace;font-size:0.82rem;"
+          >
+          <div id="xai-key-status" class="token-hint" style="margin-top:0.35rem;"></div>
+        </div>
+
+        <div class="security-note" style="margin-top:1rem;">
+          🔒 <span>Keys stored <strong>only on your device</strong> (localStorage). Never sent to our servers — all AI calls go directly to your provider.</span>
         </div>
       </div>
 
-      <div id="alertToken" class="alert"></div>
-      <button class="cta-btn" onclick="saveToken()">Save Key &amp; Continue →</button>
-      <span class="skip-link" onclick="skipToken()">Skip — I'll add my key later in Settings</span>
+      <div id="key-status" class="alert" style="margin-top:0.75rem;"></div>
+      <button class="cta-btn" onclick="saveKey()">Save Key &amp; Continue →</button>
+      <span class="skip-link" onclick="skipToken()">Skip — I'll use my included queries for now</span>
     </div>
 
 
@@ -712,22 +747,53 @@
 
 
     <!-- ═══════════════════════════════════════════════════════
-         STEP 4 — ALL SET
+         STEP 4 — SLEEPER CREDENTIALS
     ═══════════════════════════════════════════════════════ -->
-    <div class="step-panel" id="step4">
+    <div class="step-panel" id="step4creds">
       <p class="step-eyebrow">Step 4 of 4</p>
-      <div class="done-icon">⚔️</div>
-      <h1 class="step-heading">You're In<br><span style="color:var(--gold)">The War Room</span></h1>
-      <p class="step-sub">Your command center is ready. Here's your loadout — you can change everything anytime from Settings.</p>
+      <h1 class="step-heading">Connect<br><span style="color:var(--gold)">Sleeper</span></h1>
+      <p class="step-sub">Enter your Sleeper username so we can pull in your leagues and historical data.</p>
 
-      <div class="divider"></div>
+      <div class="token-card">
+        <div class="token-perks">
+          <div class="token-perk">
+            <span class="token-perk-icon">😴</span>
+            <span><strong style="color:var(--white)">Your Leagues</strong> — we'll automatically import all your active and past Sleeper leagues.</span>
+          </div>
+          <div class="token-perk">
+            <span class="token-perk-icon">📊</span>
+            <span><strong style="color:var(--white)">Historical Data</strong> — past drafts, trades, and standings to power your War Room analytics.</span>
+          </div>
+          <div class="token-perk">
+            <span class="token-perk-icon">🔒</span>
+            <span><strong style="color:var(--white)">Read-Only &amp; Passwordless</strong> — Sleeper's public API only needs your username. No password required.</span>
+          </div>
+        </div>
 
-      <div class="summary-grid" id="summaryGrid">
-        <!-- Populated by JS -->
+        <label class="form-label" for="sleeperUsernameInput">Sleeper Username</label>
+        <input
+          class="form-input"
+          type="text"
+          id="sleeperUsernameInput"
+          placeholder="Your Sleeper username"
+          autocomplete="username"
+          spellcheck="false"
+        >
+        <p class="token-hint">
+          This is your <strong>username</strong> on <a href="https://sleeper.com" target="_blank" rel="noopener">Sleeper</a> — not your email address.<br>
+          We use Sleeper's public API to read your league data.
+        </p>
+        <div class="security-note">
+          🔒 <span>Your Sleeper data is fetched directly from Sleeper's public API. We never store your Sleeper password.</span>
+        </div>
       </div>
 
-      <button class="cta-btn" id="enterBtn" onclick="enterApp()">Enter the War Room →</button>
+      <div id="alertSleeper" class="alert"></div>
+      <button class="cta-btn" id="sleeperBtn" onclick="saveSleeper()">Connect Sleeper →</button>
+      <span class="skip-link" onclick="skipSleeper()">Skip — I'll connect later in Settings</span>
     </div>
+
+
 
   </main>
 
@@ -746,6 +812,7 @@
 
     // ── State ──────────────────────────────────────────────
     let selectedPlan = null;
+    let selectedStandardProduct = 'war_room'; // default for Standard tier
     const selectedPlatforms = new Set(['sleeper']);
     const PROFILE_KEY  = 'od_profile_v1';
     const SESSION_KEY  = 'fw_session_v1';   // new email-based auth (landing.html)
@@ -758,18 +825,19 @@
       const hasLegacyAuth  = !!JSON.parse(localStorage.getItem(LEGACY_KEY)   || 'null')?.username;
       if (!hasNewSession && !hasLegacyAuth) { window.location.href = 'landing.html'; return; }
 
-      // If onboarding already complete, skip to the app
+      const params = new URLSearchParams(window.location.search);
+      const isManaging = params.get('manage') === 'true';
+
+      // If onboarding already complete, skip to the app (unless user came from settings to manage plan)
       try {
         const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null');
-        if (p && p.onboardingComplete) { window.location.href = 'index.html'; return; }
+        if (!isManaging && p && p.onboardingComplete) { window.location.href = 'index.html'; return; }
       } catch {}
-
-      // Stripe payment return
-      const params = new URLSearchParams(window.location.search);
       if (params.get('payment') === 'success') {
-        selectedPlan = 'pro';
-        patchProfile({ tier: 'pro' });
-        showStep(3);
+        const savedPlan = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null')?.tier || 'standard';
+        selectedPlan = savedPlan;
+        patchProfile({ tier: savedPlan });
+        showStep('2b'); // optional AI key step after payment
         return;
       }
       if (params.get('payment') === 'cancel') {
@@ -786,6 +854,7 @@
           selectedPlan = saved.tier;
           const card = document.getElementById('plan-' + saved.tier);
           if (card) card.classList.add('selected');
+          if (saved.tier === 'standard') document.getElementById('standardProductPicker').style.display = 'block';
           document.getElementById('step1Btn').disabled = false;
         }
         if (saved && saved.platforms) {
@@ -805,30 +874,43 @@
     function showStep(n) {
       document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
 
-      if (n === 2) {
-        if (selectedPlan === 'pro') {
-          document.getElementById('step2pay').classList.add('active');
-        } else if (selectedPlan === 'power') {
-          document.getElementById('step2token').classList.add('active');
-        } else {
-          // Free — skip payment/token step
-          showStep(3);
-          return;
-        }
+      if (n === 2 || n === '2a') {
+        // Payment step — update UI to reflect selected plan
+        updatePaymentUI();
+        document.getElementById('step2pay').classList.add('active');
+      } else if (n === '2b') {
+        document.getElementById('step2token').classList.add('active');
+        loadStoredAIKeys();
+      } else if (n === 4) {
+        document.getElementById('step4creds').classList.add('active');
       } else {
-        const panelMap = { 1: 'step1', 3: 'step3', 4: 'step4' };
+        const panelMap = { 1: 'step1', 3: 'step3' };
         const panel = panelMap[n];
         if (panel) document.getElementById(panel).classList.add('active');
       }
 
-      updateProgress(n);
+      updateProgress(typeof n === 'number' ? n : 2);
+    }
+
+    function updatePaymentUI() {
+      const isPro = selectedPlan === 'pro';
+      document.getElementById('payIcon').textContent   = isPro ? '🏆' : '⚔️';
+      document.getElementById('payTitle').textContent  = isPro
+        ? 'Pro Bundle — Fantasy War Room + Dynasty HQ'
+        : 'Standard — Fantasy War Room';
+      document.getElementById('paySub').textContent    = isPro
+        ? 'Both products unlocked. All tools. 200 AI queries/mo. BYO AI key supported. No contract.'
+        : 'All War Room tools unlocked. 20 AI queries/mo. BYO AI key supported. No contract.';
+      document.getElementById('payPrice').innerHTML    = isPro
+        ? '$14.95 <span>/ month</span>'
+        : '$9.95 <span>/ month</span>';
     }
 
     function updateProgress(n) {
-      const dotIndex = (n === 2) ? 1 : (n - 1);
+      const dotIndex = n - 1;
       document.querySelectorAll('.step-dot').forEach((d, i) => {
         d.classList.remove('active', 'done');
-        if (i < dotIndex)      d.classList.add('done');
+        if (i < dotIndex)        d.classList.add('done');
         else if (i === dotIndex) d.classList.add('active');
       });
       const labels = { 1: 'Step 1 of 4', 2: 'Step 2 of 4', 3: 'Step 3 of 4', 4: 'Step 4 of 4' };
@@ -841,11 +923,24 @@
       document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
       document.getElementById('plan-' + plan).classList.add('selected');
       document.getElementById('step1Btn').disabled = false;
+
+      // Show/hide product sub-picker for Standard
+      const picker = document.getElementById('standardProductPicker');
+      picker.style.display = plan === 'standard' ? 'block' : 'none';
+    }
+
+    function selectStandardProduct(product) {
+      if (product === 'dynasty_hq') return; // Coming Soon — not selectable
+      selectedStandardProduct = product;
+      document.getElementById('spWarRoom').style.borderColor = product === 'war_room' ? 'var(--gold)' : 'rgba(212,175,55,0.35)';
+      document.getElementById('spWarRoom').style.background  = product === 'war_room' ? 'rgba(212,175,55,0.12)' : 'rgba(212,175,55,0.06)';
     }
 
     function goStep2() {
       if (!selectedPlan) return;
-      patchProfile({ tier: selectedPlan });
+      const profileData = { tier: selectedPlan };
+      if (selectedPlan === 'standard') profileData.product = selectedStandardProduct;
+      patchProfile(profileData);
       showStep(2);
     }
 
@@ -899,39 +994,75 @@
       }
     }
 
-    function skipPayment() {
-      patchProfile({ tier: 'free' });
-      selectedPlan = 'free';
-      showStep(3);
+    function skipToAI() {
+      // Allow proceeding without payment — limited access until subscribed
+      patchProfile({ tier: selectedPlan, betaAccess: false, subscribed: false });
+      showStep('2b');
     }
 
-    // ── Claude API Token (Power) ───────────────────────────
-    function saveToken() {
-      const token = document.getElementById('claudeTokenInput').value.trim();
-      const alertEl = document.getElementById('alertToken');
+    // ── BYO AI Key — Dynasty HQ implementation ─────────────
+    function updateProviderHint() {
+      const provider = document.getElementById('ai-provider-sel').value;
+      const hints = {
+        anthropic: 'Get your free API key at console.anthropic.com. Claude 3.5 Sonnet is recommended.',
+        groq:      'Free Llama 3.3 inference. Get your key at console.groq.com (no credit card needed).',
+        gemini:    'Free Google Gemini Flash. Get your key at ai.google.dev (includes generous free tier).',
+        openai:    'Paid GPT-4o access. Get your key at platform.openai.com (requires credit card).',
+        grok:      'Get your key at x.ai. Includes real-time X/Twitter data for news.',
+      };
+      document.getElementById('provider-hint').textContent = hints[provider] || '';
+    }
 
-      if (token && !token.startsWith('sk-ant-')) {
-        alertEl.className = 'alert alert-error show';
-        alertEl.textContent = 'That doesn\'t look like a valid Anthropic API key. It should start with sk-ant-';
+    function saveKey() {
+      const provider = document.getElementById('ai-provider-sel').value;
+      const key      = document.getElementById('api-key-in').value.trim();
+      const model    = document.getElementById('ai-model-in').value.trim() || '';
+      const statusEl = document.getElementById('key-status');
+
+      if (!key) {
+        statusEl.className = 'alert alert-error show';
+        statusEl.textContent = 'Paste an API key first.';
         return;
       }
 
-      if (token) {
-        // Store locally only — never leaves the device
-        localStorage.setItem('od_claude_token', token);
-        patchProfile({ tier: 'power', hasClaudeToken: true });
-        alertEl.className = 'alert alert-success show';
-        alertEl.textContent = '✓ API key saved to your device.';
-        setTimeout(() => showStep(3), 800);
-      } else {
-        patchProfile({ tier: 'power', hasClaudeToken: false });
-        showStep(3);
+      try {
+        localStorage.setItem('dynastyhq_ai_provider', provider);
+        localStorage.setItem('dynastyhq_ai_key', key);
+        if (model) localStorage.setItem('dynastyhq_ai_model', model);
+
+        // Save optional xAI key
+        const xaiKey = document.getElementById('xai-key-in').value.trim();
+        if (xaiKey) localStorage.setItem('dynastyhq_xai_key', xaiKey);
+      } catch (e) {
+        statusEl.className = 'alert alert-error show';
+        statusEl.textContent = 'Storage error: ' + e.message;
+        return;
       }
+
+      patchProfile({ byoAI: provider, hasBYOKey: true });
+      statusEl.className = 'alert alert-success show';
+      statusEl.textContent = '✓ API key saved to your device only.';
+      setTimeout(() => showStep(3), 900);
     }
 
     function skipToken() {
-      patchProfile({ tier: 'power', hasClaudeToken: false });
+      patchProfile({ hasBYOKey: false });
       showStep(3);
+    }
+
+    // Load any previously saved keys into the form
+    function loadStoredAIKeys() {
+      try {
+        const p = localStorage.getItem('dynastyhq_ai_provider');
+        const k = localStorage.getItem('dynastyhq_ai_key');
+        const m = localStorage.getItem('dynastyhq_ai_model');
+        const x = localStorage.getItem('dynastyhq_xai_key');
+        if (p) document.getElementById('ai-provider-sel').value = p;
+        if (k) document.getElementById('api-key-in').value = k;
+        if (m) document.getElementById('ai-model-in').value = m;
+        if (x) document.getElementById('xai-key-in').value = x;
+        updateProviderHint();
+      } catch (e) {}
     }
 
     // ── Platform selection ─────────────────────────────────
@@ -952,8 +1083,67 @@
 
     function goStep4() {
       patchProfile({ platforms: Array.from(selectedPlatforms) });
-      buildSummary();
+      // Pre-fill Sleeper username if already saved
+      const saved = getProfile();
+      if (saved.sleeperUsername) {
+        document.getElementById('sleeperUsernameInput').value = saved.sleeperUsername;
+      }
       showStep(4);
+    }
+
+    // ── Sleeper credentials ────────────────────────────────
+    async function saveSleeper() {
+      const username = document.getElementById('sleeperUsernameInput').value.trim();
+      const alertEl  = document.getElementById('alertSleeper');
+      const btn      = document.getElementById('sleeperBtn');
+
+      if (!username) {
+        alertEl.className = 'alert alert-error show';
+        alertEl.textContent = 'Please enter your Sleeper username.';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Verifying…';
+
+      try {
+        const resp = await fetch(`https://api.sleeper.app/v1/user/${encodeURIComponent(username)}`);
+        const data = resp.ok ? await resp.json() : null;
+
+        if (!data || !data.user_id) {
+          alertEl.className = 'alert alert-error show';
+          alertEl.textContent = 'Sleeper username not found. Check spelling and try again.';
+          btn.disabled = false;
+          btn.textContent = 'Connect Sleeper →';
+          return;
+        }
+
+        // Save for app compatibility
+        localStorage.setItem('od_locked_username_v2', username);
+        const existingAuth = JSON.parse(localStorage.getItem('od_auth_v1') || '{}');
+        localStorage.setItem('od_auth_v1', JSON.stringify({
+          ...existingAuth, username, createdAt: new Date().toISOString()
+        }));
+        patchProfile({ sleeperUsername: username, sleeperUserId: data.user_id });
+
+        alertEl.className = 'alert alert-success show';
+        alertEl.textContent = `✓ Connected as ${username}!`;
+        setTimeout(() => goStep5(), 800);
+
+      } catch {
+        alertEl.className = 'alert alert-error show';
+        alertEl.textContent = 'Network error. Check your connection and try again.';
+        btn.disabled = false;
+        btn.textContent = 'Connect Sleeper →';
+      }
+    }
+
+    function skipSleeper() {
+      goStep5();
+    }
+
+    function goStep5() {
+      enterApp();
     }
 
     // ── Summary ────────────────────────────────────────────
@@ -962,17 +1152,17 @@
       const username = getUsername();
 
       const tierLabels = {
-        free:  'War Room Free',
-        pro:   'Dynasty HQ Pro',
-        power: 'Dynasty HQ Power',
+        standard: 'Standard — $9.95/mo',
+        pro:      'Pro Bundle — $14.95/mo',
       };
-      const tierLabel = tierLabels[profile.tier] || 'Free';
+      const tierLabel = tierLabels[profile.tier] || profile.tier || 'Standard';
 
       const platformList = (profile.platforms || ['sleeper'])
         .map(p => p.charAt(0).toUpperCase() + p.slice(1))
         .join(', ');
 
       const tokenSaved = !!localStorage.getItem('od_claude_token');
+      const sleeperUser = profile.sleeperUsername || null;
 
       let html = `
         <div class="summary-card">
@@ -986,6 +1176,10 @@
         <div class="summary-card">
           <div class="summary-label">Platforms Selected</div>
           <div class="summary-value" style="font-size:0.82rem">${escHtml(platformList)}</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Sleeper Account</div>
+          <div class="summary-value ${sleeperUser ? '' : 'muted'}">${sleeperUser ? escHtml(sleeperUser) + ' ✓' : 'Not connected — add in Settings'}</div>
         </div>
       `;
 

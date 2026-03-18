@@ -12,12 +12,24 @@ const SUPABASE_URL  = 'https://sxshiqyxhhifvtfqawbq.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4c2hpcXl4aGhpZnZ0ZnFhd2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MTExMzAsImV4cCI6MjA4ODI4NzEzMH0.zJi9W986ZLaANiZN6pt6ReFwaQU6yPeidsERIWo2ibI';
 
 // ── Session token storage ─────────────────────────────────────
-// After login, get-session-token issues a signed JWT embedding
-// the Sleeper username in app_metadata. This token is used for
-// all Supabase queries so RLS policies can enforce per-user access.
+// Returns the best available JWT for the current session.
+// Checks both the legacy Sleeper session (od_session_v1) and the new
+// email-based Fantasy Wars session (fw_session_v1) from landing.html.
 const SESSION_LS_KEY = 'od_session_v1';
+const FW_SESSION_KEY  = 'fw_session_v1';
 
 function getSessionToken() {
+    // ── New email-based session (landing.html → fw-signup/fw-signin) ──
+    try {
+        const raw = localStorage.getItem(FW_SESSION_KEY);
+        if (raw) {
+            const s = JSON.parse(raw);
+            // fw_session_v1 shape: { token, user: { ... } }
+            if (s?.token) return s.token;
+        }
+    } catch {}
+
+    // ── Legacy Sleeper session (login.html → get-session-token) ──
     try {
         const raw = localStorage.getItem(SESSION_LS_KEY);
         if (!raw) return null;
@@ -416,6 +428,36 @@ window.OD.createGiftUser = async function({ sleeperUsername, password, displayNa
     if (!resp.ok) throw new Error(result.error || 'Failed to create gift user');
 };
 
+// Check which usernames from a list already have dashboard accounts in Supabase.
+// Returns a Set of usernames that have an account row.
+window.OD.checkUsersAccess = async function(usernames) {
+    const db = getClient();
+    if (!db || !isConfigured() || !usernames || usernames.length === 0) return new Set();
+    const { data } = await db
+        .from('users')
+        .select('sleeper_username')
+        .in('sleeper_username', usernames);
+    return new Set((data || []).map(u => u.sleeper_username));
+};
+
+// Check Supabase for a user's password hash (used by login for gifted users)
+window.OD.verifySupabasePassword = async function(username, password) {
+    const db = getClient();
+    if (!db || !isConfigured()) return false;
+    const { data, error } = await db
+        .from('users')
+        .select('password_hash, is_gifted')
+        .eq('sleeper_username', username)
+        .maybeSingle();
+    if (error || !data || !data.password_hash) return false;
+    const inputHash = await hashPassword(password);
+    return {
+        match: data.password_hash === inputHash,
+        isGifted: data.is_gifted || false,
+    };
+};
+
+// Update password hash in Supabase (for change-password feature)
 window.OD.updatePassword = async function(username, newPassword) {
     if (!isConfigured()) throw new Error('Supabase not configured');
     const token = getSessionToken();
