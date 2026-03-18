@@ -28,8 +28,8 @@ const STRIPE_SECRET_KEY    = Deno.env.get('STRIPE_SECRET_KEY')!;
 
 // Map product slugs → Stripe Price IDs
 const PRICE_MAP: Record<string, string | undefined> = {
-  war_room:  Deno.env.get('STRIPE_PRICE_WAR_ROOM_PRO'),
-  dynast_hq: Deno.env.get('STRIPE_PRICE_DYNASTY_HQ_PRO'),
+  war_room:  Deno.env.get('STRIPE_PRICE_WAR_ROOM'),
+  dynast_hq: Deno.env.get('STRIPE_PRICE_DYNASTY_HQ'),
   bundle:    Deno.env.get('STRIPE_PRICE_FANTASY_WARS_PRO'),
 };
 
