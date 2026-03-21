@@ -1094,7 +1094,51 @@
                 setStats2025Data(s2025);
                 setLoading(false);
                 // Load player names in background — large payload, non-blocking
-                fetchAllPlayers().then(p => setPlayersData(p)).catch(() => {});
+                fetchAllPlayers().then(p => {
+                    setPlayersData(p);
+
+                    // Initialize DHQ engine for dynasty values
+                    try {
+                      if (window.App) {
+                        // Bridge War Room data to ReconAI's S state format for shared modules
+                        if (!window.S) window.S = {};
+                        window.S.players = p || {};
+                        window.S.playerStats = {};
+                        window.S.rosters = currentLeague.rosters || [];
+                        window.S.leagueUsers = currentLeague.users || [];
+                        window.S.leagues = [{ league_id: currentLeague.id, name: currentLeague.name, scoring_settings: currentLeague.scoring_settings, roster_positions: currentLeague.roster_positions, settings: currentLeague.settings }];
+                        window.S.currentLeagueId = currentLeague.id;
+                        window.S.season = activeYear;
+                        window.S.nflState = { season: activeYear };
+                        window.S.tradedPicks = []; // Will be loaded if available
+                        window.S.myRosterId = myRosterData?.roster_id;
+
+                        // Bridge stats data
+                        Object.entries(stats).forEach(([pid, s]) => {
+                          if (!window.S.playerStats[pid]) window.S.playerStats[pid] = {};
+                          const pts = calcRawPts(s);
+                          const gp = s.gp || 0;
+                          window.S.playerStats[pid].prevTotal = pts ? Math.round(pts * 10) / 10 : 0;
+                          window.S.playerStats[pid].prevAvg = gp > 0 ? Math.round(pts / gp * 10) / 10 : 0;
+                          window.S.playerStats[pid].prevRawStats = s;
+                        });
+
+                        // Load traded picks for this league
+                        fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/traded_picks`).then(tp => {
+                          window.S.tradedPicks = tp || [];
+                        }).catch(() => {});
+
+                        // Trigger DHQ engine (non-blocking)
+                        if (typeof window.App.loadLeagueIntel === 'function' && !window.App.LI_LOADED) {
+                          window.App.loadLeagueIntel().then(() => {
+                            console.log('[War Room] DHQ engine loaded:', Object.keys(window.App.LI?.playerScores || {}).length, 'players valued');
+                            // Force re-render to show values
+                            setStatsData(prev => ({...prev}));
+                          }).catch(e => console.warn('[War Room] DHQ engine error:', e));
+                        }
+                      }
+                    } catch(e) { console.warn('[War Room] DHQ bridge error:', e); }
+                }).catch(() => {});
                 // Load Sleeper trending adds/drops in background
                 if (window.Sleeper?.fetchTrending) {
                     Promise.all([
@@ -1281,7 +1325,7 @@
         const statColStyle = { width: '42px', textAlign: 'center', fontSize: '0.65rem', flexShrink: 0 };
 
         // Column header row for stat columns — merged into section labels
-        const statLabels = ['YRS', 'PTS', 'GP', 'AVG', 'PROJ'];
+        const statLabels = ['DHQ', 'YRS', 'PTS', 'GP', 'AVG', 'PROJ'];
 
         function SectionLabel({ label, color, borderColor, borderWidth }) {
             return (
@@ -1368,6 +1412,13 @@
                             {getPlayerName(playerId)} <span style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.5 }}>{team}</span>
                         </span>
                     </a>
+                    {/* DHQ dynasty value */}
+                    {(() => {
+                      const dhq = window.App?.LI?.playerScores?.[playerId] || 0;
+                      if (!dhq) return <span style={{ ...statColStyle, color: 'var(--silver)', opacity: 0.4, fontSize: '0.65rem' }}>—</span>;
+                      const col = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#D4AF37' : dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.4)';
+                      return <span style={{ ...statColStyle, color: col, fontWeight: '700', fontFamily: 'Oswald, sans-serif', fontSize: '0.72rem', minWidth: '42px' }}>{dhq.toLocaleString()}</span>;
+                    })()}
                     {/* Stat columns: YRS PTS GP AVG PROJ */}
                     <span style={{ ...statColStyle, color: 'var(--silver)', opacity: 0.7 }}>{stats.yrs}</span>
                     <span style={{ ...statColStyle, color: 'var(--gold)', fontWeight: '700' }}>{stats.pts}</span>
@@ -1575,6 +1626,13 @@
                                             </div>
                                             <div style={{ color: 'var(--silver)', fontSize: '0.7rem', opacity: 0.7 }}>
                                                 {team.wins}-{team.losses}{team.ties > 0 ? `-${team.ties}` : ''} · {team.pointsFor.toFixed(1)} PF
+                                                {(() => {
+                                                  const roster = currentLeague.rosters.find(r => r.owner_id === team.userId);
+                                                  if (!roster?.players || !window.App?.LI?.playerScores) return null;
+                                                  const totalDhq = roster.players.reduce((sum, pid) => sum + (window.App.LI.playerScores[pid] || 0), 0);
+                                                  if (!totalDhq) return null;
+                                                  return <span style={{ color: '#4ECDC4' }}> · {totalDhq.toLocaleString()} DHQ</span>;
+                                                })()}
                                             </div>
                                         </div>
                                     </div>
@@ -1650,6 +1708,13 @@
                                                 <div style={{ flexShrink: 0, textAlign: 'right' }}>
                                                     <div style={{ color: 'var(--silver)', fontSize: '0.78rem', fontWeight: '600' }}>{team.wins}-{team.losses}{team.ties > 0 ? `-${team.ties}` : ''}</div>
                                                     <div style={{ color: 'var(--gold)', fontSize: '0.68rem', opacity: 0.7 }}>{team.pointsFor.toFixed(1)}</div>
+                                                    {(() => {
+                                                      const roster = currentLeague.rosters.find(r => r.owner_id === team.userId);
+                                                      if (!roster?.players || !window.App?.LI?.playerScores) return null;
+                                                      const totalDhq = roster.players.reduce((sum, pid) => sum + (window.App.LI.playerScores[pid] || 0), 0);
+                                                      if (!totalDhq) return null;
+                                                      return <div style={{ color: '#4ECDC4', fontSize: '0.62rem', opacity: 0.8, fontWeight: '600' }}>{totalDhq.toLocaleString()} DHQ</div>;
+                                                    })()}
                                                 </div>
                                             </div>
                                         ))}
