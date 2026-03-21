@@ -591,16 +591,16 @@ async function fetchPlayers() {
     _playersCacheTime = now;
     return _playersCacheData;
 }
-let _statsCache = {};
+let _wrStatsCache = {};
 async function fetchSeasonStats(year) {
-    if (_statsCache[year]) return _statsCache[year];
+    if (_wrStatsCache[year]) return _wrStatsCache[year];
     try {
-        _statsCache[year] = await apiFetch(`${SLEEPER_BASE}/stats/nfl/regular/${year}`);
+        _wrStatsCache[year] = await apiFetch(`${SLEEPER_BASE}/stats/nfl/regular/${year}`);
     } catch(e) {
         console.warn('Stats fetch failed:', e);
-        _statsCache[year] = {};
+        _wrStatsCache[year] = {};
     }
-    return _statsCache[year];
+    return _wrStatsCache[year];
 }
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────

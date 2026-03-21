@@ -547,23 +547,23 @@
         const fetchRosters    = id      => apiFetch(`${SLEEPER_BASE}/league/${id}/rosters`);
         const fetchLeagueInfo = id      => apiFetch(`${SLEEPER_BASE}/league/${id}`);
 
-        let _playersCache = null;
+        let _wrPlayersCache = null;
         async function fetchPlayers() {
-            if (_playersCache) return _playersCache;
-            _playersCache = await apiFetch(`${SLEEPER_BASE}/players/nfl`);
-            return _playersCache;
+            if (_wrPlayersCache) return _wrPlayersCache;
+            _wrPlayersCache = await apiFetch(`${SLEEPER_BASE}/players/nfl`);
+            return _wrPlayersCache;
         }
 
-        let _statsCache = {};
+        let _wrStatsCache = {};
         async function fetchSeasonStats(season) {
-            if (_statsCache[season]) return _statsCache[season];
+            if (_wrStatsCache[season]) return _wrStatsCache[season];
             try {
-                _statsCache[season] = await apiFetch(`${SLEEPER_BASE}/stats/nfl/regular/${season}`);
+                _wrStatsCache[season] = await apiFetch(`${SLEEPER_BASE}/stats/nfl/regular/${season}`);
             } catch (e) {
                 console.warn('Stats fetch failed for', season, e);
-                _statsCache[season] = {};
+                _wrStatsCache[season] = {};
             }
-            return _statsCache[season];
+            return _wrStatsCache[season];
         }
 
         // ===== CONSTANTS =====

@@ -758,25 +758,25 @@
         return await fetchJSON(`${SLEEPER_BASE_URL}/league/${leagueId}`);
     }
 
-    let _playersCache = null;
+    let _wrPlayersCache = null;
     async function fetchAllPlayers() {
-        if (_playersCache) return _playersCache;
-        _playersCache = await fetchJSON(`${SLEEPER_BASE_URL}/players/nfl`);
-        return _playersCache;
+        if (_wrPlayersCache) return _wrPlayersCache;
+        _wrPlayersCache = await fetchJSON(`${SLEEPER_BASE_URL}/players/nfl`);
+        return _wrPlayersCache;
     }
 
     const STATS_YEAR = '2025'; // Most recent completed season — used until Sleeper publishes projections
 
-    let _statsCache = {};
+    let _wrStatsCache = {};
     async function fetchSeasonStats(season) {
-        if (_statsCache[season]) return _statsCache[season];
+        if (_wrStatsCache[season]) return _wrStatsCache[season];
         try {
-            _statsCache[season] = await fetchJSON(`${SLEEPER_BASE_URL}/stats/nfl/regular/${season}`);
+            _wrStatsCache[season] = await fetchJSON(`${SLEEPER_BASE_URL}/stats/nfl/regular/${season}`);
         } catch (e) {
             console.warn('Stats fetch failed:', e);
-            _statsCache[season] = {};
+            _wrStatsCache[season] = {};
         }
-        return _statsCache[season];
+        return _wrStatsCache[season];
     }
 
     let _projectionsCache = {};
@@ -1745,9 +1745,11 @@
 
         // Cloud sync — load from Supabase on mount
         useEffect(() => {
-            window.OD.loadDisplayName().then(name => {
-                if (name) { setCustomDisplayName(name); localStorage.setItem('od_display_name', name); }
-            }).catch(() => {});
+            if (window.OD?.loadDisplayName) {
+                window.OD.loadDisplayName().then(name => {
+                    if (name) { setCustomDisplayName(name); localStorage.setItem('od_display_name', name); }
+                }).catch(() => {});
+            }
         }, []);
         const leagueMates = React.useMemo(() => {
             const seen = new Set();
