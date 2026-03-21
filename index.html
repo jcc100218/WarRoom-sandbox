@@ -172,7 +172,7 @@
 
     @media (min-width: 1200px) {
         .main-layout {
-            grid-template-columns: 1fr 100px;
+            grid-template-columns: 1fr 80px;
             padding: 2rem;
             max-width: 1600px;
             margin: 0 auto;
@@ -683,6 +683,8 @@
 <script src="https://jcc100218.github.io/ReconAI/shared/sleeper-api.js"></script>
 <script src="https://jcc100218.github.io/ReconAI/shared/supabase-client.js"></script>
 <script src="https://jcc100218.github.io/ReconAI/shared/dhq-engine.js"></script>
+<script src="https://jcc100218.github.io/ReconAI/shared/team-assess.js"></script>
+<script src="https://jcc100218.github.io/ReconAI/shared/analytics-engine.js"></script>
 <script src="https://jcc100218.github.io/ReconAI/shared/dhq-ai.js"></script>
 <script src="https://jcc100218.github.io/ReconAI/shared/ai-dispatch.js"></script>
 <script src="https://jcc100218.github.io/ReconAI/shared/player-modal.js"></script>
@@ -1049,6 +1051,8 @@
         const [currentLeague, setCurrentLeague] = useState(league);
         const [activeYear, setActiveYear] = useState(league.season);
         const [trending, setTrending] = useState({ adds: [], drops: [] });
+        const [activeTab, setActiveTab] = useState('dashboard');
+        const [showSettings, setShowSettings] = useState(false);
 
         useEffect(() => {
             loadLeagueDetails();
@@ -1481,18 +1485,64 @@
         }
         const divisionKeys = Object.keys(divisions).sort((a, b) => Number(a) - Number(b));
 
-        // Nav buttons
-        const navButtons = [
-            { label: 'Dashboard', action: onBack },
-            { label: 'Team Comps', url: 'team-comps/' },
-            { label: 'Matchup', url: `https://sleeper.com/leagues/${currentLeague.id}/matchup` },
-            { label: 'Draft War Room', url: 'draft-war-room/' },
-            { label: 'Trade Calculator', url: 'trade-calculator.html' },
-            { label: 'Free Agent Tracker', action: () => window.location.href = 'free-agency.html' }
-        ];
+        // KPI card styles
+        const kpiCardStyle = {
+            background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)',
+            borderRadius: '10px', padding: '12px 14px', textAlign: 'center'
+        };
+        const kpiLabelStyle = {
+            fontSize: '0.6rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif',
+            letterSpacing: '0.08em', marginBottom: '6px', fontWeight: '700'
+        };
+        const kpiValueStyle = {
+            fontSize: '1.6rem', fontWeight: '700', color: 'var(--white)',
+            fontFamily: 'Bebas Neue, cursive', lineHeight: 1, letterSpacing: '0.03em'
+        };
+        const kpiSubStyle = {
+            fontSize: '0.6rem', color: 'var(--silver)', marginTop: '4px',
+            fontFamily: 'Oswald, sans-serif', opacity: 0.7
+        };
 
         return (
             <div className="app-container" style={{ paddingBottom: '60px' }}>
+                {/* Left Navigation */}
+                <div style={{
+                    position: 'fixed', left: 0, top: 0, bottom: 0, width: '64px',
+                    background: 'var(--black)', borderRight: '1px solid rgba(212,175,55,0.2)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    padding: '12px 0', gap: '4px', zIndex: 100
+                }}>
+                    {/* Logo */}
+                    <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '12px', letterSpacing: '0.05em' }}>FW</div>
+
+                    {/* Nav items */}
+                    {[
+                        {icon: '\u{1F3E0}', label: 'Home', action: onBack},
+                        {icon: '\u{1F4CA}', label: 'Analytics', action: () => setActiveTab('analytics')},
+                        {icon: '\u{1F504}', label: 'Trades', url: 'trade-calculator.html'},
+                        {icon: '\u{1F3C8}', label: 'FA', url: 'free-agency.html'},
+                        {icon: '\u{1F4CB}', label: 'Draft', url: 'draft-warroom.html'},
+                        {icon: '\u{2699}\u{FE0F}', label: 'Settings', action: () => setShowSettings(true)},
+                    ].map((item, i) => (
+                        <button key={i} onClick={() => item.action ? item.action() : window.location.href = item.url}
+                            style={{
+                                width: '48px', height: '48px', border: 'none', borderRadius: '8px',
+                                background: 'transparent', cursor: 'pointer', display: 'flex',
+                                flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                                gap: '2px', transition: 'background 0.2s', color: 'var(--silver)',
+                                fontSize: '0.55rem', fontFamily: 'Oswald, sans-serif'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.15)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                            <span style={{fontSize: '1.2rem'}}>{item.icon}</span>
+                            <span>{item.label}</span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Main content shifted right */}
+                <div style={{ marginLeft: '64px' }}>
                 {/* Header */}
                 <header className="header" style={{ position: 'relative', marginBottom: '0', paddingBottom: '0.75rem' }}>
                     <div className="header-title">{currentLeague.name}</div>
@@ -1500,43 +1550,6 @@
                         {activeYear} SEASON
                     </div>
                 </header>
-
-                {/* Nav Buttons Bar */}
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    gap: '0.35rem',
-                    padding: '0.5rem 0.75rem',
-                    background: 'var(--off-black)',
-                    borderBottom: '1px solid rgba(212, 175, 55, 0.2)',
-                    flexWrap: 'wrap'
-                }}>
-                    {navButtons.map((btn, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => btn.action ? btn.action() : window.open(btn.url, '_blank')}
-                            style={{
-                                padding: '0.3rem 0.65rem',
-                                background: btn.label === 'Dashboard' ? 'var(--gold)' : 'var(--black)',
-                                border: '1.5px solid var(--gold)',
-                                borderRadius: '4px',
-                                color: btn.label === 'Dashboard' ? 'var(--black)' : 'var(--gold)',
-                                fontFamily: 'Oswald, sans-serif',
-                                fontSize: '0.68rem',
-                                fontWeight: '700',
-                                cursor: 'pointer',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.05em',
-                                transition: 'all 0.2s ease',
-                                whiteSpace: 'nowrap'
-                            }}
-                            onMouseEnter={e => { if (btn.label !== 'Dashboard') { e.target.style.background = 'rgba(212,175,55,0.15)'; }}}
-                            onMouseLeave={e => { if (btn.label !== 'Dashboard') { e.target.style.background = 'var(--black)'; }}}
-                        >
-                            {btn.label}
-                        </button>
-                    ))}
-                </div>
 
                 {/* Year / Stats Toggle Bar */}
                 <div style={{
@@ -1585,6 +1598,75 @@
                     </div>
                 </div>
 
+                {/* KPI Cards — 4 Lenses */}
+                <div style={{
+                    display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px',
+                    padding: '12px 16px', background: 'var(--black)',
+                    borderBottom: '1px solid rgba(212,175,55,0.15)'
+                }}>
+                    {/* My Team */}
+                    <div style={kpiCardStyle}>
+                        <div style={kpiLabelStyle}>{'\u{1F464}'} MY TEAM</div>
+                        <div style={kpiValueStyle}>{(() => {
+                            const total = myRoster?.players?.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0) || 0;
+                            return total.toLocaleString();
+                        })()}</div>
+                        <div style={kpiSubStyle}>Portfolio DHQ</div>
+                    </div>
+
+                    {/* League */}
+                    <div style={kpiCardStyle}>
+                        <div style={kpiLabelStyle}>{'\u{1F3C6}'} LEAGUE</div>
+                        <div style={kpiValueStyle}>{(() => {
+                            const vals = standings.map(t => {
+                                const r = currentLeague.rosters.find(r => r.owner_id === t.userId);
+                                return r?.players?.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0) || 0;
+                            }).sort((a,b) => b-a);
+                            const myTotal = myRoster?.players?.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0) || 0;
+                            const rank = vals.findIndex(v => v <= myTotal) + 1;
+                            return '#' + (rank || '?') + '/' + standings.length;
+                        })()}</div>
+                        <div style={kpiSubStyle}>Value Rank</div>
+                    </div>
+
+                    {/* Historical */}
+                    <div style={kpiCardStyle}>
+                        <div style={kpiLabelStyle}>{'\u{1F4C8}'} HISTORICAL</div>
+                        <div style={kpiValueStyle}>{(() => {
+                            const profile = window.App?.LI?.ownerProfiles?.[myRoster?.roster_id];
+                            if (!profile) return '\u2014';
+                            const net = profile.tradesWon - profile.tradesLost;
+                            return (net >= 0 ? '+' : '') + net;
+                        })()}</div>
+                        <div style={kpiSubStyle}>Net Trade W/L</div>
+                    </div>
+
+                    {/* Projection */}
+                    <div style={kpiCardStyle}>
+                        <div style={kpiLabelStyle}>{'\u{1F52E}'} PROJECTION</div>
+                        <div style={kpiValueStyle}>{(() => {
+                            if (!myRoster?.players?.length) return '\u2014';
+                            const avgAge = myRoster.players.reduce((s, pid) => {
+                                const p = playersData[pid];
+                                return s + (p?.age || 26);
+                            }, 0) / myRoster.players.length;
+                            const windowYears = Math.max(0, Math.round(29 - avgAge));
+                            return windowYears > 0 ? windowYears + 'yr' : 'Now';
+                        })()}</div>
+                        <div style={kpiSubStyle}>Compete Window</div>
+                    </div>
+                </div>
+
+                {/* Tab Content Routing */}
+                {activeTab === 'analytics' ? (
+                    <div style={{ padding: '16px' }}>
+                        <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.8rem', color: 'var(--gold)', letterSpacing: '0.05em', marginBottom: '16px' }}>LEAGUE ANALYTICS</div>
+                        <div id="wr-analytics-content" style={{ color: 'var(--silver)' }}>
+                            Analytics engine loading... Run <code>runLeagueAnalytics()</code> in console to test.
+                        </div>
+                    </div>
+                ) : (
+                <React.Fragment>
                 {/* 3-Column Layout */}
                 <div style={{ padding: '1rem', maxWidth: '1600px', margin: '0 auto' }}>
                     <div className="league-detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
@@ -1803,6 +1885,9 @@
                     )}
 
                 </div>
+                </React.Fragment>
+                )}
+                </div>{/* end marginLeft wrapper */}
             </div>
         );
     }
