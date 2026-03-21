@@ -691,21 +691,35 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <script type="text/babel">
+    // ===== DEV MODE =====
+    const DEV_MODE = new URLSearchParams(window.location.search).has('dev') || window.location.hostname.includes('sandbox');
+    if (DEV_MODE) {
+        console.log('%c[DEV MODE] All features unlocked, auth bypassed','color:#D4AF37;font-weight:bold;font-size:14px');
+        const b = document.createElement('div');
+        b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#D4AF37;color:#000;font-size:11px;font-weight:700;text-align:center;padding:3px;letter-spacing:.05em;font-family:monospace';
+        b.textContent = '⚡ SANDBOX — changes here do not affect production';
+        document.body.prepend(b);
+    }
+
     // ===== AUTHENTICATION CHECK =====
     const AUTH_KEY    = 'od_auth_v1';
     const SESSION_KEY = 'fw_session_v1';
 
     const legacyAuth   = localStorage.getItem(AUTH_KEY);
     const newSession   = (() => { try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch { return null; } })();
-    const isAuthed     = !!(legacyAuth || newSession?.token);
+    const isAuthed     = !!(legacyAuth || newSession?.token || DEV_MODE);
 
     if (!isAuthed) {
         window.location.href = 'landing.html';
     }
 
     let sleeperUsername = '';
+    // Dev mode: use URL param or default test username
+    if (DEV_MODE) {
+        sleeperUsername = new URLSearchParams(window.location.search).get('user') || 'jcc100218';
+    }
     try {
-        if (legacyAuth) {
+        if (legacyAuth && !sleeperUsername) {
             const credentials = JSON.parse(legacyAuth);
             sleeperUsername = credentials.username || '';
             // Sync username to Team Comps page localStorage key so it auto-logs in
