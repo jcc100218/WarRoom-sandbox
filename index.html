@@ -1942,6 +1942,40 @@
                             <span>{item.label}</span>
                         </button>
                     ))}
+
+                    {/* Spacer */}
+                    <div style={{ flex: 1 }}></div>
+
+                    {/* Sync Status */}
+                    <div style={{ fontSize: '0.5rem', color: window.App?.LI_LOADED ? '#2ECC71' : 'var(--silver)', textAlign: 'center', fontFamily: 'Oswald', opacity: 0.7, marginBottom: '4px' }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: window.App?.LI_LOADED ? '#2ECC71' : 'var(--silver)', margin: '0 auto 2px' }}></div>
+                        {window.App?.LI_LOADED ? 'Synced' : 'Loading'}
+                    </div>
+
+                    {/* Refresh Button */}
+                    <button onClick={async () => {
+                        // Clear caches and reload everything
+                        try {
+                            localStorage.removeItem('dhq_leagueintel_v9');
+                            Object.keys(localStorage).filter(k => k.startsWith('dhq_hist_')).forEach(k => localStorage.removeItem(k));
+                            if (window.App) { window.App.LI = {}; window.App.LI_LOADED = false; window._liLoading = false; }
+                        } catch(e) {}
+                        // Re-trigger league load
+                        await loadLeagueDetails();
+                    }} style={{
+                        width: '48px', height: '48px', border: 'none', borderRadius: '8px',
+                        background: 'transparent', cursor: 'pointer', display: 'flex',
+                        flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        gap: '2px', transition: 'all 0.2s', color: 'var(--gold)',
+                        fontSize: '0.55rem', fontFamily: 'Oswald, sans-serif', marginBottom: '8px'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,175,55,0.15)'; e.currentTarget.querySelector('span').style.transform = 'rotate(180deg)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.querySelector('span').style.transform = 'rotate(0)'; }}
+                    title="Refresh — reload DHQ values, league history, and AI data"
+                    >
+                        <span style={{ fontSize: '1.2rem', transition: 'transform 0.3s' }}>↻</span>
+                        <span>Refresh</span>
+                    </button>
                 </div>
 
                 {/* Main content shifted right */}
