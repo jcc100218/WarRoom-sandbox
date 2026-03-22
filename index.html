@@ -2735,64 +2735,70 @@
                       )}
                     </div>
 
-                    {/* 4. LEAGUE ACTIVITY FEED */}
+                    {/* 4. LEAGUE STANDINGS TABLE */}
                     <div style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '16px' }}>
-                      <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '12px', letterSpacing: '0.06em' }}>LEAGUE ACTIVITY</div>
-                      {transactions.length === 0 ? (
-                        <div style={{ color: 'var(--silver)', fontSize: '0.78rem', opacity: 0.6, padding: '16px 0', textAlign: 'center' }}>No recent activity</div>
-                      ) : transactions.slice(0, 20).map((txn, ti) => {
-                        const isTradeType = txn.type === 'trade';
-                        const addKeys = Object.keys(txn.adds || {});
-                        const dropKeys = Object.keys(txn.drops || {});
+                      <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '12px', letterSpacing: '0.06em' }}>LEAGUE STANDINGS</div>
+                      {(() => {
+                        // Group by division if divisions exist
+                        const divisions = {};
+                        standings.forEach(t => {
+                          const div = t.division || 0;
+                          if (!divisions[div]) divisions[div] = [];
+                          divisions[div].push(t);
+                        });
+                        const divKeys = Object.keys(divisions).sort((a,b) => a - b);
+                        const hasDivisions = divKeys.length > 1;
+
                         return (
-                          <div key={'act'+ti} style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '12px' }}>
-                            <div style={{ width: '50px', flexShrink: 0, textAlign: 'right', paddingTop: '2px' }}>
-                              <div style={{ fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.5 }}>{timeAgo(txn.created)}</div>
-                              <div style={{ fontSize: '0.55rem', fontWeight: 700, marginTop: '2px', padding: '1px 4px', borderRadius: '3px', display: 'inline-block',
-                                background: isTradeType ? 'rgba(124,107,248,0.15)' : txn.type === 'waiver' ? 'rgba(52,211,153,0.15)' : txn.type === 'free_agent' ? 'rgba(59,130,246,0.15)' : 'rgba(248,113,113,0.15)',
-                                color: isTradeType ? '#a78bfa' : txn.type === 'waiver' ? '#34d399' : txn.type === 'free_agent' ? '#60a5fa' : '#f87171'
-                              }}>{(txn.type === 'free_agent' ? 'FA' : txn.type || '').toUpperCase()}</div>
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: '0.82rem', color: 'var(--white)', fontWeight: 600, marginBottom: '4px' }}>
-                                {getOwnerName(txn.roster_ids?.[0])}
-                                {isTradeType && txn.roster_ids?.[1] && (<span style={{ color: 'var(--silver)', fontWeight: 400 }}> {'\u2194'} {getOwnerName(txn.roster_ids[1])}</span>)}
+                          <div>
+                            {divKeys.map(divKey => (
+                              <div key={divKey} style={{ marginBottom: hasDivisions ? '16px' : '0' }}>
+                                {hasDivisions && (
+                                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.68rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid rgba(212,175,55,0.2)' }}>
+                                    Division {divKey}
+                                  </div>
+                                )}
+                                {/* Header */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '20px 1fr 48px 48px 56px 56px', gap: '4px', padding: '4px 8px', fontSize: '0.55rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid rgba(212,175,55,0.15)' }}>
+                                  <span>#</span><span>Team</span><span style={{textAlign:'right'}}>W-L</span><span style={{textAlign:'right'}}>PF</span><span style={{textAlign:'right'}}>DHQ</span><span style={{textAlign:'right'}}>Rank</span>
+                                </div>
+                                {/* Rows */}
+                                {divisions[divKey].sort((a,b) => {
+                                  if (b.wins !== a.wins) return b.wins - a.wins;
+                                  if (a.losses !== b.losses) return a.losses - b.losses;
+                                  return b.pointsFor - a.pointsFor;
+                                }).map((team, idx) => {
+                                  const isMe = team.userId === sleeperUserId;
+                                  const roster = currentLeague.rosters?.find(r => r.owner_id === team.userId);
+                                  const totalDHQ = roster?.players?.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0) || 0;
+                                  const pf = team.pointsFor || 0;
+                                  // Find overall rank
+                                  const overallRank = standings.slice().sort((a,b) => b.wins !== a.wins ? b.wins - a.wins : b.pointsFor - a.pointsFor).findIndex(t => t.userId === team.userId) + 1;
+                                  return (
+                                    <div key={team.rosterId} style={{
+                                      display: 'grid', gridTemplateColumns: '20px 1fr 48px 48px 56px 56px', gap: '4px',
+                                      padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                      background: isMe ? 'rgba(212,175,55,0.08)' : 'transparent',
+                                      fontSize: '0.75rem', alignItems: 'center'
+                                    }}>
+                                      <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '0.9rem', color: idx === 0 ? '#D4AF37' : idx === 1 ? '#C0C0C0' : idx === 2 ? '#CD7F32' : 'var(--silver)' }}>{idx + 1}</span>
+                                      <div style={{ overflow: 'hidden' }}>
+                                        <div style={{ fontWeight: isMe ? 700 : 500, color: isMe ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                          {team.displayName}{isMe && <span style={{ fontSize: '0.55rem', color: 'var(--gold)', marginLeft: '4px' }}>YOU</span>}
+                                        </div>
+                                      </div>
+                                      <span style={{ textAlign: 'right', fontFamily: 'Oswald, sans-serif', fontWeight: 600, color: 'var(--white)' }}>{team.wins}-{team.losses}</span>
+                                      <span style={{ textAlign: 'right', fontSize: '0.68rem', color: 'var(--silver)' }}>{pf > 0 ? pf.toFixed(0) : '—'}</span>
+                                      <span style={{ textAlign: 'right', fontSize: '0.68rem', fontFamily: 'Oswald, sans-serif', color: totalDHQ >= 80000 ? '#2ECC71' : totalDHQ >= 50000 ? 'var(--gold)' : 'var(--silver)' }}>{totalDHQ > 0 ? (totalDHQ / 1000).toFixed(0) + 'k' : '—'}</span>
+                                      <span style={{ textAlign: 'right', fontSize: '0.68rem', color: overallRank <= 3 ? '#2ECC71' : overallRank <= 6 ? 'var(--gold)' : 'var(--silver)' }}>#{overallRank}</span>
+                                    </div>
+                                  );
+                                })}
                               </div>
-                              <div style={{ fontSize: '0.75rem', lineHeight: 1.6 }}>
-                                {addKeys.map(pid => (
-                                  <div key={'aa'+pid}>
-                                    <span style={{ color: '#2ECC71', cursor: 'pointer' }}
-                                      onClick={() => { if (window.openFWPlayerModal) openFWPlayerModal(pid, playersData, statsData); }}>
-                                      + {getPlayerName(pid)}
-                                    </span>
-                                    {(() => {
-                                      const dhq = window.App?.LI?.playerScores?.[pid];
-                                      return dhq ? <span style={{ color: 'var(--silver)', fontSize: '0.62rem', marginLeft: '6px', opacity: 0.6 }}>{dhq.toLocaleString()} DHQ</span> : null;
-                                    })()}
-                                    {isTradeType && txn.adds?.[pid] != null && (
-                                      <span style={{ color: 'var(--silver)', fontSize: '0.62rem', marginLeft: '4px', opacity: 0.4 }}>{'\u2192'} {getOwnerName(txn.adds[pid])}</span>
-                                    )}
-                                  </div>
-                                ))}
-                                {dropKeys.map(pid => (
-                                  <div key={'dd'+pid}>
-                                    <span style={{ color: '#E74C3C' }}>- {getPlayerName(pid)}</span>
-                                    {isTradeType && txn.drops?.[pid] != null && (
-                                      <span style={{ color: 'var(--silver)', fontSize: '0.62rem', marginLeft: '4px', opacity: 0.4 }}>{'\u2192'} {getOwnerName(txn.drops[pid])}</span>
-                                    )}
-                                  </div>
-                                ))}
-                                {txn.draft_picks?.length > 0 && txn.draft_picks.map((pick, pi) => (
-                                  <div key={'pk'+pi} style={{ color: '#a78bfa', fontSize: '0.72rem' }}>
-                                    {pick.season} Round {pick.round} ({getOwnerName(pick.roster_id)}) {'\u2192'} {getOwnerName(pick.owner_id)}
-                                  </div>
-                                ))}
-                                {txn.settings?.waiver_bid > 0 && <div style={{ color: '#F0A500', fontSize: '0.68rem', marginTop: '2px' }}>FAAB Bid: ${txn.settings.waiver_bid}</div>}
-                              </div>
-                            </div>
+                            ))}
                           </div>
                         );
-                      })}
+                      })()}
                     </div>
 
                 </div>{/* end Athletic dashboard */}
