@@ -1062,6 +1062,133 @@
         const [transactions, setTransactions] = useState([]);
         const [rankedTeams, setRankedTeams] = useState([]);
         const [dhqStatus, setDhqStatus] = useState({ loading: false, step: '', progress: 0 });
+        const [editingKpi, setEditingKpi] = useState(null); // index being edited, null = not editing
+
+        // Default 5 KPIs — customizable per owner, saved in localStorage
+        const KPI_OPTIONS = {
+            'starter-gap':    { label: 'Starter Gap', icon: '\u{1F3AF}', category: 'Roster' },
+            'portfolio':      { label: 'Portfolio DHQ', icon: '\u{1F4B0}', category: 'Roster' },
+            'value-rank':     { label: 'Value Rank', icon: '\u{1F3C6}', category: 'League' },
+            'health-score':   { label: 'Health Score', icon: '\u{1F4AA}', category: 'Roster' },
+            'avg-age':        { label: 'Avg Age', icon: '\u{231B}', category: 'Roster' },
+            'top5-conc':      { label: 'Top 5 Concentration', icon: '\u{1F4CA}', category: 'Roster' },
+            'hit-rate':       { label: 'Draft Hit Rate', icon: '\u{1F3AF}', category: 'Draft' },
+            'faab-efficiency':{ label: 'FAAB Efficiency', icon: '\u{1F4B5}', category: 'Waivers' },
+            'net-trade':      { label: 'Net DHQ/Trade', icon: '\u{1F504}', category: 'Trades' },
+            'trade-velocity': { label: 'Trade Velocity', icon: '\u{26A1}', category: 'Trades' },
+            'window':         { label: 'Compete Window', icon: '\u{1F52E}', category: 'Projection' },
+            'aging-cliff':    { label: 'Aging Cliff %', icon: '\u{26A0}\u{FE0F}', category: 'Projection' },
+            'partner-wr':     { label: 'Partner Win Rate', icon: '\u{1F91D}', category: 'Trades' },
+            'elite-count':    { label: 'Elite Players', icon: '\u{2B50}', category: 'Roster' },
+            'bench-quality':  { label: 'Bench Quality', icon: '\u{1F4CE}', category: 'Roster' },
+        };
+        const DEFAULT_KPIS = ['starter-gap', 'hit-rate', 'faab-efficiency', 'net-trade', 'window'];
+        const [selectedKpis, setSelectedKpis] = useState(() => {
+            try {
+                const saved = localStorage.getItem('wr_kpi_selection_' + (currentLeague?.id || ''));
+                return saved ? JSON.parse(saved) : DEFAULT_KPIS;
+            } catch(e) { return DEFAULT_KPIS; }
+        });
+        useEffect(() => {
+            try { localStorage.setItem('wr_kpi_selection_' + (currentLeague?.id || ''), JSON.stringify(selectedKpis)); } catch(e) {}
+        }, [selectedKpis]);
+
+        function computeKpiValue(kpiKey) {
+            const LI = window.App?.LI || {};
+            const scores = LI.playerScores || {};
+            const myPlayers = myRoster?.players || [];
+            const profile = LI.ownerProfiles?.[myRoster?.roster_id];
+            switch(kpiKey) {
+                case 'portfolio': {
+                    const total = myPlayers.reduce((s, pid) => s + (scores[pid] || 0), 0);
+                    return { value: total.toLocaleString(), sub: 'Total DHQ', color: 'var(--gold)' };
+                }
+                case 'value-rank': {
+                    const vals = (currentLeague.rosters || []).map(r => (r.players || []).reduce((s, pid) => s + (scores[pid] || 0), 0)).sort((a,b) => b - a);
+                    const myTotal = myPlayers.reduce((s, pid) => s + (scores[pid] || 0), 0);
+                    const rank = vals.findIndex(v => v <= myTotal) + 1;
+                    return { value: '#' + (rank || '?') + '/' + standings.length, sub: 'League rank', color: rank <= 3 ? '#2ECC71' : rank <= 6 ? 'var(--gold)' : '#E74C3C' };
+                }
+                case 'health-score': {
+                    const ranked = rankedTeams.find(t => t.userId === sleeperUserId);
+                    const hs = ranked?.healthScore || 0;
+                    return { value: hs || '\u2014', sub: 'Score', color: hs >= 80 ? '#2ECC71' : hs >= 60 ? 'var(--gold)' : '#E74C3C' };
+                }
+                case 'starter-gap': {
+                    const analytics = analyticsData || (typeof runLeagueAnalytics === 'function' ? runLeagueAnalytics() : null);
+                    const gap = analytics?.roster?.gaps?.find(g => g.severity === 'high') || analytics?.roster?.gaps?.[0];
+                    if (gap) return { value: gap.area.split(' ')[0] + ' ' + (gap.delta > 0 ? '+' : '') + (typeof gap.delta === 'number' ? gap.delta.toFixed(gap.delta < 1 ? 2 : 0) : gap.delta), sub: gap.severity + ' priority', color: gap.severity === 'high' ? '#E74C3C' : '#F0A500' };
+                    return { value: '\u2714', sub: 'No major gaps', color: '#2ECC71' };
+                }
+                case 'avg-age': {
+                    if (!myPlayers.length) return { value: '\u2014', sub: 'Avg age', color: 'var(--silver)' };
+                    const avg = myPlayers.reduce((s, pid) => s + (playersData[pid]?.age || 26), 0) / myPlayers.length;
+                    return { value: avg.toFixed(1), sub: 'Avg age', color: avg <= 25 ? '#2ECC71' : avg <= 27 ? 'var(--gold)' : '#E74C3C' };
+                }
+                case 'top5-conc': {
+                    const vals = myPlayers.map(pid => scores[pid] || 0).sort((a,b) => b - a);
+                    const total = vals.reduce((s,v) => s + v, 0);
+                    const top5 = vals.slice(0, 5).reduce((s,v) => s + v, 0);
+                    const pct = total > 0 ? Math.round(top5 / total * 100) : 0;
+                    return { value: pct + '%', sub: 'In top 5 players', color: pct >= 65 ? '#2ECC71' : pct >= 50 ? 'var(--gold)' : '#E74C3C' };
+                }
+                case 'hit-rate': {
+                    if (!profile || !profile.trades) return { value: '\u2014', sub: 'Draft hit rate', color: 'var(--silver)' };
+                    const total = (profile.tradesWon || 0) + (profile.tradesLost || 0) + (profile.tradesFair || 0);
+                    const rate = total > 0 ? Math.round(((profile.tradesWon || 0) + (profile.tradesFair || 0)) / total * 100) : 0;
+                    return { value: rate + '%', sub: 'Win/fair rate', color: rate >= 60 ? '#2ECC71' : rate >= 40 ? 'var(--gold)' : '#E74C3C' };
+                }
+                case 'faab-efficiency': {
+                    const budget = myRoster?.settings?.waiver_budget || 0;
+                    const spent = myRoster?.settings?.waiver_budget_used || 0;
+                    if (!budget) return { value: '\u2014', sub: 'No FAAB', color: 'var(--silver)' };
+                    const remaining = budget - spent;
+                    return { value: '$' + remaining, sub: '$' + budget + ' budget', color: remaining > budget * 0.5 ? '#2ECC71' : remaining > budget * 0.25 ? 'var(--gold)' : '#E74C3C' };
+                }
+                case 'net-trade': {
+                    if (!profile) return { value: '\u2014', sub: 'Net DHQ/trade', color: 'var(--silver)' };
+                    const avg = profile.avgValueDiff || 0;
+                    return { value: (avg >= 0 ? '+' : '') + Math.round(avg), sub: 'Avg per trade', color: avg >= 100 ? '#2ECC71' : avg >= 0 ? 'var(--gold)' : '#E74C3C' };
+                }
+                case 'trade-velocity': {
+                    if (!profile) return { value: '\u2014', sub: 'Trades', color: 'var(--silver)' };
+                    return { value: profile.trades || 0, sub: 'Total trades', color: (profile.trades || 0) >= 4 ? '#2ECC71' : (profile.trades || 0) >= 2 ? 'var(--gold)' : 'var(--silver)' };
+                }
+                case 'window': {
+                    if (!myPlayers.length) return { value: '\u2014', sub: 'Window', color: 'var(--silver)' };
+                    const avgAge = myPlayers.reduce((s, pid) => s + (playersData[pid]?.age || 26), 0) / myPlayers.length;
+                    const yrs = Math.max(0, Math.round(29 - avgAge));
+                    return { value: yrs > 0 ? yrs + 'yr' : 'Now', sub: 'Compete window', color: yrs >= 3 ? '#2ECC71' : yrs >= 1 ? 'var(--gold)' : '#E74C3C' };
+                }
+                case 'aging-cliff': {
+                    const total = myPlayers.reduce((s, pid) => s + (scores[pid] || 0), 0);
+                    const pastPeak = myPlayers.reduce((s, pid) => {
+                        const p = playersData[pid]; if (!p) return s;
+                        const pos = p.position; const age = p.age || 26;
+                        const peaks = {QB:33,RB:26,WR:29,TE:30,DL:29,LB:28,DB:29};
+                        return age > (peaks[pos] || 29) ? s + (scores[pid] || 0) : s;
+                    }, 0);
+                    const pct = total > 0 ? Math.round(pastPeak / total * 100) : 0;
+                    return { value: pct + '%', sub: 'Past peak DHQ', color: pct <= 20 ? '#2ECC71' : pct <= 35 ? '#F0A500' : '#E74C3C' };
+                }
+                case 'partner-wr': {
+                    if (!profile || !profile.tradesWon) return { value: '\u2014', sub: 'Partner W/R', color: 'var(--silver)' };
+                    const total = (profile.tradesWon || 0) + (profile.tradesLost || 0);
+                    return { value: (profile.tradesWon || 0) + '-' + (profile.tradesLost || 0), sub: 'Trade W-L', color: (profile.tradesWon || 0) > (profile.tradesLost || 0) ? '#2ECC71' : '#E74C3C' };
+                }
+                case 'elite-count': {
+                    const elites = myPlayers.filter(pid => (scores[pid] || 0) >= 7000).length;
+                    return { value: elites, sub: 'DHQ 7000+', color: elites >= 3 ? '#2ECC71' : elites >= 1 ? 'var(--gold)' : '#E74C3C' };
+                }
+                case 'bench-quality': {
+                    const starters = new Set(myRoster?.starters || []);
+                    const benchVals = myPlayers.filter(pid => !starters.has(pid)).map(pid => scores[pid] || 0).filter(v => v > 0);
+                    const avg = benchVals.length ? Math.round(benchVals.reduce((s,v) => s + v, 0) / benchVals.length) : 0;
+                    return { value: avg.toLocaleString(), sub: 'Avg bench DHQ', color: avg >= 2500 ? '#2ECC71' : avg >= 1500 ? 'var(--gold)' : 'var(--silver)' };
+                }
+                default: return { value: '\u2014', sub: '', color: 'var(--silver)' };
+            }
+        }
         const [reconPanelOpen, setReconPanelOpen] = useState(false);
         const [reconMessages, setReconMessages] = useState([
           { role: 'assistant', content: 'Ask me anything about your league, team, or players.' }
@@ -2092,64 +2219,92 @@
                     </div>
                 </div>
 
-                {/* KPI Cards — 4 Lenses */}
+                {/* KPI Cards — 5 customizable slots */}
                 <div style={{
-                    display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px',
+                    display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px',
                     padding: '12px 16px', background: 'var(--black)',
                     borderBottom: '1px solid rgba(212,175,55,0.15)'
                 }}>
-                    {/* My Team */}
-                    <div style={kpiCardStyle}>
-                        <div style={kpiLabelStyle}>{'\u{1F464}'} MY TEAM</div>
-                        <div style={kpiValueStyle}>{(() => {
-                            const total = myRoster?.players?.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0) || 0;
-                            return total.toLocaleString();
-                        })()}</div>
-                        <div style={kpiSubStyle}>Portfolio DHQ</div>
-                    </div>
+                    {selectedKpis.map((kpiKey, idx) => {
+                        const opt = KPI_OPTIONS[kpiKey] || { label: kpiKey, icon: '?', category: '' };
+                        const val = computeKpiValue(kpiKey);
+                        const isEditing = editingKpi === idx;
+                        return (
+                            <div key={kpiKey + idx} style={{
+                                ...kpiCardStyle, position: 'relative', cursor: 'default',
+                                border: isEditing ? '1px solid var(--gold)' : kpiCardStyle.border
+                            }}>
+                                {/* Edit button */}
+                                <button onClick={e => { e.stopPropagation(); setEditingKpi(isEditing ? null : idx); }}
+                                    style={{
+                                        position: 'absolute', top: '4px', right: '4px', width: '18px', height: '18px',
+                                        border: 'none', borderRadius: '50%', cursor: 'pointer',
+                                        background: isEditing ? 'var(--gold)' : 'rgba(255,255,255,0.06)',
+                                        color: isEditing ? 'var(--black)' : 'var(--silver)',
+                                        fontSize: '0.55rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        transition: 'all 0.15s', opacity: 0.6
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                                    onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
+                                    title="Change this KPI"
+                                >{isEditing ? '\u2715' : '\u270E'}</button>
 
-                    {/* League */}
-                    <div style={kpiCardStyle}>
-                        <div style={kpiLabelStyle}>{'\u{1F3C6}'} LEAGUE</div>
-                        <div style={kpiValueStyle}>{(() => {
-                            const vals = standings.map(t => {
-                                const r = currentLeague.rosters.find(r => r.owner_id === t.userId);
-                                return r?.players?.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0) || 0;
-                            }).sort((a,b) => b-a);
-                            const myTotal = myRoster?.players?.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0) || 0;
-                            const rank = vals.findIndex(v => v <= myTotal) + 1;
-                            return '#' + (rank || '?') + '/' + standings.length;
-                        })()}</div>
-                        <div style={kpiSubStyle}>Value Rank</div>
-                    </div>
+                                {/* KPI content */}
+                                <div style={{ ...kpiLabelStyle, fontSize: '0.52rem' }}>{opt.icon} {opt.category.toUpperCase()}</div>
+                                <div style={{ ...kpiValueStyle, color: val.color, fontSize: '1.4rem' }}>{val.value}</div>
+                                <div style={kpiSubStyle}>{val.sub}</div>
 
-                    {/* Historical */}
-                    <div style={kpiCardStyle}>
-                        <div style={kpiLabelStyle}>{'\u{1F4C8}'} HISTORICAL</div>
-                        <div style={kpiValueStyle}>{(() => {
-                            const profile = window.App?.LI?.ownerProfiles?.[myRoster?.roster_id];
-                            if (!profile) return '\u2014';
-                            const net = profile.tradesWon - profile.tradesLost;
-                            return (net >= 0 ? '+' : '') + net;
-                        })()}</div>
-                        <div style={kpiSubStyle}>Net Trade W/L</div>
-                    </div>
-
-                    {/* Projection */}
-                    <div style={kpiCardStyle}>
-                        <div style={kpiLabelStyle}>{'\u{1F52E}'} PROJECTION</div>
-                        <div style={kpiValueStyle}>{(() => {
-                            if (!myRoster?.players?.length) return '\u2014';
-                            const avgAge = myRoster.players.reduce((s, pid) => {
-                                const p = playersData[pid];
-                                return s + (p?.age || 26);
-                            }, 0) / myRoster.players.length;
-                            const windowYears = Math.max(0, Math.round(29 - avgAge));
-                            return windowYears > 0 ? windowYears + 'yr' : 'Now';
-                        })()}</div>
-                        <div style={kpiSubStyle}>Compete Window</div>
-                    </div>
+                                {/* Dropdown picker */}
+                                {isEditing && (
+                                    <div style={{
+                                        position: 'absolute', top: '100%', left: '-4px', right: '-4px', marginTop: '4px',
+                                        background: '#0a0a0a', border: '2px solid rgba(212,175,55,0.4)',
+                                        borderRadius: '8px', zIndex: 50, maxHeight: '220px', overflowY: 'auto',
+                                        boxShadow: '0 8px 32px rgba(0,0,0,0.6)'
+                                    }}>
+                                        {Object.entries(KPI_OPTIONS)
+                                            .filter(([k]) => !selectedKpis.includes(k) || k === kpiKey)
+                                            .map(([k, o]) => {
+                                                const isActive = k === kpiKey;
+                                                return (
+                                                    <div key={k} onClick={() => {
+                                                        const updated = [...selectedKpis];
+                                                        updated[idx] = k;
+                                                        setSelectedKpis(updated);
+                                                        setEditingKpi(null);
+                                                    }} style={{
+                                                        padding: '6px 10px', cursor: 'pointer', fontSize: '0.68rem',
+                                                        display: 'flex', alignItems: 'center', gap: '6px',
+                                                        background: isActive ? 'rgba(212,175,55,0.15)' : 'transparent',
+                                                        color: isActive ? 'var(--gold)' : 'var(--white)',
+                                                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                                        transition: 'background 0.1s'
+                                                    }}
+                                                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                                                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+                                                    >
+                                                        <span style={{ fontSize: '0.8rem' }}>{o.icon}</span>
+                                                        <div>
+                                                            <div style={{ fontWeight: 600 }}>{o.label}</div>
+                                                            <div style={{ fontSize: '0.55rem', color: 'var(--silver)', opacity: 0.6 }}>{o.category}</div>
+                                                        </div>
+                                                        {isActive && <span style={{ marginLeft: 'auto', color: 'var(--gold)', fontSize: '0.7rem' }}>{'\u2713'}</span>}
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
+
+                {/* Close dropdown on outside click */}
+                {editingKpi !== null && (
+                    <div onClick={() => setEditingKpi(null)} style={{
+                        position: 'fixed', inset: 0, zIndex: 40, background: 'transparent'
+                    }}></div>
+                )}
 
                 {/* Tab Content Routing */}
                 {activeTab === 'myteam' ? renderMyTeamTab() : activeTab === 'analytics' ? (() => {
