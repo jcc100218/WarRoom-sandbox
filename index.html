@@ -2219,8 +2219,8 @@
                     </div>
                 </div>
 
-                {/* KPI Cards — 5 customizable slots */}
-                <div style={{
+                {/* KPI Cards — 5 customizable slots (dashboard only) */}
+                {activeTab === 'dashboard' && <React.Fragment><div style={{
                     display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px',
                     padding: '12px 16px', background: 'var(--black)',
                     borderBottom: '1px solid rgba(212,175,55,0.15)'
@@ -2305,6 +2305,7 @@
                         position: 'fixed', inset: 0, zIndex: 40, background: 'transparent'
                     }}></div>
                 )}
+                </React.Fragment>}
 
                 {/* Tab Content Routing */}
                 {activeTab === 'myteam' ? renderMyTeamTab() : activeTab === 'analytics' ? (() => {
