@@ -547,6 +547,7 @@
 <script src="https://jcc100218.github.io/ReconAI/shared/dhq-ai.js"></script>
 <script src="https://jcc100218.github.io/ReconAI/shared/ai-dispatch.js"></script>
 <script src="https://jcc100218.github.io/ReconAI/shared/player-modal.js"></script>
+<script src="https://jcc100218.github.io/ReconAI/shared/team-assess.js"></script>
 <script src="draft-history.js"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -625,9 +626,18 @@ const AVAILABLE_YEARS  = ['2023', '2024', '2025', '2026'];
 // NFL regular season runs Sept–Jan; before Sept, stats year is the prior calendar year
 const STATS_YEAR = (() => { const d = new Date(); return String(d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1); })();
 
-// Psycho League baseline (user-defined)
-const WEEKLY_TARGET = 243;
-const ANNUAL_TARGET = 3402;
+// Psycho League baseline — will be overwritten dynamically after rosters load
+let WEEKLY_TARGET = 243;
+let ANNUAL_TARGET = 3402;
+
+// Dynamic weekly target: median of all teams' optimal PPG × 1.05
+function computeWeeklyTarget(rosters, playersData, statsData, scoring, rosterPositions) {
+    const ppgs = rosters.map(r => {
+        return calcOptimalLineup(r.players || [], r.reserve || [], r.taxi || [], playersData, statsData, scoring, rosterPositions);
+    }).filter(v => v > 0).sort((a,b) => a - b);
+    if (!ppgs.length) return 150;
+    return Math.round(ppgs[Math.floor(ppgs.length / 2)] * 1.05);
+}
 
 // Ideal dynasty roster depth per position
 const IDEAL_ROSTER = { QB:3, RB:7, WR:7, TE:4, K:2, DL:7, LB:6, DB:6 };
@@ -880,107 +890,46 @@ async function fetchFantasyCalcValues() {
     }
 }
 
-// Compute an internal value from stats as fallback for IDP/kickers.
-// IDP (DB/DL/LB): ranked by current season total points → tiered values (Elite/T1/T2/T3).
-//   - Tier base value is multiplied by an age curve (ageMultiplier) so younger players
-//     at the same production rank are valued higher, as dynasty markets price in future.
-//   - INT-tier players (rank > T3 boundary) get a rank-based linear gradient from the
-//     T3 boundary value down to INT_FLOOR rather than a single flat number.
-//   - Established IDP vets (years_exp ≥ 3) who scored 0 pts in current season (injured/IR) are
-//     included with a floor value based on experience + age, tagged tier 'INJ'.
-// Non-IDP (kickers, etc.): linear percentile scale capped at 200 at the source.
-function buildInternalValues(playersData, statsData, scoring) {
-    const INT_FLOOR   = 50;
-    const T3_BOUNDARY = IDP_TIERS.find(t => t.label === 'T3').maxRank; // 50
-    const T3_VALUE    = IDP_TIERS.find(t => t.label === 'T3').value;    // 900
+// [REMOVED] buildInternalValues — DHQ engine now handles IDP + offensive player valuation
+// [REMOVED] mergeValues — DHQ engine blends FC market data (75/25) internally
 
-    const byPos = {};
-    for (const [id, p] of Object.entries(playersData)) {
-        const np = normPos(p.position);
-        if (!np) continue;
-        const pts = calcSeasonPts(id, statsData, scoring);
-        if (pts <= 0) continue;
-        if (!byPos[np]) byPos[np] = [];
-        byPos[np].push({ id, pts });
-    }
-    const idx = {};
-    for (const [pos, players] of Object.entries(byPos)) {
-        const sorted = players.sort((a, b) => b.pts - a.pts);
-        const total  = sorted.length;
-        sorted.forEach(({ id }, i) => {
-            const rank = i + 1;
-            if (IDP_POSITIONS.has(pos)) {
-                const tier = idpTier(rank);
-                let baseValue;
-                if (tier.label === 'INT') {
-                    // Smooth linear gradient within INT group:
-                    //   rank T3_BOUNDARY+1 (best INT) → near T3_VALUE
-                    //   last ranked player             → INT_FLOOR
-                    const intCount = total - T3_BOUNDARY;
-                    const posInInt = rank - T3_BOUNDARY - 1; // 0-indexed
-                    const frac = intCount > 1 ? posInInt / (intCount - 1) : 0;
-                    baseValue = Math.round(T3_VALUE * (1 - frac) + INT_FLOOR * frac);
-                } else {
-                    baseValue = tier.value;
-                }
-                // Apply dynasty age curve — same production rank at 23 is worth
-                // significantly more than at 30 in a keeper/dynasty context.
-                const mult  = ageMultiplier(getPlayerAge(playersData[id]));
-                const value = Math.max(INT_FLOOR, Math.round(baseValue * mult));
-                idx[id] = { value, trend: 0, rank, posRank: rank, source: 'internal', tier: tier.label };
-            } else {
-                // Non-IDP players not in FantasyCalc (kickers, fringe offensive players).
-                // Capped at 200 here — these players have no meaningful dynasty value
-                // and the 200 ceiling prevents them from inflating display values,
-                // team assessments, and trade totals. Range 50–200 gives slight
-                // differentiation within position without overstating importance.
-                const pct = total > 1 ? (1 - i / (total - 1)) : 1;
-                idx[id] = { value: Math.round(50 + pct * 150), trend: 0, rank, posRank: rank, source: 'internal', tier: null };
-            }
-        });
-    }
-
-    // Established IDP vets who scored 0 pts in STATS_YEAR (injured/IR all season).
-    // Give them a floor value based on experience + age so they aren't invisible
-    // in the trade analyzer. Requires years_exp ≥ 3 to filter out unproven players.
-    for (const [id, p] of Object.entries(playersData)) {
-        if (idx[id]) continue; // already valued
-        const np = normPos(p.position);
-        if (!IDP_POSITIONS.has(np)) continue;
-        const yearsExp = p.years_exp;
-        if (yearsExp == null || Number(yearsExp) < 3) continue;
-        const yrs = Number(yearsExp);
-        // Floor based on experience tier, then discounted by age curve
-        const floorBase = yrs >= 7 ? 700 : yrs >= 5 ? 550 : 400;
-        const mult  = ageMultiplier(getPlayerAge(p));
-        const value = Math.max(INT_FLOOR, Math.round(floorBase * mult));
-        idx[id] = { value, trend: 0, rank: 999, posRank: 999, source: 'internal', tier: 'INJ' };
-    }
-
-    return idx;
-}
-
-// Merge FC values (preferred) with internal fallback
+// Legacy stub: mergeValues kept as no-op for any residual references
 function mergeValues(fcValues, internalValues) {
-    const merged = { ...internalValues };
-    for (const [sid, v] of Object.entries(fcValues)) {
-        merged[sid] = v; // FC wins
+    // DHQ engine is the primary source now; this returns a combined index as fallback
+    const merged = { ...(internalValues || {}) };
+    for (const [sid, v] of Object.entries(fcValues || {})) {
+        merged[sid] = v;
     }
     return merged;
 }
 
-// Get player value from the merged index; returns { value, source }
+// Get player value — prefer DHQ engine scores, fall back to merged index
 function getPlayerValue(pid, valueIndex) {
-    return valueIndex[String(pid)] || { value: 0, source: 'none' };
+    const dhqScore = window.App?.LI?.playerScores?.[pid];
+    if (dhqScore != null && dhqScore > 0) {
+        return { value: dhqScore, source: 'dhq' };
+    }
+    if (valueIndex) {
+        return valueIndex[String(pid)] || { value: 0, source: 'none' };
+    }
+    return { value: 0, source: 'none' };
 }
 
 // Max value for bar scale (top player ~9500 in FC)
 const MAX_VALUE = 10000;
 
-// Dynasty pick values by round (SuperFlex/2QB, 12-team)
-// These are representative mid-round values — a 1st is the most valuable non-player asset.
-const PICK_VALUES = { 1:5500, 2:2800, 3:1500, 4:900, 5:500, 6:250, 7:150 };
+// Dynasty pick values by round (SuperFlex/2QB, 12-team) — blended War Room + ReconAI scales
+const PICK_VALUES = { 1:6250, 2:3150, 3:1650, 4:850, 5:450, 6:225, 7:125 };
 const PICK_COLORS  = { 1:'#D4AF37', 2:'#5DADE2', 3:'#2ECC71', 4:'#BB8FCE', 5:'#95A5A6', 6:'#7F8C8D', 7:'#6C7A7D' };
+
+// Prefer DHQ engine's per-pick-slot values when available, fall back to blended scale
+function getPickValue(season, round, totalTeams) {
+    if (window.App?.LI?.dhqPickValueFn) {
+        const val = window.App.LI.dhqPickValueFn(season, round, Math.ceil((totalTeams || 12) / 2));
+        if (val > 0) return val;
+    }
+    return PICK_VALUES[round] || 100;
+}
 
 // FAAB: dynasty value per $1 of FAAB budget remaining.
 // Full $1000 budget ≈ a mid 3rd-round pick (1500), so $1 ≈ 1.5 pts.
@@ -1842,11 +1791,64 @@ function TradeCalculator() {
             setStatsData(resolvedStats);
             setTradedPicks(tPicks || []);
             setFcValues(fc);
-            // Load player names + build internal values in background — large payload, non-blocking
+            // Load player names in background — large payload, non-blocking
             fetchPlayers().then(players => {
                 const resolvedPlayers = players || {};
                 setPlayersData(resolvedPlayers);
-                setInternalVals(buildInternalValues(resolvedPlayers, resolvedStats, scoring));
+
+                // Bridge data to shared DHQ engine (same pattern as index.html)
+                try {
+                    if (window.App) {
+                        if (!window.S) window.S = {};
+                        window.S.players = resolvedPlayers;
+                        window.S.playerStats = {};
+                        window.S.rosters = rosters || [];
+                        window.S.leagueUsers = users || [];
+                        window.S.leagues = [{ league_id: leagueId, name: info?.name, scoring_settings: scoring, roster_positions: info?.roster_positions, settings: info?.settings }];
+                        window.S.currentLeagueId = leagueId;
+                        window.S.season = info?.season || SEASON;
+                        window.S.nflState = { season: info?.season || SEASON };
+                        window.S.tradedPicks = tPicks || [];
+                        const mine = (rosters || []).find(r => r.owner_id === userId);
+                        window.S.myRosterId = mine?.roster_id;
+
+                        // Bridge stats data
+                        Object.entries(resolvedStats).forEach(([pid, s]) => {
+                            if (!window.S.playerStats[pid]) window.S.playerStats[pid] = {};
+                            const pts = calcRawPts(s, scoring);
+                            const gp = s.gp || 0;
+                            window.S.playerStats[pid].prevTotal = pts ? Math.round(pts * 10) / 10 : 0;
+                            window.S.playerStats[pid].prevAvg = gp > 0 ? Math.round(pts / gp * 10) / 10 : 0;
+                            window.S.playerStats[pid].prevRawStats = s;
+                        });
+
+                        // Trigger DHQ engine (non-blocking)
+                        if (typeof window.App.loadLeagueIntel === 'function' && !window.App.LI_LOADED) {
+                            window.App.loadLeagueIntel().then(() => {
+                                console.log('[Trade Calc] DHQ engine loaded:', Object.keys(window.App.LI?.playerScores || {}).length, 'players valued');
+                                // Recompute dynamic weekly target with DHQ data available
+                                if (rosters?.length && info) {
+                                    const rp = info.roster_positions || [];
+                                    const wt = computeWeeklyTarget(rosters, resolvedPlayers, resolvedStats, scoring, rp);
+                                    if (wt > 0) { WEEKLY_TARGET = wt; ANNUAL_TARGET = wt * 14; }
+                                }
+                                // Force React re-render by touching statsData
+                                setStatsData(prev => ({...prev}));
+                            }).catch(e => {
+                                console.warn('[Trade Calc] DHQ engine error:', e);
+                            });
+                        }
+                    }
+                } catch (dhqErr) {
+                    console.warn('[Trade Calc] DHQ bridge error:', dhqErr);
+                }
+
+                // Compute dynamic weekly target (before DHQ loads, uses raw stats)
+                if (rosters?.length && info) {
+                    const rp = info.roster_positions || [];
+                    const wt = computeWeeklyTarget(rosters, resolvedPlayers, resolvedStats, scoring, rp);
+                    if (wt > 0) { WEEKLY_TARGET = wt; ANNUAL_TARGET = wt * 14; }
+                }
             }).catch(() => {});
 
             // Find my roster
@@ -1872,9 +1874,19 @@ function TradeCalculator() {
         }
     }
 
-    // Merged market value index (FC preferred, internal fallback)
-    // Must be declared before assessments so the NFL starter set can be built from it.
+    // Merged market value index (FC preferred, internal fallback — kept for compatibility)
+    // DHQ engine is now the primary source; getPlayerValue checks DHQ first.
     const valueIndex = useMemo(() => mergeValues(fcValues, internalVals), [fcValues, internalVals]);
+
+    // Prefer shared team assessment when DHQ engine is loaded
+    function assessTeamShared(roster, pData, sData, lInfo, lUsers, starterSet, oPicks) {
+        if (window.assessTeamFromGlobal) {
+            const result = window.assessTeamFromGlobal(roster.roster_id);
+            if (result) return result;
+        }
+        // Fallback to local assessTeam
+        return assessTeam(roster, pData, sData, lInfo, lUsers, starterSet, oPicks);
+    }
 
     // Compute all team assessments
     const assessments = useMemo(() => {
@@ -1889,7 +1901,7 @@ function TradeCalculator() {
         const picksByOwner  = buildPicksByOwner(allRosters, tradedPicks, leagueSeason);
         return allRosters.map(r => {
             const ownerPicks = picksByOwner[String(r.owner_id)] || [];
-            return assessTeam(r, playersData, statsData, leagueInfo, leagueUsers, nflStarterSet, ownerPicks);
+            return assessTeamShared(r, playersData, statsData, leagueInfo, leagueUsers, nflStarterSet, ownerPicks);
         });
     }, [allRosters, playersData, statsData, leagueInfo, leagueUsers, valueIndex, tradedPicks]);
 
@@ -1949,8 +1961,9 @@ function TradeCalculator() {
             return sum + val;
         }, 0);
         const pickSum = pickIds.reduce((sum, pkId) => {
-            const round = Number(pkId.split('-')[2]); // "PICK-year-round-rosterId"
-            return sum + (PICK_VALUES[round] || 100);
+            const parts = pkId.split('-');
+            const season = parts[1], round = Number(parts[2]);
+            return sum + getPickValue(season, round, allRosters.length);
         }, 0);
         return playerSum + pickSum + Math.round(faab * FAAB_RATE);
     }, [valueIndex, playersData]);
@@ -2944,7 +2957,7 @@ function TradeCalculator() {
                     {pickIds.map(pkId => {
                         const parts = pkId.split('-');
                         const yr = parts[1], rd = Number(parts[2]), fromRid = parts[3];
-                        const val = PICK_VALUES[rd] || 100;
+                        const val = getPickValue(yr, rd, allRosters.length);
                         const pct = Math.round((val / MAX_VALUE) * 100);
                         const pickColor = PICK_COLORS[rd] || 'var(--silver)';
                         const via = ownerNameForRosterId(fromRid);
@@ -2984,7 +2997,7 @@ function TradeCalculator() {
                                         {ownerPicks.map(({ year, round, fromRosterId }) => {
                                             const pkId = makePickId(year, round, fromRosterId);
                                             const added = pickIds.includes(pkId);
-                                            const val   = PICK_VALUES[round] || 100;
+                                            const val   = getPickValue(year, round, allRosters.length);
                                             const pickColor = PICK_COLORS[round] || 'var(--silver)';
                                             const via   = ownerNameForRosterId(fromRosterId);
                                             const r = allRosters.find(x => x.owner_id === ownerId);
