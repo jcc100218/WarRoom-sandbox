@@ -1882,7 +1882,11 @@
             const {key, dir} = rosterSort;
             if (key === 'dhq') return (b.dhq - a.dhq) * dir;
             if (key === 'age') return ((a.age||99) - (b.age||99)) * dir;
-            if (key === 'ppg') return (parseFloat(b.stats.avg||0) - parseFloat(a.stats.avg||0)) * dir;
+            if (key === 'ppg') return ((b.curPPG||0) - (a.curPPG||0)) * dir;
+            if (key === 'prev') return ((b.prevPPG||0) - (a.prevPPG||0)) * dir;
+            if (key === 'trend') return ((b.trend||0) - (a.trend||0)) * dir;
+            if (key === 'gp') return ((b.curGP||0) - (a.curGP||0)) * dir;
+            if (key === 'name') { const na = getPlayerName(a.pid).toLowerCase(), nb = getPlayerName(b.pid).toLowerCase(); return (na < nb ? -1 : na > nb ? 1 : 0) * dir; }
             if (key === 'pos') return ((posOrder[a.pos]||99) - (posOrder[b.pos]||99)) * dir;
             if (key === 'peak') return ((b.peakYrsLeft||0) - (a.peakYrsLeft||0)) * dir;
             if (key === 'rec') { const ord = {BUY:3,HOLD:2,SELL:1}; return ((ord[b.rec]||0) - (ord[a.rec]||0)) * dir; }
@@ -1891,12 +1895,12 @@
         }
 
         function renderMyTeamTab() {
-          if (!myRoster) return React.createElement('div', {style: { padding: '2rem', textAlign: 'center', color: 'var(--silver)' }}, 'No roster found');
+          if (!myRoster) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--silver)' }}>No roster found</div>;
 
           const allPlayers = myRoster.players || [];
-          const startersSet = new Set(myRoster.starters || []);
-          const reserveSet = new Set(myRoster.reserve || []);
-          const taxiSet = new Set(myRoster.taxi || []);
+          const starters = new Set(myRoster.starters || []);
+          const reserve = new Set(myRoster.reserve || []);
+          const taxi = new Set(myRoster.taxi || []);
 
           const normPos = (pos) => {
             if (!pos) return null;
@@ -1907,128 +1911,188 @@
             return p;
           };
 
+          // Build enriched player rows
           const rows = allPlayers.map(pid => {
             const p = playersData[pid];
             if (!p) return null;
             const pos = normPos(p.position) || p.position || '?';
             const dhq = window.App?.LI?.playerScores?.[pid] || 0;
             const meta = window.App?.LI?.playerMeta?.[pid];
-            const stats = getPlayerStats(pid);
-            const isStarter = startersSet.has(pid);
-            const isIR = reserveSet.has(pid);
-            const isTaxi = taxiSet.has(pid);
-            const section = isStarter ? 'starter' : isIR ? 'ir' : isTaxi ? 'taxi' : 'bench';
+            const st = statsData[pid] || {};
+            const prev = stats2025Data?.[pid] || {};
+
+            const curPts = calcRawPts(st) || 0;
+            const curGP = st.gp || 0;
+            const curPPG = curGP > 0 ? +(curPts / curGP).toFixed(1) : 0;
+
+            const prevPts = calcRawPts(prev) || 0;
+            const prevGP = prev.gp || 0;
+            const prevPPG = prevGP > 0 ? +(prevPts / prevGP).toFixed(1) : 0;
+
+            const trend = meta?.trend || (prevPPG && curPPG ? Math.round((curPPG - prevPPG) / prevPPG * 100) : 0);
+
             const age = p.age || (p.birth_date ? Math.floor((Date.now() - new Date(p.birth_date).getTime()) / 31557600000) : null);
+            const isStarter = starters.has(pid);
+            const isIR = reserve.has(pid);
+            const isTaxi = taxi.has(pid);
+            const section = isStarter ? 'starter' : isIR ? 'ir' : isTaxi ? 'taxi' : 'bench';
 
             const peaks = {QB:[27,33],RB:[22,26],WR:[24,29],TE:[25,30],DL:[24,29],LB:[23,28],DB:[24,29]};
             const [pLo, pHi] = peaks[pos] || [24,29];
-            const peakStatus = !age ? '\u2014' : age < pLo ? 'Rising' : age <= pHi ? 'Peak' : age <= pHi+2 ? 'Veteran' : 'Declining';
-            const peakColor = peakStatus === 'Peak' ? '#2ECC71' : peakStatus === 'Rising' ? '#4ECDC4' : peakStatus === 'Veteran' ? '#F0A500' : peakStatus === 'Declining' ? '#E74C3C' : 'var(--silver)';
-
+            const peakPct = age ? Math.max(0, Math.min(100, ((age - (pLo-4)) / ((pHi+4) - (pLo-4))) * 100)) : 50;
+            const peakPhase = !age ? '\u2014' : age < pLo ? 'PRE' : age <= pHi ? 'PRIME' : 'POST';
             const peakYrsLeft = age ? Math.max(0, pHi - age) : 0;
-            const trend = meta?.trend || 0;
+
             const rec = peakYrsLeft <= 0 ? 'SELL' : peakYrsLeft <= 2 ? (trend >= 10 ? 'HOLD' : 'SELL') : (dhq >= 7000 ? 'HOLD' : 'BUY');
 
-            return { pid, p, pos, dhq, age, stats, isStarter, isIR, isTaxi, section, peakStatus, peakColor, rec, trend, meta, peakYrsLeft };
+            return { pid, p, pos, dhq, age, curPPG, prevPPG, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, rec, curGP, meta, injury: p.injury_status };
           }).filter(Boolean);
+
+          // Position-level PPG percentiles for color coding
+          const posPPGs = {};
+          rows.forEach(r => {
+            if (!posPPGs[r.pos]) posPPGs[r.pos] = [];
+            if (r.curPPG > 0) posPPGs[r.pos].push(r.curPPG);
+          });
+          const posP75 = {}, posP25 = {};
+          Object.entries(posPPGs).forEach(([pos, vals]) => {
+            vals.sort((a,b) => a-b);
+            posP75[pos] = vals[Math.floor(vals.length * 0.75)] || 10;
+            posP25[pos] = vals[Math.floor(vals.length * 0.25)] || 5;
+          });
+
+          // Cell background helpers (FM-style colored cells)
+          const dhqBg = v => v >= 7000 ? 'rgba(46,204,113,0.15)' : v >= 4000 ? 'rgba(52,152,219,0.12)' : v >= 2000 ? 'rgba(255,255,255,0.04)' : 'transparent';
+          const dhqCol = v => v >= 7000 ? '#2ECC71' : v >= 4000 ? '#3498DB' : v >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.25)';
+          const ageBg = a => !a ? 'transparent' : a <= 24 ? 'rgba(46,204,113,0.12)' : a <= 28 ? 'transparent' : a <= 31 ? 'rgba(240,165,0,0.1)' : 'rgba(231,76,60,0.1)';
+          const ageCol = a => !a ? 'var(--silver)' : a <= 24 ? '#2ECC71' : a <= 28 ? 'var(--white)' : a <= 31 ? '#F0A500' : '#E74C3C';
+          const ppgBg = (v, pos) => v >= (posP75[pos]||10) ? 'rgba(46,204,113,0.12)' : v <= (posP25[pos]||3) ? 'rgba(231,76,60,0.08)' : 'transparent';
+          const trendBg = t => t >= 15 ? 'rgba(46,204,113,0.12)' : t <= -15 ? 'rgba(231,76,60,0.1)' : 'transparent';
+          const statusCol = s => s === 'starter' ? 'var(--gold)' : s === 'ir' ? '#E74C3C' : s === 'taxi' ? '#3498DB' : 'transparent';
+          const posColors = {QB:'#E74C3C',RB:'#2ECC71',WR:'#3498DB',TE:'#F0A500',K:'#9B59B6',DL:'#E67E22',LB:'#1ABC9C',DB:'#E91E63'};
+
+          const filtered = filteredAndSortedRows(rows);
+
+          const grid = '3px 26px 1fr 34px 30px 50px 38px 38px 38px 42px 26px 34px 38px 38px';
+          const cellStyle = { padding: '0 4px', display: 'flex', alignItems: 'center', fontSize: '0.68rem', overflow: 'hidden', whiteSpace: 'nowrap' };
+          const sortKeys = [null,null,'name','pos','age','dhq','ppg','prev','trend','peak','gp','gp','rec',null];
 
           return (
             <div style={{ padding: '16px' }}>
-              <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.8rem', color: 'var(--gold)', letterSpacing: '0.05em', marginBottom: '4px' }}>MY TEAM</div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--silver)', marginBottom: '16px' }}>{myRoster.players?.length} players {'\u00B7'} {currentLeague.name}</div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '16px' }}>
-                <div style={kpiCardStyle}>
-                  <div style={kpiLabelStyle}>PORTFOLIO</div>
-                  <div style={kpiValueStyle}>{rows.reduce((s,r) => s+r.dhq, 0).toLocaleString()}</div>
-                  <div style={kpiSubStyle}>Total DHQ</div>
-                </div>
-                <div style={kpiCardStyle}>
-                  <div style={kpiLabelStyle}>STARTERS</div>
-                  <div style={kpiValueStyle}>{rows.filter(r=>r.isStarter).length}</div>
-                  <div style={kpiSubStyle}>{rows.filter(r=>r.isStarter && r.dhq >= 4000).length} above starter line</div>
-                </div>
-                <div style={kpiCardStyle}>
-                  <div style={kpiLabelStyle}>AVG AGE</div>
-                  <div style={kpiValueStyle}>{(rows.reduce((s,r) => s + (r.age||26), 0) / rows.length).toFixed(1)}</div>
-                  <div style={kpiSubStyle}>{rows.filter(r => r.peakStatus === 'Rising' || r.peakStatus === 'Peak').length} in/pre peak</div>
-                </div>
-                <div style={kpiCardStyle}>
-                  <div style={kpiLabelStyle}>HEALTH</div>
-                  <div style={kpiValueStyle}>{(() => {
-                    const total = rows.reduce((s,r) => s+r.dhq, 0);
-                    const allTotals = (currentLeague.rosters||[]).map(r => (r.players||[]).reduce((s,pid) => s + (window.App?.LI?.playerScores?.[pid]||0), 0));
-                    const med = allTotals.sort((a,b)=>a-b)[Math.floor(allTotals.length/2)] || 50000;
-                    return Math.min(100, Math.round(total / med * 80));
-                  })()}</div>
-                  <div style={kpiSubStyle}>Score</div>
-                </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '12px' }}>
+                <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.6rem', color: 'var(--gold)', letterSpacing: '0.05em' }}>MY TEAM</span>
+                <span style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>{allPlayers.length} players</span>
+                <span style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>Total DHQ: <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{rows.reduce((s,r) => s+r.dhq, 0).toLocaleString()}</span></span>
               </div>
 
-              <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              {/* Filter bar */}
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                 {['All','Starters','Bench','Taxi','IR','Offense','IDP'].map(f => (
-                  <button key={f} onClick={() => setRosterFilter(f)}
-                    style={{
-                      padding: '5px 12px', fontSize: '0.62rem', fontWeight: 700,
-                      fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.04em',
-                      background: rosterFilter === f ? 'var(--gold)' : 'transparent',
-                      color: rosterFilter === f ? 'var(--black)' : 'var(--silver)',
-                      border: '1px solid rgba(212,175,55,0.3)', borderRadius: '4px', cursor: 'pointer'
-                    }}>
-                    {f}
-                  </button>
+                  <button key={f} onClick={() => setRosterFilter(f)} style={{
+                    padding: '4px 10px', fontSize: '0.6rem', fontWeight: rosterFilter === f ? 700 : 400,
+                    fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.03em',
+                    background: rosterFilter === f ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
+                    color: rosterFilter === f ? 'var(--black)' : 'var(--silver)',
+                    border: '1px solid ' + (rosterFilter === f ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
+                    borderRadius: '3px', cursor: 'pointer'
+                  }}>{f}</button>
                 ))}
+                <span style={{ marginLeft: 'auto', fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.5 }}>{filtered.length} shown</span>
               </div>
 
-              <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.6 }}>Sort:</span>
-                {[{k:'dhq',l:'DHQ'},{k:'age',l:'Age'},{k:'ppg',l:'PPG'},{k:'pos',l:'Pos'},{k:'peak',l:'Peak'},{k:'rec',l:'Action'}].map(s => (
-                  <button key={s.k} onClick={() => setRosterSort(prev => prev.key === s.k ? {...prev, dir: prev.dir * -1} : {key: s.k, dir: -1})}
-                    style={{
-                      padding: '3px 8px', fontSize: '0.58rem', fontWeight: 600,
-                      fontFamily: 'Oswald', background: rosterSort.key === s.k ? 'rgba(212,175,55,0.15)' : 'transparent',
-                      color: rosterSort.key === s.k ? 'var(--gold)' : 'var(--silver)',
-                      border: '1px solid rgba(255,255,255,0.1)', borderRadius: '3px', cursor: 'pointer'
+              {/* FM-style table */}
+              <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', overflow: 'hidden' }}>
+                {/* Sticky header */}
+                <div style={{ display: 'grid', gridTemplateColumns: grid, background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', position: 'sticky', top: 0, zIndex: 2 }}>
+                  {['','','Player','Pos','Age','DHQ','PPG','Prev','Trend','Peak','GP','Dur','Action','Slot'].map((h, i) => (
+                    <div key={i} onClick={() => {
+                      if (sortKeys[i]) setRosterSort(prev => prev.key === sortKeys[i] ? {...prev, dir: prev.dir * -1} : {key: sortKeys[i], dir: -1});
+                    }} style={{
+                      ...cellStyle, height: '28px', fontSize: '0.55rem', fontWeight: 700,
+                      color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase',
+                      letterSpacing: '0.04em', cursor: sortKeys[i] ? 'pointer' : 'default',
+                      justifyContent: i >= 4 ? 'center' : 'flex-start'
                     }}>
-                    {s.l} {rosterSort.key === s.k ? (rosterSort.dir === -1 ? '\u25BC' : '\u25B2') : ''}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '12px', overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 36px 32px 52px 42px 42px 42px 50px 44px', gap: '4px', padding: '8px 10px', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.55rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  <span></span><span>Player</span><span>Pos</span><span>Age</span><span>DHQ</span><span>PPG</span><span>Prev</span><span>Total</span><span>Peak</span><span>Action</span>
+                      {h}{rosterSort.key === sortKeys[i] && sortKeys[i] ? (rosterSort.dir === -1 ? ' \u25BC' : ' \u25B2') : ''}
+                    </div>
+                  ))}
                 </div>
 
-                {filteredAndSortedRows(rows).map(r => (
-                  <div key={r.pid}
-                    onClick={() => { if (window.openFWPlayerModal) openFWPlayerModal(r.pid, playersData, statsData); }}
-                    style={{
-                      display: 'grid', gridTemplateColumns: '28px 1fr 36px 32px 52px 42px 42px 42px 50px 44px',
-                      gap: '4px', padding: '6px 10px', cursor: 'pointer',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      borderLeft: r.isStarter ? '3px solid var(--gold)' : r.isIR ? '3px solid #E74C3C' : r.isTaxi ? '3px solid #3498DB' : '3px solid transparent',
-                      background: r.isStarter ? 'rgba(212,175,55,0.04)' : 'transparent',
-                      transition: 'background 0.15s', fontSize: '0.72rem'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.08)'}
-                    onMouseLeave={e => e.currentTarget.style.background = r.isStarter ? 'rgba(212,175,55,0.04)' : 'transparent'}
-                  >
-                    <img src={`https://sleepercdn.com/content/nfl/players/thumb/${r.pid}.jpg`} alt="" onError={e => e.target.style.display='none'} style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
-                    <div style={{ overflow: 'hidden' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getPlayerName(r.pid)}</div>
-                      <div style={{ fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.5 }}>{r.p.team || 'FA'}{r.p.injury_status ? ' \u00B7 ' + r.p.injury_status : ''}</div>
+                {/* Rows */}
+                <div style={{ maxHeight: '600px', overflow: 'auto' }}>
+                  {filtered.map(r => (
+                    <div key={r.pid} onClick={() => { if (window.openFWPlayerModal) openFWPlayerModal(r.pid, playersData, statsData); }}
+                      style={{
+                        display: 'grid', gridTemplateColumns: grid, cursor: 'pointer',
+                        borderBottom: '1px solid rgba(255,255,255,0.03)',
+                        transition: 'background 0.1s', height: '32px'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.06)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      {/* Status strip */}
+                      <div style={{ background: statusCol(r.section), width: '3px', height: '100%' }}></div>
+                      {/* Photo */}
+                      <div style={{...cellStyle}}><img src={'https://sleepercdn.com/content/nfl/players/thumb/' + r.pid + '.jpg'} alt="" onError={e => e.target.style.display='none'} style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover' }} /></div>
+                      {/* Name + Team */}
+                      <div style={{...cellStyle, flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: '0px', lineHeight: 1.2 }}>
+                        <span style={{ fontWeight: 600, color: 'var(--white)', fontSize: '0.72rem' }}>{getPlayerName(r.pid)}</span>
+                        <span style={{ fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.5 }}>{r.p.team || 'FA'}{r.injury ? ' \u00B7 ' + r.injury : ''}</span>
+                      </div>
+                      {/* Pos */}
+                      <div style={{...cellStyle, justifyContent: 'center'}}><span style={{ fontSize: '0.58rem', fontWeight: 700, padding: '1px 4px', borderRadius: '2px', background: (posColors[r.pos] || '#666') + '22', color: posColors[r.pos] || 'var(--silver)' }}>{r.pos}</span></div>
+                      {/* Age */}
+                      <div style={{...cellStyle, justifyContent: 'center', background: ageBg(r.age)}}><span style={{ color: ageCol(r.age), fontWeight: 600, fontFamily: 'Oswald' }}>{r.age || '\u2014'}</span></div>
+                      {/* DHQ */}
+                      <div style={{...cellStyle, justifyContent: 'center', background: dhqBg(r.dhq)}}><span style={{ color: dhqCol(r.dhq), fontWeight: 700, fontFamily: 'Oswald', fontSize: '0.72rem' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span></div>
+                      {/* PPG */}
+                      <div style={{...cellStyle, justifyContent: 'center', background: ppgBg(r.curPPG, r.pos)}}><span style={{ color: r.curPPG >= (posP75[r.pos]||10) ? '#2ECC71' : 'var(--silver)' }}>{r.curPPG || '\u2014'}</span></div>
+                      {/* Prev */}
+                      <div style={{...cellStyle, justifyContent: 'center'}}><span style={{ color: 'var(--silver)', opacity: 0.6 }}>{r.prevPPG || '\u2014'}</span></div>
+                      {/* Trend */}
+                      <div style={{...cellStyle, justifyContent: 'center', background: trendBg(r.trend)}}><span style={{ color: r.trend >= 15 ? '#2ECC71' : r.trend <= -15 ? '#E74C3C' : 'var(--silver)', fontWeight: 600, fontSize: '0.62rem' }}>{r.trend > 0 ? '+' + r.trend + '%' : r.trend < 0 ? r.trend + '%' : '\u2014'}</span></div>
+                      {/* Peak */}
+                      <div style={{...cellStyle, justifyContent: 'center', flexDirection: 'column', gap: '1px'}}>
+                        <span style={{ fontSize: '0.52rem', fontWeight: 700, color: r.peakPhase === 'PRIME' ? '#2ECC71' : r.peakPhase === 'PRE' ? '#3498DB' : '#E74C3C' }}>{r.peakPhase}</span>
+                        <div style={{ width: '30px', height: '3px', borderRadius: '1px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden', position: 'relative' }}>
+                          <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '30%', background: 'rgba(52,152,219,0.4)' }}></div>
+                          <div style={{ position: 'absolute', left: '30%', top: 0, height: '100%', width: '40%', background: 'rgba(46,204,113,0.4)' }}></div>
+                          <div style={{ position: 'absolute', left: '70%', top: 0, height: '100%', width: '30%', background: 'rgba(231,76,60,0.3)' }}></div>
+                          <div style={{ position: 'absolute', left: r.peakPct + '%', top: '-1px', width: '2px', height: '5px', background: 'var(--white)', borderRadius: '1px' }}></div>
+                        </div>
+                      </div>
+                      {/* GP */}
+                      <div style={{...cellStyle, justifyContent: 'center'}}><span style={{ color: 'var(--silver)', fontSize: '0.62rem' }}>{r.curGP || '\u2014'}</span></div>
+                      {/* Durability bar */}
+                      <div style={{...cellStyle, justifyContent: 'center'}}>
+                        <div style={{ width: '24px', height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                          <div style={{ width: Math.min(100, (r.curGP / 17) * 100) + '%', height: '100%', background: r.curGP >= 15 ? '#2ECC71' : r.curGP >= 10 ? '#F0A500' : '#E74C3C', borderRadius: '2px' }}></div>
+                        </div>
+                      </div>
+                      {/* Action */}
+                      <div style={{...cellStyle, justifyContent: 'center'}}><span style={{ fontSize: '0.58rem', fontWeight: 700, padding: '1px 6px', borderRadius: '2px', background: r.rec === 'BUY' ? 'rgba(46,204,113,0.15)' : r.rec === 'HOLD' ? 'rgba(212,175,55,0.12)' : 'rgba(231,76,60,0.12)', color: r.rec === 'BUY' ? '#2ECC71' : r.rec === 'HOLD' ? 'var(--gold)' : '#E74C3C' }}>{r.rec}</span></div>
+                      {/* Slot */}
+                      <div style={{...cellStyle, justifyContent: 'center'}}><span style={{ fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.5, textTransform: 'uppercase' }}>{r.section === 'starter' ? 'STR' : r.section === 'ir' ? 'IR' : r.section === 'taxi' ? 'TAX' : 'BN'}</span></div>
                     </div>
-                    <span style={{ fontWeight: 700, fontSize: '0.6rem', color: getPositionColor(r.pos) }}>{r.pos}</span>
-                    <span style={{ color: 'var(--silver)' }}>{r.age || '\u2014'}</span>
-                    <span style={{ fontWeight: 700, fontFamily: 'Oswald', color: r.dhq >= 7000 ? '#2ECC71' : r.dhq >= 4000 ? '#D4AF37' : r.dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span>
-                    <span style={{ color: 'var(--silver)' }}>{r.stats.avg || '\u2014'}</span>
-                    <span style={{ color: 'var(--silver)', opacity: 0.6 }}>{r.stats.pts || '\u2014'}</span>
-                    <span style={{ color: 'var(--silver)', opacity: 0.6 }}>{r.stats.gp ? Math.round(parseFloat(r.stats.pts || 0)) : '\u2014'}</span>
-                    <span style={{ fontSize: '0.6rem', fontWeight: 600, color: r.peakColor }}>{r.peakStatus}</span>
-                    <span style={{ fontSize: '0.58rem', fontWeight: 700, color: r.rec === 'BUY' ? '#2ECC71' : r.rec === 'HOLD' ? '#D4AF37' : '#E74C3C' }}>{r.rec}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+
+              {/* Position summary bar (FM-style) */}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+                {Object.entries(posColors).map(([pos, col]) => {
+                  const posRows = rows.filter(r => r.pos === pos);
+                  if (!posRows.length) return null;
+                  const total = posRows.reduce((s,r) => s + r.dhq, 0);
+                  const stCount = posRows.filter(r => r.isStarter).length;
+                  return (
+                    <div key={pos} style={{ background: col + '11', border: '1px solid ' + col + '33', borderRadius: '6px', padding: '6px 10px', minWidth: '70px' }}>
+                      <div style={{ fontSize: '0.62rem', fontWeight: 700, color: col }}>{pos}</div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--white)', fontFamily: 'Oswald' }}>{posRows.length}</div>
+                      <div style={{ fontSize: '0.52rem', color: 'var(--silver)' }}>{stCount} start {'\u00B7'} {(total/1000).toFixed(0)}k</div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );
