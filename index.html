@@ -437,6 +437,11 @@
         }
     }
 
+    @keyframes dhqSpin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
     .icon-button {
         background: var(--black);
         border: 2px solid var(--gold);
@@ -777,7 +782,16 @@
     let _wrPlayersCache = null;
     async function fetchAllPlayers() {
         if (_wrPlayersCache) return _wrPlayersCache;
+        // Check sessionStorage first (avoid re-fetching 10k players on every load)
+        try {
+            const cached = sessionStorage.getItem('fw_players_cache');
+            if (cached) {
+                const d = JSON.parse(cached);
+                if (Date.now() - d.ts < 3600000) { _wrPlayersCache = d.data; return d.data; }
+            }
+        } catch(e) {}
         _wrPlayersCache = await fetchJSON(`${SLEEPER_BASE_URL}/players/nfl`);
+        try { sessionStorage.setItem('fw_players_cache', JSON.stringify({ data: _wrPlayersCache, ts: Date.now() })); } catch(e) {}
         return _wrPlayersCache;
     }
 
@@ -1062,6 +1076,7 @@
         const [transactions, setTransactions] = useState([]);
         const [rankedTeams, setRankedTeams] = useState([]);
         const [dhqStatus, setDhqStatus] = useState({ loading: false, step: '', progress: 0 });
+        const [loadStage, setLoadStage] = useState('');
         const [editingKpi, setEditingKpi] = useState(null); // index being edited, null = not editing
 
         // Default 5 KPIs — customizable per owner, saved in localStorage
@@ -1267,6 +1282,7 @@
                 const myRosterData = currentLeague.rosters.find(r => r.owner_id === sleeperUserId);
                 setMyRoster(myRosterData);
 
+                // Compute standings immediately (no fetch needed)
                 const standingsData = currentLeague.rosters.map(roster => {
                     const user = currentLeague.users.find(u => u.user_id === roster.owner_id);
                     return {
@@ -1285,109 +1301,106 @@
                     if (a.losses !== b.losses) return a.losses - b.losses;
                     return b.pointsFor - a.pointsFor;
                 });
-
                 setStandings(standingsData);
 
-                const [stats, projections, s2025] = await Promise.all([
-                    fetchSeasonStats(currentLeague.season),
-                    fetchSeasonProjections(currentLeague.season),
-                    fetchSeasonStats(STATS_YEAR)
+                // Show dashboard immediately with what we have
+                setLoading(false);
+                setLoadStage('Loading player data...');
+
+                // Fire ALL data fetches in parallel
+                const [stats, projections, prevStats, players, tradedPicks] = await Promise.all([
+                    fetchSeasonStats(currentLeague.season).catch(() => ({})),
+                    fetchSeasonProjections(currentLeague.season).catch(() => ({})),
+                    fetchSeasonStats(STATS_YEAR).catch(() => ({})),
+                    fetchAllPlayers().catch(() => ({})),
+                    fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/traded_picks`).catch(() => []),
                 ]);
+
                 setStatsData(stats);
                 setProjectionsData(projections);
-                setStats2025Data(s2025);
-                setLoading(false);
-                // Load player names in background — large payload, non-blocking
-                fetchAllPlayers().then(p => {
-                    setPlayersData(p);
+                setStats2025Data(prevStats);
+                setPlayersData(players);
+                setLoadStage('Computing values...');
 
-                    // Initialize DHQ engine for dynasty values
-                    try {
-                      if (window.App) {
-                        // Bridge War Room data to ReconAI's S state format for shared modules
-                        if (!window.S) window.S = {};
-                        window.S.players = p || {};
-                        window.S.playerStats = {};
-                        window.S.rosters = currentLeague.rosters || [];
-                        window.S.leagueUsers = currentLeague.users || [];
-                        window.S.leagues = [{ league_id: currentLeague.id, name: currentLeague.name, scoring_settings: currentLeague.scoring_settings, roster_positions: currentLeague.roster_positions, settings: currentLeague.settings }];
-                        window.S.currentLeagueId = currentLeague.id;
-                        window.S.season = activeYear;
-                        window.S.nflState = { season: activeYear };
-                        window.S.tradedPicks = []; // Will be loaded if available
-                        window.S.myRosterId = myRosterData?.roster_id;
+                // Bridge to DHQ engine immediately
+                if (window.App) {
+                    if (!window.S) window.S = {};
+                    window.S.players = players || {};
+                    window.S.playerStats = {};
+                    window.S.rosters = currentLeague.rosters || [];
+                    window.S.leagueUsers = currentLeague.users || [];
+                    window.S.leagues = [{ league_id: currentLeague.id, name: currentLeague.name, scoring_settings: currentLeague.scoring_settings, roster_positions: currentLeague.roster_positions, settings: currentLeague.settings }];
+                    window.S.currentLeagueId = currentLeague.id;
+                    window.S.season = activeYear;
+                    window.S.nflState = { season: activeYear };
+                    window.S.tradedPicks = tradedPicks || [];
+                    window.S.myRosterId = myRosterData?.roster_id;
 
-                        // Bridge stats data
-                        Object.entries(stats).forEach(([pid, s]) => {
-                          if (!window.S.playerStats[pid]) window.S.playerStats[pid] = {};
-                          const pts = calcRawPts(s);
-                          const gp = s.gp || 0;
-                          window.S.playerStats[pid].prevTotal = pts ? Math.round(pts * 10) / 10 : 0;
-                          window.S.playerStats[pid].prevAvg = gp > 0 ? Math.round(pts / gp * 10) / 10 : 0;
-                          window.S.playerStats[pid].prevRawStats = s;
-                        });
-
-                        // Load traded picks for this league
-                        fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/traded_picks`).then(tp => {
-                          window.S.tradedPicks = tp || [];
-                        }).catch(() => {});
-
-                        // Trigger DHQ engine (non-blocking) with progress tracking
-                        if (typeof window.App.loadLeagueIntel === 'function' && !window.App.LI_LOADED) {
-                          setDhqStatus({ loading: true, step: 'Discovering league history...', progress: 10 });
-                          // Track progress via console output interception
-                          const origLog = console.log;
-                          console.log = function(...args) {
-                            origLog.apply(console, args);
-                            const msg = args[0];
-                            if (typeof msg === 'string') {
-                              if (msg.includes('COLD PATH')) setDhqStatus(s => ({...s, step: 'Analyzing 5 years of data...', progress: 30}));
-                              else if (msg.includes('FAST PATH')) setDhqStatus(s => ({...s, step: 'Loading from cache...', progress: 80}));
-                              else if (msg.includes('Scored players')) setDhqStatus(s => ({...s, step: 'Scoring players...', progress: 60}));
-                              else if (msg.includes('FC blend')) setDhqStatus(s => ({...s, step: 'Blending market data...', progress: 75}));
-                              else if (msg.includes('Trade analysis')) setDhqStatus(s => ({...s, step: 'Analyzing trade history...', progress: 85}));
-                              else if (msg.includes('LeagueIntel COMPLETE')) setDhqStatus(s => ({...s, step: 'Complete!', progress: 100}));
-                            }
-                          };
-                          window.App.loadLeagueIntel().then(() => {
-                            console.log = origLog;
-                            console.log('[War Room] DHQ engine loaded:', Object.keys(window.App.LI?.playerScores || {}).length, 'players valued');
-                            setDhqStatus({ loading: false, step: 'Complete!', progress: 100 });
-                            setStatsData(prev => ({...prev}));
-                          }).catch(e => {
-                            console.log = origLog;
-                            console.warn('[War Room] DHQ engine error:', e);
-                            setDhqStatus({ loading: false, step: 'Error: ' + e.message, progress: 0 });
-                          });
-                        }
-                      }
-                    } catch(e) { console.warn('[War Room] DHQ bridge error:', e); }
-                }).catch(() => {});
-                // Load Sleeper trending adds/drops in background
-                if (window.Sleeper?.fetchTrending) {
-                    Promise.all([
-                        window.Sleeper.fetchTrending('add', 24, 15),
-                        window.Sleeper.fetchTrending('drop', 24, 15)
-                    ]).then(([adds, drops]) => {
-                        setTrending({ adds: adds || [], drops: drops || [] });
-                    }).catch(() => {});
+                    // Bridge stats data
+                    Object.entries(stats).forEach(([pid, s]) => {
+                        if (!window.S.playerStats[pid]) window.S.playerStats[pid] = {};
+                        const pts = calcRawPts(s);
+                        const gp = s.gp || 0;
+                        window.S.playerStats[pid].prevTotal = pts ? Math.round(pts * 10) / 10 : 0;
+                        window.S.playerStats[pid].prevAvg = gp > 0 ? Math.round(pts / gp * 10) / 10 : 0;
+                        window.S.playerStats[pid].prevRawStats = s;
+                    });
                 }
-                // Fetch recent transactions (last 3 weeks) for dashboard ticker
-                try {
-                    const currentWeek = parseInt(activeYear === '2026' ? '1' : '18');
-                    const weekFetches = [];
-                    for (let w = Math.max(1, currentWeek - 2); w <= Math.min(18, currentWeek); w++) {
-                        weekFetches.push(fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/transactions/${w}`).catch(() => []));
-                    }
-                    Promise.all(weekFetches).then(weekResults => {
-                        const allTxns = weekResults.flat().filter(t => t && t.type && t.status !== 'failed').sort((a,b) => (b.created || 0) - (a.created || 0));
-                        setTransactions(allTxns.slice(0, 50));
-                    }).catch(() => {});
-                } catch(e) { console.warn('Transaction fetch error:', e); }
+
+                setLoadStage('Building league intelligence...');
+
+                // Fire DHQ engine + transactions + trending ALL in parallel
+                await Promise.all([
+                    // DHQ engine
+                    (async () => {
+                        if (typeof window.App?.loadLeagueIntel === 'function' && !window.App.LI_LOADED) {
+                            setDhqStatus({ loading: true, step: 'Analyzing league history...', progress: 20 });
+                            try {
+                                await window.App.loadLeagueIntel();
+                                console.log('[War Room] DHQ engine loaded:', Object.keys(window.App.LI?.playerScores || {}).length, 'players valued');
+                                setDhqStatus({ loading: false, step: 'Complete!', progress: 100 });
+                                setStatsData(prev => ({...prev})); // force re-render
+                            } catch(e) {
+                                console.warn('[War Room] DHQ engine error:', e);
+                                setDhqStatus({ loading: false, step: 'Error: ' + e.message, progress: 0 });
+                            }
+                        }
+                    })(),
+                    // Transactions (last 3 weeks)
+                    (async () => {
+                        try {
+                            const nflState = await fetchJSON(`${SLEEPER_BASE_URL}/state/nfl`).catch(() => ({}));
+                            const currentWeek = nflState?.display_week || nflState?.week || 1;
+                            const weekFetches = [];
+                            for (let w = Math.max(1, currentWeek - 2); w <= Math.min(18, currentWeek); w++) {
+                                weekFetches.push(fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/transactions/${w}`).catch(() => []));
+                            }
+                            const weekResults = await Promise.all(weekFetches);
+                            const allTxns = weekResults.flat().filter(t => t && t.type && t.status !== 'failed').sort((a,b) => (b.created || 0) - (a.created || 0));
+                            setTransactions(allTxns.slice(0, 30));
+                        } catch(e) { console.warn('Transaction fetch error:', e); }
+                    })(),
+                    // Trending
+                    (async () => {
+                        if (window.Sleeper?.fetchTrending) {
+                            try {
+                                const [adds, drops] = await Promise.all([
+                                    window.Sleeper.fetchTrending('add', 24, 15),
+                                    window.Sleeper.fetchTrending('drop', 24, 15)
+                                ]);
+                                setTrending({ adds: adds || [], drops: drops || [] });
+                            } catch(e) {}
+                        }
+                    })(),
+                ]);
+
+                setLoadStage('');
+
             } catch (err) {
                 console.error('Failed to load league details:', err);
                 setError(err.message || 'Failed to load league details');
                 setLoading(false);
+                setLoadStage('');
             }
         }
 
@@ -2221,6 +2234,19 @@
                         Half PPR · {standings.length} Teams
                     </div>
                 </div>
+
+                {/* Load stage progress indicator */}
+                {loadStage && (
+                    <div style={{
+                        padding: '6px 16px', background: 'rgba(212,175,55,0.06)',
+                        borderBottom: '1px solid rgba(212,175,55,0.1)',
+                        fontSize: '0.68rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif',
+                        display: 'flex', alignItems: 'center', gap: '8px'
+                    }}>
+                        <div style={{ width: '12px', height: '12px', border: '2px solid rgba(212,175,55,0.3)', borderTopColor: 'var(--gold)', borderRadius: '50%', animation: 'dhqSpin 0.8s linear infinite' }}></div>
+                        {loadStage}
+                    </div>
+                )}
 
                 {/* KPI Cards — 5 customizable slots (dashboard only) */}
                 {activeTab === 'dashboard' && <React.Fragment><div style={{
