@@ -699,7 +699,7 @@
         console.log('%c[DEV MODE] All features unlocked, auth bypassed','color:#D4AF37;font-weight:bold;font-size:14px');
         const b = document.createElement('div');
         b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#D4AF37;color:#000;font-size:11px;font-weight:700;text-align:center;padding:3px;letter-spacing:.05em;font-family:monospace';
-        b.textContent = '⚡ SANDBOX — changes here do not affect production';
+        b.textContent = 'SANDBOX — changes here do not affect production';
         document.body.prepend(b);
     }
 
@@ -856,9 +856,9 @@
 
         async function handleChangePassword() {
             setPwMsg('');
-            if (!currentPw || !newPw || !confirmPw) { setPwMsg('✗ Fill in all fields'); return; }
-            if (newPw !== confirmPw) { setPwMsg('✗ New passwords do not match'); return; }
-            if (newPw.length < 6) { setPwMsg('✗ Password must be at least 6 characters'); return; }
+            if (!currentPw || !newPw || !confirmPw) { setPwMsg('x Fill in all fields'); return; }
+            if (newPw !== confirmPw) { setPwMsg('x New passwords do not match'); return; }
+            if (newPw.length < 6) { setPwMsg('x Password must be at least 6 characters'); return; }
             try {
                 // Verify current password against stored hash
                 const AUTH_KEY = 'od_auth_v1';
@@ -871,7 +871,7 @@
                     // Also try Supabase in case this is a gifted account
                     const result = await window.OD.verifySupabasePassword(sleeperUsername, currentPw);
                     if (!result || !result.match) {
-                        setPwMsg('✗ Current password is incorrect');
+                        setPwMsg('x Current password is incorrect');
                         return;
                     }
                 }
@@ -882,9 +882,9 @@
                 const newHash = Array.from(new Uint8Array(newHashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
                 localStorage.setItem(AUTH_KEY, JSON.stringify({ ...auth, passwordHash: newHash, isGifted: false }));
                 setCurrentPw(''); setNewPw(''); setConfirmPw('');
-                setPwMsg('✓ Password updated');
+                setPwMsg('ok Password updated');
             } catch (e) {
-                setPwMsg('✗ Failed to update password');
+                setPwMsg('x Failed to update password');
             }
         }
 
@@ -956,7 +956,7 @@
                         <input style={inputStyle} type="password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
                         <input style={{ ...inputStyle, marginBottom: '0.75rem' }} type="password" placeholder="Confirm new password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} />
                         <button onClick={handleChangePassword} style={{ ...btnPrimary, width: '100%', flex: 'none' }}>Update Password</button>
-                        {pwMsg && <div style={{ marginTop: '0.5rem', fontSize: '0.73rem', color: pwMsg.startsWith('✓') ? 'var(--win-green)' : '#E74C3C' }}>{pwMsg}</div>}
+                        {pwMsg && <div style={{ marginTop: '0.5rem', fontSize: '0.73rem', color: pwMsg.startsWith('ok') ? 'var(--win-green)' : '#E74C3C' }}>{pwMsg}</div>}
                     </div>
 
                     {/* ── LEAGUEMATES ACCESS ── */}
@@ -986,7 +986,7 @@
                                                 {matesAccess === null
                                                     ? <span style={{ fontSize: '0.65rem', color: 'var(--silver)' }}>checking…</span>
                                                     : hasAccess
-                                                        ? <span style={{ fontSize: '0.65rem', color: 'var(--win-green)', fontWeight: 700 }}>✓ Has access</span>
+                                                        ? <span style={{ fontSize: '0.65rem', color: 'var(--win-green)', fontWeight: 700 }}>ok Has access</span>
                                                         : <button onClick={() => handleGiftAccess(mate)} disabled={isGifting} style={{ padding: '0.2rem 0.55rem', background: 'var(--gold)', border: 'none', borderRadius: '4px', color: 'var(--black)', fontFamily: 'Oswald,sans-serif', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
                                                             {isGifting ? '…' : 'Generate Link'}
                                                         </button>
@@ -1066,21 +1066,21 @@
 
         // Default 5 KPIs — customizable per owner, saved in localStorage
         const KPI_OPTIONS = {
-            'starter-gap':    { label: 'Starter Gap', icon: '\u{1F3AF}', category: 'Roster' },
-            'portfolio':      { label: 'Portfolio DHQ', icon: '\u{1F4B0}', category: 'Roster' },
-            'value-rank':     { label: 'Value Rank', icon: '\u{1F3C6}', category: 'League' },
-            'health-score':   { label: 'Health Score', icon: '\u{1F4AA}', category: 'Roster' },
-            'avg-age':        { label: 'Avg Age', icon: '\u{231B}', category: 'Roster' },
-            'top5-conc':      { label: 'Top 5 Concentration', icon: '\u{1F4CA}', category: 'Roster' },
-            'hit-rate':       { label: 'Draft Hit Rate', icon: '\u{1F3AF}', category: 'Draft' },
-            'faab-efficiency':{ label: 'FAAB Efficiency', icon: '\u{1F4B5}', category: 'Waivers' },
-            'net-trade':      { label: 'Net DHQ/Trade', icon: '\u{1F504}', category: 'Trades' },
-            'trade-velocity': { label: 'Trade Velocity', icon: '\u{26A1}', category: 'Trades' },
-            'window':         { label: 'Compete Window', icon: '\u{1F52E}', category: 'Projection' },
-            'aging-cliff':    { label: 'Aging Cliff %', icon: '\u{26A0}\u{FE0F}', category: 'Projection' },
-            'partner-wr':     { label: 'Partner Win Rate', icon: '\u{1F91D}', category: 'Trades' },
-            'elite-count':    { label: 'Elite Players', icon: '\u{2B50}', category: 'Roster' },
-            'bench-quality':  { label: 'Bench Quality', icon: '\u{1F4CE}', category: 'Roster' },
+            'starter-gap':    { label: 'Starter Gap', icon: '', category: 'Roster' },
+            'portfolio':      { label: 'Portfolio DHQ', icon: '', category: 'Roster' },
+            'value-rank':     { label: 'Value Rank', icon: '', category: 'League' },
+            'health-score':   { label: 'Health Score', icon: '', category: 'Roster' },
+            'avg-age':        { label: 'Avg Age', icon: '', category: 'Roster' },
+            'top5-conc':      { label: 'Top 5 Concentration', icon: '', category: 'Roster' },
+            'hit-rate':       { label: 'Draft Hit Rate', icon: '', category: 'Draft' },
+            'faab-efficiency':{ label: 'FAAB Efficiency', icon: '', category: 'Waivers' },
+            'net-trade':      { label: 'Net DHQ/Trade', icon: '', category: 'Trades' },
+            'trade-velocity': { label: 'Trade Velocity', icon: '', category: 'Trades' },
+            'window':         { label: 'Compete Window', icon: '', category: 'Projection' },
+            'aging-cliff':    { label: 'Aging Cliff %', icon: '', category: 'Projection' },
+            'partner-wr':     { label: 'Partner Win Rate', icon: '', category: 'Trades' },
+            'elite-count':    { label: 'Elite Players', icon: '', category: 'Roster' },
+            'bench-quality':  { label: 'Bench Quality', icon: '', category: 'Roster' },
         };
         const DEFAULT_KPIS = ['starter-gap', 'hit-rate', 'faab-efficiency', 'net-trade', 'window'];
         const [selectedKpis, setSelectedKpis] = useState(() => {
@@ -2091,41 +2091,47 @@
                     </div>
                 )}
 
-                {/* Left Navigation */}
+                {/* Left Navigation — always open, text labels */}
                 <div style={{
-                    position: 'fixed', left: 0, top: 0, bottom: 0, width: '64px',
+                    position: 'fixed', left: 0, top: 0, bottom: 0, width: '160px',
                     background: 'var(--black)', borderRight: '1px solid rgba(212,175,55,0.2)',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    padding: '12px 0', gap: '4px', zIndex: 100
+                    display: 'flex', flexDirection: 'column',
+                    padding: '16px 0', zIndex: 100
                 }}>
                     {/* Logo */}
-                    <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '12px', letterSpacing: '0.05em' }}>FW</div>
+                    <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.3rem', color: 'var(--gold)', letterSpacing: '0.06em', padding: '0 16px', marginBottom: '20px' }}>WAR ROOM</div>
 
                     {/* Nav items */}
                     {[
-                        {icon: '\u{1F3E0}', label: 'Home', action: () => setActiveTab('dashboard')},
-                        {icon: '\u{1F464}', label: 'My Team', action: () => setActiveTab('myteam')},
-                        {icon: '\u{1F4CA}', label: 'Analytics', action: () => setActiveTab('analytics')},
-                        {icon: '\u{1F504}', label: 'Trades', url: 'trade-calculator.html'},
-                        {icon: '\u{1F3C8}', label: 'FA', url: 'free-agency.html'},
-                        {icon: '\u{1F4CB}', label: 'Draft', url: 'draft-warroom.html'},
-                        {icon: '\u{2699}\u{FE0F}', label: 'Settings', action: () => setShowSettings(true)},
-                    ].map((item, i) => (
-                        <button key={i} onClick={() => item.action ? item.action() : window.location.href = item.url}
+                        {label: 'Home', tab: 'dashboard'},
+                        {label: 'My Team', tab: 'myteam'},
+                        {label: 'Analytics', tab: 'analytics'},
+                        {label: 'Trades', url: 'trade-calculator.html'},
+                        {label: 'Free Agency', url: 'free-agency.html'},
+                        {label: 'Draft', url: 'draft-warroom.html'},
+                        {label: 'Settings', action: () => setShowSettings(true)},
+                    ].map((item, i) => {
+                        const isActive = item.tab && activeTab === item.tab;
+                        return (
+                        <button key={i} onClick={() => item.tab ? setActiveTab(item.tab) : item.action ? item.action() : window.location.href = item.url}
                             style={{
-                                width: '48px', height: '48px', border: 'none', borderRadius: '8px',
-                                background: 'transparent', cursor: 'pointer', display: 'flex',
-                                flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                                gap: '2px', transition: 'background 0.2s', color: 'var(--silver)',
-                                fontSize: '0.55rem', fontFamily: 'Oswald, sans-serif'
+                                width: '100%', padding: '10px 16px', border: 'none',
+                                background: isActive ? 'rgba(212,175,55,0.12)' : 'transparent',
+                                borderLeft: isActive ? '3px solid var(--gold)' : '3px solid transparent',
+                                cursor: 'pointer', display: 'flex', alignItems: 'center',
+                                transition: 'all 0.15s',
+                                color: isActive ? 'var(--gold)' : 'var(--silver)',
+                                fontSize: '0.78rem', fontFamily: 'Oswald, sans-serif',
+                                fontWeight: isActive ? 700 : 400,
+                                letterSpacing: '0.03em', textAlign: 'left'
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.15)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(212,175,55,0.06)'; }}
+                            onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
                         >
-                            <span style={{fontSize: '1.2rem'}}>{item.icon}</span>
-                            <span>{item.label}</span>
+                            {item.label}
                         </button>
-                    ))}
+                        );
+                    })}
 
                     {/* Spacer */}
                     <div style={{ flex: 1 }}></div>
@@ -2138,32 +2144,29 @@
 
                     {/* Refresh Button */}
                     <button onClick={async () => {
-                        // Clear caches and reload everything
                         try {
                             localStorage.removeItem('dhq_leagueintel_v9');
                             Object.keys(localStorage).filter(k => k.startsWith('dhq_hist_')).forEach(k => localStorage.removeItem(k));
                             if (window.App) { window.App.LI = {}; window.App.LI_LOADED = false; window._liLoading = false; }
                         } catch(e) {}
-                        // Re-trigger league load
                         await loadLeagueDetails();
                     }} style={{
-                        width: '48px', height: '48px', border: 'none', borderRadius: '8px',
+                        width: '100%', padding: '10px 16px', border: 'none',
                         background: 'transparent', cursor: 'pointer', display: 'flex',
-                        flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        gap: '2px', transition: 'all 0.2s', color: 'var(--gold)',
-                        fontSize: '0.55rem', fontFamily: 'Oswald, sans-serif', marginBottom: '8px'
+                        alignItems: 'center', transition: 'all 0.15s', color: 'var(--gold)',
+                        fontSize: '0.78rem', fontFamily: 'Oswald, sans-serif',
+                        letterSpacing: '0.03em', textAlign: 'left', marginBottom: '8px'
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(212,175,55,0.15)'; e.currentTarget.querySelector('span').style.transform = 'rotate(180deg)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.querySelector('span').style.transform = 'rotate(0)'; }}
-                    title="Refresh — reload DHQ values, league history, and AI data"
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.06)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    title="Reload DHQ values, league history, and AI data"
                     >
-                        <span style={{ fontSize: '1.2rem', transition: 'transform 0.3s' }}>↻</span>
-                        <span>Refresh</span>
+                        Refresh Data
                     </button>
                 </div>
 
                 {/* Main content shifted right */}
-                <div style={{ marginLeft: '64px' }}>
+                <div style={{ marginLeft: '160px' }}>
                 {/* Header */}
                 <header className="header" style={{ position: 'relative', marginBottom: '0', paddingBottom: '0.75rem' }}>
                     <div className="header-title">{currentLeague.name}</div>
@@ -3213,7 +3216,7 @@
                     <div className="center-column">
                         <div className="league-window">
                             <div className="league-window-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-                                <div style={{ flexShrink: 0 }}><span>⚡</span> SLEEPER LEAGUES</div>
+                                <div style={{ flexShrink: 0 }}>SLEEPER LEAGUES</div>
                                 <select
                                     value={selectedYear}
                                     onChange={e => setSelectedYear(e.target.value)}
@@ -3240,7 +3243,7 @@
                             <div className="league-window-scroll">
                                 {!sleeperUsername ? (
                                     <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--silver)', fontSize: '0.85rem' }}>
-                                        <div style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>🔗</div>
+                                        <div style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}></div>
                                         No Sleeper account connected.<br />
                                         <span style={{ fontSize: '0.78rem', opacity: 0.7 }}>Sleeper integration coming soon for email accounts.</span>
                                     </div>
