@@ -2706,6 +2706,7 @@
         const [editingKpi, setEditingKpi] = useState(null); // index being edited, null = not editing
         const [leagueSelectedTeam, setLeagueSelectedTeam] = useState(null);
         const [leagueSort, setLeagueSort] = useState('wins');
+        const [leagueViewMode, setLeagueViewMode] = useState('roster');
 
         // Default 5 KPIs — customizable per owner, saved in localStorage
         const KPI_OPTIONS = {
@@ -3635,6 +3636,18 @@
                               return null;
                             })()}
                           </div>
+                          {(() => {
+                            const oh = typeof buildOwnerHistory === 'function' ? buildOwnerHistory() : {};
+                            const h = oh[roster?.roster_id];
+                            if (!h || (!h.playoffWins && !h.playoffLosses && !h.totalTrades)) return null;
+                            return (
+                              <div style={{ fontSize: '0.52rem', color: 'var(--silver)', display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap', opacity: 0.7 }}>
+                                {(h.playoffWins > 0 || h.playoffLosses > 0) && <span>Playoffs {h.playoffRecord}</span>}
+                                {(h.playoffWins > 0 || h.playoffLosses > 0) && h.totalTrades > 0 && <span>{'\u00B7'}</span>}
+                                {h.totalTrades > 0 && <span>{h.totalTrades} trades</span>}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                       {(() => {
@@ -3699,10 +3712,123 @@
 
             return (
               <div style={{ padding: '16px' }}>
-                <button onClick={() => setSelectedTeam(null)} style={{ background: 'none', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '4px', padding: '4px 12px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'Oswald', fontSize: '0.68rem', marginBottom: '12px' }}>Back to League</button>
+                <button onClick={() => { setSelectedTeam(null); setLeagueViewMode('roster'); }} style={{ background: 'none', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '4px', padding: '4px 12px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'Oswald', fontSize: '0.68rem', marginBottom: '12px' }}>Back to League</button>
                 <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.4rem', color: 'var(--gold)', marginBottom: '4px' }}>{team.displayName}</div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--silver)', marginBottom: '16px' }}>{team.wins}-{team.losses} {'\u00B7'} {players.reduce((s,r) => s + r.dhq, 0).toLocaleString()} Total DHQ {'\u00B7'} {players.length} players</div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--silver)', marginBottom: '12px' }}>{team.wins}-{team.losses} {'\u00B7'} {players.reduce((s,r) => s + r.dhq, 0).toLocaleString()} Total DHQ {'\u00B7'} {players.length} players</div>
 
+                {/* Roster / History toggle */}
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+                    <button onClick={() => setLeagueViewMode('roster')} style={{
+                        padding: '5px 14px', fontSize: '0.65rem', fontFamily: 'Oswald', textTransform: 'uppercase',
+                        background: leagueViewMode === 'roster' ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
+                        color: leagueViewMode === 'roster' ? 'var(--black)' : 'var(--silver)',
+                        border: '1px solid ' + (leagueViewMode === 'roster' ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
+                        borderRadius: '4px', cursor: 'pointer'
+                    }}>Roster</button>
+                    <button onClick={() => setLeagueViewMode('history')} style={{
+                        padding: '5px 14px', fontSize: '0.65rem', fontFamily: 'Oswald', textTransform: 'uppercase',
+                        background: leagueViewMode === 'history' ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
+                        color: leagueViewMode === 'history' ? 'var(--black)' : 'var(--silver)',
+                        border: '1px solid ' + (leagueViewMode === 'history' ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
+                        borderRadius: '4px', cursor: 'pointer'
+                    }}>History</button>
+                </div>
+
+                {leagueViewMode === 'history' && (() => {
+                    const ownerHist = typeof buildOwnerHistory === 'function' ? buildOwnerHistory() : {};
+                    const h = ownerHist[team.roster?.roster_id];
+                    if (!h) return <div style={{ color: 'var(--silver)', padding: '16px' }}>History not available — DHQ engine loading</div>;
+
+                    return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {/* Header stats */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                                {[
+                                    { label: 'Championships', value: h.championships, sub: h.champSeasons.join(', ') || 'None', color: h.championships > 0 ? '#D4AF37' : 'var(--silver)' },
+                                    { label: 'Playoff Record', value: h.playoffRecord, sub: h.playoffAppearances + ' appearances', color: h.playoffWins > h.playoffLosses ? '#2ECC71' : 'var(--silver)' },
+                                    { label: 'Draft Hit Rate', value: h.draftHitRate + '%', sub: h.draftHits + '/' + h.draftTotal + ' starters', color: h.draftHitRate >= 50 ? '#2ECC71' : h.draftHitRate >= 30 ? '#F0A500' : '#E74C3C' },
+                                    { label: 'Trade Record', value: h.tradesWon + '-' + h.tradesLost + '-' + h.tradesFair, sub: (h.avgValueDiff >= 0 ? '+' : '') + h.avgValueDiff + ' avg DHQ', color: h.avgValueDiff >= 0 ? '#2ECC71' : '#E74C3C' },
+                                ].map((stat, i) => (
+                                    <div key={i} style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '0.55rem', color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{stat.label}</div>
+                                        <div style={{ fontSize: '1.2rem', fontWeight: 700, color: stat.color, fontFamily: 'Bebas Neue' }}>{stat.value}</div>
+                                        <div style={{ fontSize: '0.58rem', color: 'var(--silver)', marginTop: '2px' }}>{stat.sub}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Season by season */}
+                            <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px' }}>
+                                <div style={{ fontFamily: 'Oswald', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Season History</div>
+                                {h.seasonHistory.map(s => (
+                                    <div key={s.season} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.75rem' }}>
+                                        <span style={{ fontFamily: 'Bebas Neue', fontSize: '0.95rem', color: 'var(--gold)', minWidth: '40px' }}>{s.season}</span>
+                                        <span style={{
+                                            fontSize: '0.62rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px',
+                                            background: s.finish === 'Champion' ? 'rgba(212,175,55,0.15)' : s.finish === 'Runner-Up' ? 'rgba(192,192,192,0.15)' : s.finish === 'Semi-Finals' ? 'rgba(205,127,50,0.15)' : s.finish === 'Playoffs' ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.04)',
+                                            color: s.finish === 'Champion' ? '#D4AF37' : s.finish === 'Runner-Up' ? '#C0C0C0' : s.finish === 'Semi-Finals' ? '#CD7F32' : s.finish === 'Playoffs' ? '#2ECC71' : 'var(--silver)'
+                                        }}>{s.finish}</span>
+                                        {s.hadFirstPick && <span style={{ fontSize: '0.58rem', color: '#a78bfa', fontWeight: 600 }}>#1 Overall Pick</span>}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* #1 Overall Picks */}
+                            {h.numberOnePicks.length > 0 && (
+                                <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px' }}>
+                                    <div style={{ fontFamily: 'Oswald', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>#1 Overall Picks</div>
+                                    {h.numberOnePicks.map((pk, i) => (
+                                        <div key={i} style={{ fontSize: '0.75rem', color: 'var(--white)', padding: '4px 0' }}>
+                                            <span style={{ color: 'var(--gold)', fontFamily: 'Bebas Neue', fontSize: '0.85rem' }}>{pk.season}</span> — {pk.player} <span style={{ color: 'var(--silver)', fontSize: '0.62rem' }}>({pk.pos})</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Best + Worst Picks */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                {h.bestPick && (
+                                    <div style={{ background: 'rgba(46,204,113,0.06)', border: '1px solid rgba(46,204,113,0.15)', borderRadius: '8px', padding: '10px 14px' }}>
+                                        <div style={{ fontSize: '0.58rem', color: '#2ECC71', fontFamily: 'Oswald', textTransform: 'uppercase', marginBottom: '4px' }}>Best Draft Pick</div>
+                                        <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--white)' }}>{h.bestPick.name}</div>
+                                        <div style={{ fontSize: '0.62rem', color: 'var(--silver)' }}>{h.bestPick.season} Round {h.bestPick.round} ({h.bestPick.pos})</div>
+                                    </div>
+                                )}
+                                {h.bustPicks.length > 0 && (
+                                    <div style={{ background: 'rgba(231,76,60,0.06)', border: '1px solid rgba(231,76,60,0.15)', borderRadius: '8px', padding: '10px 14px' }}>
+                                        <div style={{ fontSize: '0.58rem', color: '#E74C3C', fontFamily: 'Oswald', textTransform: 'uppercase', marginBottom: '4px' }}>Draft Busts (R1-R2)</div>
+                                        {h.bustPicks.map((bp, i) => (
+                                            <div key={i} style={{ fontSize: '0.72rem', color: 'var(--silver)', padding: '2px 0' }}>{bp.name} — {bp.season} R{bp.round}</div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Rivalries */}
+                            {h.rivalries.length > 0 && (
+                                <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px' }}>
+                                    <div style={{ fontFamily: 'Oswald', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Playoff Rivalries</div>
+                                    {h.rivalries.map((r, i) => {
+                                        const rivalUser = S.leagueUsers?.find(u => {
+                                            const rivalRoster = S.rosters.find(ros => ros.roster_id === r.rosterId);
+                                            return rivalRoster && u.user_id === rivalRoster.owner_id;
+                                        });
+                                        return (
+                                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', fontSize: '0.75rem' }}>
+                                                <span style={{ fontWeight: 600, color: 'var(--white)' }}>{rivalUser?.display_name || 'Team ' + r.rosterId}</span>
+                                                <span style={{ color: r.wins > r.losses ? '#2ECC71' : r.wins < r.losses ? '#E74C3C' : 'var(--silver)', fontWeight: 700 }}>{r.wins}-{r.losses}</span>
+                                                <span style={{ fontSize: '0.6rem', color: 'var(--silver)' }}>({r.seasons.join(', ')})</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
+
+                {leagueViewMode === 'roster' && (
+                <div>
                 {/* TODO: integrate shared ROSTER_COLUMNS + renderCell system */}
                 <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', overflow: 'hidden' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '3px 28px 1fr 36px 32px 54px 42px 60px 52px', gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.55rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase' }}>
@@ -3731,6 +3857,8 @@
                     ))}
                   </div>
                 </div>
+                </div>
+                )}
               </div>
             );
           }
