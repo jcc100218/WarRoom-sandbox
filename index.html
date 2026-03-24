@@ -838,6 +838,16 @@
 
     /* ── Section Header (global) ─────────────────────────── */
     .wr-section-hdr { font-family:'Bebas Neue',cursive;font-size:1rem;color:var(--gold);letter-spacing:0.08em;margin-bottom:8px }
+
+    /* ── Micro-animations ────────────────────────────────── */
+    @keyframes wrFadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .wr-fade-in { animation:wrFadeIn 0.25s ease both }
+    .wr-fade-in-delay { animation:wrFadeIn 0.3s ease 0.1s both }
+    @keyframes wrPulseGold { 0%,100%{box-shadow:0 0 0 0 rgba(212,175,55,0)} 50%{box-shadow:0 0 0 4px rgba(212,175,55,0.15)} }
+    .wr-pulse { animation:wrPulseGold 2s ease infinite }
+
+    /* ── Annotation callout ──────────────────────────────── */
+    .wr-annotation { font-size:0.52rem;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:0.02em;padding:3px 8px;border-radius:4px;border-left:2px solid var(--gold);background:rgba(212,175,55,0.06);color:var(--silver);line-height:1.4;margin-top:6px }
 </style>
 
 </head>
@@ -856,6 +866,7 @@
 <script src="https://jcc100218.github.io/ReconAI/shared/ai-dispatch.js"></script>
 <script src="https://jcc100218.github.io/ReconAI/shared/player-modal.js"></script>
 <script src="draft-history.js"></script>
+<script src="charts.js"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -891,6 +902,67 @@
             React.createElement('div', { className:'skel skel-line', style:{width:'50%',margin:'0 auto'} })
         );
     }
+
+    // ===== CONTEXTUAL AI ANNOTATION ENGINE =====
+    // Pre-computed insights from DHQ data — no API calls needed.
+    // Returns short text annotations for roster, matchup, and analytics views.
+    function getPlayerAnnotation(pid) {
+        const LI = window.App?.LI || {};
+        const meta = LI.playerMeta?.[pid];
+        const dhq = LI.playerScores?.[pid] || 0;
+        if (!meta || !dhq) return null;
+        const age = meta.age || 0;
+        const pos = meta.pos || '';
+        const peaks = window.App?.peakWindows || {QB:[27,33],RB:[22,26],WR:[24,29],TE:[25,30],DL:[24,29],LB:[23,28],DB:[24,29]};
+        const [pLo, pHi] = peaks[pos] || [24,29];
+        const peakYrsLeft = meta.peakYrsLeft || Math.max(0, pHi - age);
+        const trend = meta.trend || 0;
+
+        if (age > pHi + 2 && dhq >= 2000) return { text: 'Sell high \u2014 ' + (age-pHi) + 'yr past peak', color: '#E74C3C', rec: 'SELL' };
+        if (age > pHi && dhq >= 3000 && trend <= -10) return { text: 'Declining \u2014 move before value drops', color: '#E74C3C', rec: 'SELL' };
+        if (peakYrsLeft >= 5 && dhq >= 3000) return { text: peakYrsLeft + ' peak yrs ahead \u2014 cornerstone', color: '#2ECC71', rec: 'BUY' };
+        if (peakYrsLeft >= 3 && trend >= 15) return { text: 'Breakout trajectory +' + trend + '%', color: '#2ECC71', rec: 'BUY' };
+        if (age >= pLo && age <= pHi && dhq >= 5000) return { text: 'Prime window \u2014 maximize now', color: 'var(--gold)', rec: 'HOLD' };
+        if (peakYrsLeft <= 1 && dhq >= 2000) return { text: 'Window closing \u2014 sell or ride', color: '#F0A500', rec: 'HOLD' };
+        return null;
+    }
+
+    function getMatchupAnnotation(myPPG, oppPPG, pos) {
+        const diff = myPPG - oppPPG;
+        if (diff > 5) return { text: 'Strong edge +' + diff.toFixed(1), color: '#2ECC71' };
+        if (diff > 2) return { text: 'Slight edge', color: '#2ECC71' };
+        if (diff < -5) return { text: 'Vulnerable \u2014 ' + diff.toFixed(1), color: '#E74C3C' };
+        if (diff < -2) return { text: 'Disadvantage', color: '#E74C3C' };
+        return { text: 'Even matchup', color: 'var(--silver)' };
+    }
+
+    function getKpiAnnotation(kpiKey, value) {
+        const LI = window.App?.LI || {};
+        const S = window.App?.S || window.S || {};
+        const scores = LI.playerScores || {};
+        const rosters = S.rosters || [];
+        if (!rosters.length) return '';
+
+        const myTotal = (rosters.find(r => r.roster_id === S.myRosterId)?.players || []).reduce((s, pid) => s + (scores[pid] || 0), 0);
+        const avgTotal = rosters.reduce((s, r) => s + (r.players || []).reduce((ps, pid) => ps + (scores[pid] || 0), 0), 0) / rosters.length;
+
+        if (kpiKey === 'portfolio' || kpiKey === 'value-rank') {
+            const pct = avgTotal > 0 ? Math.round((myTotal - avgTotal) / avgTotal * 100) : 0;
+            return pct > 0 ? '\u2191 ' + pct + '% above league avg' : pct < 0 ? '\u2193 ' + Math.abs(pct) + '% below league avg' : '\u2192 At league average';
+        }
+        if (kpiKey === 'health-score') {
+            const v = parseInt(value) || 0;
+            return v >= 85 ? '\u2191 Championship caliber' : v >= 70 ? '\u2192 Playoff contender' : v >= 55 ? '\u2193 Work to do' : '\u2193 Rebuild mode';
+        }
+        if (kpiKey === 'aging-cliff') {
+            const v = parseInt(value) || 0;
+            return v > 30 ? '\u26A0 High risk \u2014 sell aging assets' : v > 15 ? '\u2192 Moderate \u2014 monitor closely' : '\u2191 Sustainable roster age';
+        }
+        return '';
+    }
+    window.getPlayerAnnotation = getPlayerAnnotation;
+    window.getMatchupAnnotation = getMatchupAnnotation;
+    window.getKpiAnnotation = getKpiAnnotation;
 
     // ===== DEV MODE =====
     const DEV_MODE = new URLSearchParams(window.location.search).has('dev') || window.location.hostname.includes('sandbox');
@@ -1902,9 +1974,8 @@
                                             <div style={{ fontWeight:700, fontSize:'1rem' }}>{myAssessment.teamName}</div>
                                             <div style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.6 }}>{myAssessment.wins}-{myAssessment.losses}{myAssessment.ties>0?`-${myAssessment.ties}`:''} {myAssessment.pf > 0 ? `${myAssessment.pf.toFixed(0)} PF` : ''}</div>
                                         </div>
-                                        <div style={{ textAlign:'right' }}>
-                                            <div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'2.2rem', lineHeight:1, color: myAssessment.healthScore>=85?'#D4AF37':myAssessment.healthScore>=70?'#2ECC71':myAssessment.healthScore>=55?'#F0A500':'#E74C3C' }}>{myAssessment.healthScore}</div>
-                                            <div style={{ fontSize:'0.55rem', color:'var(--silver)', opacity:0.5 }}>HEALTH SCORE</div>
+                                        <div style={{ textAlign:'center' }}>
+                                            {typeof MiniDonut !== 'undefined' ? React.createElement(MiniDonut, { value: myAssessment.healthScore, size: 56, label: 'HEALTH' }) : <div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'2.2rem', lineHeight:1, color: myAssessment.healthScore>=85?'#D4AF37':myAssessment.healthScore>=70?'#2ECC71':myAssessment.healthScore>=55?'#F0A500':'#E74C3C' }}>{myAssessment.healthScore}</div>}
                                         </div>
                                     </div>
                                     <div className="tc-pos-grid">
@@ -4607,7 +4678,13 @@
                   <div style={{ position:'absolute',left:r.peakPct+'%',top:'-1px',width:'2px',height:'5px',background:'var(--white)',borderRadius:'1px' }}></div>
                 </div>
               </div>;
-              case 'action': return <div key={colKey} style={{...base}}><span style={{ fontSize:'0.58rem',fontWeight:700,padding:'1px 6px',borderRadius:'2px',background:r.rec==='BUY'?'rgba(46,204,113,0.15)':r.rec==='HOLD'?'rgba(212,175,55,0.12)':'rgba(231,76,60,0.12)',color:r.rec==='BUY'?'#2ECC71':r.rec==='HOLD'?'var(--gold)':'#E74C3C' }}>{r.rec}</span></div>;
+              case 'action': {
+                const ann = getPlayerAnnotation(r.pid);
+                return <div key={colKey} style={{...base, position:'relative'}} title={ann?.text || ''}>
+                  <span style={{ fontSize:'0.58rem',fontWeight:700,padding:'1px 6px',borderRadius:'2px',background:r.rec==='BUY'?'rgba(46,204,113,0.15)':r.rec==='HOLD'?'rgba(212,175,55,0.12)':'rgba(231,76,60,0.12)',color:r.rec==='BUY'?'#2ECC71':r.rec==='HOLD'?'var(--gold)':'#E74C3C' }}>{r.rec}</span>
+                  {ann && <div style={{position:'absolute',top:'-2px',right:'-2px',width:'5px',height:'5px',borderRadius:'50%',background:ann.color}} />}
+                </div>;
+              }
               case 'gp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.62rem' }}>{r.curGP||'\u2014'}</span></div>;
               case 'durability': return <div key={colKey} style={{...base}}><div style={{ width:'24px',height:'4px',borderRadius:'2px',background:'rgba(255,255,255,0.06)',overflow:'hidden' }}><div style={{ width:Math.min(100,(r.curGP/17)*100)+'%',height:'100%',background:r.curGP>=15?'#2ECC71':r.curGP>=10?'#F0A500':'#E74C3C',borderRadius:'2px' }}></div></div></div>;
               case 'yrsExp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)' }}>{r.p.years_exp ?? '\u2014'}</span></div>;
@@ -5246,6 +5323,7 @@
                                 <div style={{ ...kpiLabelStyle, fontSize: '0.52rem' }}>{opt.icon} {opt.category.toUpperCase()}{opt.tip ? React.createElement(Tip, null, opt.tip) : null}</div>
                                 <div style={{ ...kpiValueStyle, color: val.color, fontSize: '1.4rem' }}>{val.value}</div>
                                 <div style={kpiSubStyle}>{val.sub}</div>
+                                {(() => { const ann = getKpiAnnotation(kpiKey, val.value); return ann ? React.createElement('div', { style:{fontSize:'0.48rem',color:'var(--gold)',marginTop:'3px',fontFamily:'Oswald',fontWeight:600,letterSpacing:'0.02em',opacity:0.7} }, ann) : null; })()}
 
                                 {/* Dropdown picker */}
                                 {isEditing && (
@@ -5998,30 +6076,33 @@
 
                                 {/* Position-by-position breakdown */}
                                 <div style={{background:'var(--black)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:'12px',overflow:'hidden'}}>
-                                    <div style={{display:'grid',gridTemplateColumns:'60px 1fr 50px 20px 50px 1fr',gap:'0',padding:'8px 12px',background:'rgba(212,175,55,0.06)',fontSize:'0.6rem',fontFamily:'Oswald,sans-serif',color:'var(--gold)',textTransform:'uppercase',letterSpacing:'0.06em'}}>
-                                        <span>Slot</span><span>Your Player</span><span style={{textAlign:'right'}}>PPG</span><span></span><span>PPG</span><span>Their Player</span>
+                                    <div style={{display:'grid',gridTemplateColumns:'60px 1fr 50px 20px 50px 1fr 80px',gap:'0',padding:'8px 12px',background:'rgba(212,175,55,0.06)',fontSize:'0.6rem',fontFamily:'Oswald,sans-serif',color:'var(--gold)',textTransform:'uppercase',letterSpacing:'0.06em'}}>
+                                        <span>Slot</span><span>Your Player</span><span style={{textAlign:'right'}}>PPG</span><span></span><span>PPG</span><span>Their Player</span><span style={{textAlign:'right'}}>Edge</span>
                                     </div>
                                     {rows.map((r, i) => {
                                         const myP = r.myPid ? getP(r.myPid) : null;
                                         const oppP = r.oppPid ? getP(r.oppPid) : null;
                                         const advCol = r.adv > 2 ? 'var(--win-green)' : r.adv < -2 ? 'var(--loss-red)' : 'var(--silver)';
-                                        return <div key={i} style={{display:'grid',gridTemplateColumns:'60px 1fr 50px 20px 50px 1fr',gap:'0',padding:'8px 12px',borderTop:'1px solid rgba(255,255,255,0.04)',alignItems:'center'}}>
+                                        const mAnn = getMatchupAnnotation(r.myPPG, r.oppPPG, r.slot);
+                                        return <div key={i} style={{display:'grid',gridTemplateColumns:'60px 1fr 50px 20px 50px 1fr 80px',gap:'0',padding:'8px 12px',borderTop:'1px solid rgba(255,255,255,0.04)',alignItems:'center'}}>
                                             <span style={{fontSize:'0.65rem',color:'var(--gold)',fontWeight:700,fontFamily:'Oswald,sans-serif'}}>{r.slot}</span>
                                             <div style={{fontSize:'0.72rem',fontWeight:600,color:'var(--white)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{myP?.full_name || (r.myPid ? 'Empty' : '-')}{myP?.team ? <span style={{color:'var(--silver)',fontSize:'0.6rem',marginLeft:'4px'}}>{myP.team}</span> : ''}</div>
                                             <span style={{textAlign:'right',fontSize:'0.72rem',fontWeight:700,color:r.myPPG>r.oppPPG?'var(--win-green)':'var(--white)',fontFamily:'Oswald,sans-serif'}}>{r.myPPG||'-'}</span>
                                             <span style={{textAlign:'center',fontSize:'0.6rem',color:advCol,fontWeight:700}}>{r.adv>0?'+':''}{r.adv!==0?r.adv.toFixed(0):'-'}</span>
                                             <span style={{fontSize:'0.72rem',fontWeight:700,color:r.oppPPG>r.myPPG?'var(--win-green)':'var(--white)',fontFamily:'Oswald,sans-serif'}}>{r.oppPPG||'-'}</span>
                                             <div style={{fontSize:'0.72rem',fontWeight:600,color:'var(--white)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{oppP?.full_name || (r.oppPid ? 'Empty' : '-')}{oppP?.team ? <span style={{color:'var(--silver)',fontSize:'0.6rem',marginLeft:'4px'}}>{oppP.team}</span> : ''}</div>
+                                            <span style={{fontSize:'0.52rem',fontWeight:600,color:mAnn.color,textAlign:'right',fontFamily:'Oswald,sans-serif'}}>{mAnn.text}</span>
                                         </div>;
                                     })}
                                     {/* Totals row */}
-                                    <div style={{display:'grid',gridTemplateColumns:'60px 1fr 50px 20px 50px 1fr',gap:'0',padding:'10px 12px',borderTop:'2px solid rgba(212,175,55,0.3)',background:'rgba(212,175,55,0.04)'}}>
+                                    <div style={{display:'grid',gridTemplateColumns:'60px 1fr 50px 20px 50px 1fr 80px',gap:'0',padding:'10px 12px',borderTop:'2px solid rgba(212,175,55,0.3)',background:'rgba(212,175,55,0.04)'}}>
                                         <span style={{fontSize:'0.7rem',color:'var(--gold)',fontWeight:700,fontFamily:'Oswald,sans-serif'}}>TOTAL</span>
                                         <span></span>
                                         <span style={{textAlign:'right',fontSize:'0.8rem',fontWeight:800,color:projWinning?'var(--win-green)':'var(--white)',fontFamily:'Bebas Neue,cursive'}}>{myProjTotal.toFixed(1)}</span>
                                         <span style={{textAlign:'center',fontSize:'0.65rem',color:projWinning?'var(--win-green)':'var(--loss-red)',fontWeight:700}}>{(myProjTotal-oppProjTotal)>0?'+':''}{(myProjTotal-oppProjTotal).toFixed(1)}</span>
                                         <span style={{fontSize:'0.8rem',fontWeight:800,color:!projWinning?'var(--win-green)':'var(--white)',fontFamily:'Bebas Neue,cursive'}}>{oppProjTotal.toFixed(1)}</span>
                                         <span></span>
+                                        <span style={{textAlign:'right',fontSize:'0.6rem',fontWeight:700,color:projWinning?'var(--win-green)':'var(--loss-red)',fontFamily:'Oswald,sans-serif'}}>{projWinning?'Projected W':'Projected L'}</span>
                                     </div>
                                 </div>
                             </div>;
