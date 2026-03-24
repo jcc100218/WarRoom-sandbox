@@ -1989,9 +1989,22 @@
                                     <TcPanicMeter level={myAssessment.panic} />
                                 </div>
                                 <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem' }}>
-                                    <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.7, fontStyle:'italic' }}>
-                                        {myAssessment.tier === 'ELITE' ? 'Championship-caliber operation.' : myAssessment.tier === 'CONTENDER' ? 'Legitimate playoff threat.' : myAssessment.tier === 'CROSSROADS' ? 'At a crossroads — address the gaps or fall into rebuild.' : 'Building for the future.'}
-                                    </span>
+                                    {/* Radar Chart — Position Balance */}
+                                    {typeof RadarChart !== 'undefined' && (() => {
+                                        const pa = myAssessment.posAssessment || {};
+                                        const radarVals = {};
+                                        Object.entries(pa).forEach(([pos, data]) => {
+                                            const ideal = data.ideal || 1;
+                                            const actual = data.nflStarters || data.actual || 0;
+                                            radarVals[pos] = Math.min(100, Math.round((actual / ideal) * 100));
+                                        });
+                                        return Object.keys(radarVals).length >= 3 ? React.createElement('div', { style:{display:'flex',justifyContent:'center',marginBottom:'8px'} },
+                                            React.createElement(RadarChart, { values: radarVals, size: 160 })
+                                        ) : null;
+                                    })()}
+                                    <div className="wr-annotation" style={{ fontSize:'0.78rem' }}>
+                                        {myAssessment.tier === 'ELITE' ? 'Championship-caliber operation. Protect core assets and make surgical upgrades.' : myAssessment.tier === 'CONTENDER' ? 'Legitimate playoff threat. Fill the gaps to push into the elite tier.' : myAssessment.tier === 'CROSSROADS' ? 'At a crossroads \u2014 address the gaps or commit to a rebuild.' : 'Building for the future. Accumulate young assets and draft picks.'}
+                                    </div>
                                     {myAssessment.strengths.length > 0 && <div className="tc-commentary-card"><div className="tc-commentary-card-title">Trade Currency</div><div className="tc-commentary-card-text">Depth surplus at {myAssessment.strengths.join(', ')} gives you trading chips.</div></div>}
                                     {myAssessment.needs.length > 0 && <div className="tc-commentary-card"><div className="tc-commentary-card-title">Positional Needs</div><div className="tc-commentary-card-text">{myAssessment.needs.filter(n=>n.urgency==='deficit').length > 0 ? `Critical shortage at ${myAssessment.needs.filter(n=>n.urgency==='deficit').map(n=>n.pos).join(', ')}.` : ''} {myAssessment.needs.filter(n=>n.urgency==='thin').length > 0 ? `Running thin at ${myAssessment.needs.filter(n=>n.urgency==='thin').map(n=>n.pos).join(', ')}.` : ''}</div></div>}
                                 </div>
@@ -3091,7 +3104,9 @@
             switch(kpiKey) {
                 case 'portfolio': {
                     const total = myPlayers.reduce((s, pid) => s + (scores[pid] || 0), 0);
-                    return { value: total.toLocaleString(), sub: 'Total DHQ', color: 'var(--gold)' };
+                    // Spark: all team totals for league comparison
+                    const allTotals = (currentLeague.rosters || []).map(r => (r.players || []).reduce((s, pid) => s + (scores[pid] || 0), 0)).sort((a,b) => a-b);
+                    return { value: total.toLocaleString(), sub: 'Total DHQ', color: 'var(--gold)', sparkData: allTotals };
                 }
                 case 'value-rank': {
                     const vals = (currentLeague.rosters || []).map(r => (r.players || []).reduce((s, pid) => s + (scores[pid] || 0), 0)).sort((a,b) => b - a);
@@ -3102,7 +3117,8 @@
                 case 'health-score': {
                     const ranked = rankedTeams.find(t => t.userId === sleeperUserId);
                     const hs = ranked?.healthScore || 0;
-                    return { value: hs || '\u2014', sub: 'Score', color: hs >= 80 ? '#2ECC71' : hs >= 60 ? 'var(--gold)' : '#E74C3C' };
+                    const allHS = rankedTeams.map(t => t.healthScore || 0).sort((a,b) => a-b);
+                    return { value: hs || '\u2014', sub: 'Score', color: hs >= 80 ? '#2ECC71' : hs >= 60 ? 'var(--gold)' : '#E74C3C', sparkData: allHS };
                 }
                 case 'starter-gap': {
                     const analytics = analyticsData || (typeof runLeagueAnalytics === 'function' ? runLeagueAnalytics() : null);
@@ -4684,9 +4700,9 @@
               </div>;
               case 'action': {
                 const ann = getPlayerAnnotation(r.pid);
-                return <div key={colKey} style={{...base, position:'relative'}} title={ann?.text || ''}>
-                  <span style={{ fontSize:'0.7rem',fontWeight:700,padding:'1px 6px',borderRadius:'2px',background:r.rec==='BUY'?'rgba(46,204,113,0.15)':r.rec==='HOLD'?'rgba(212,175,55,0.12)':'rgba(231,76,60,0.12)',color:r.rec==='BUY'?'#2ECC71':r.rec==='HOLD'?'var(--gold)':'#E74C3C' }}>{r.rec}</span>
-                  {ann && <div style={{position:'absolute',top:'-2px',right:'-2px',width:'5px',height:'5px',borderRadius:'50%',background:ann.color}} />}
+                return <div key={colKey} style={{...base, flexDirection:'column', gap:'2px', alignItems:'center'}} title={ann?.text || ''}>
+                  <span style={{ fontSize:'0.7rem',fontWeight:700,padding:'2px 8px',borderRadius:'3px',background:r.rec==='BUY'?'rgba(46,204,113,0.18)':r.rec==='HOLD'?'rgba(212,175,55,0.15)':'rgba(231,76,60,0.15)',color:r.rec==='BUY'?'#2ECC71':r.rec==='HOLD'?'var(--gold)':'#E74C3C',border:'1px solid '+(r.rec==='BUY'?'rgba(46,204,113,0.3)':r.rec==='HOLD'?'rgba(212,175,55,0.3)':'rgba(231,76,60,0.3)') }}>{r.rec}</span>
+                  {ann && <div style={{fontSize:'0.6rem',color:ann.color,fontWeight:600,textAlign:'center',lineHeight:1.2,maxWidth:'70px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ann.text.split('\u2014')[0]}</div>}
                 </div>;
               }
               case 'gp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem' }}>{r.curGP||'\u2014'}</span></div>;
@@ -5069,7 +5085,7 @@
         // KPI card styles
         const kpiCardStyle = {
             background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)',
-            borderRadius: '10px', padding: '12px 14px', textAlign: 'center'
+            borderRadius: '12px', padding: '16px 18px', textAlign: 'center'
         };
         const kpiLabelStyle = {
             fontSize: '0.72rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif',
@@ -5295,8 +5311,8 @@
 
                 {/* KPI Cards — 5 customizable slots (dashboard only) */}
                 {activeTab === 'dashboard' && <React.Fragment><div style={{
-                    display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px',
-                    padding: '12px 16px', background: 'var(--black)',
+                    display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px',
+                    padding: '16px 24px', background: 'var(--black)',
                     borderBottom: '1px solid rgba(212,175,55,0.15)'
                 }}>
                     {selectedKpis.map((kpiKey, idx) => {
@@ -5324,10 +5340,13 @@
                                 >{isEditing ? '\u2715' : '\u270E'}</button>
 
                                 {/* KPI content */}
-                                <div style={{ ...kpiLabelStyle, fontSize: '0.76rem' }}>{opt.icon} {opt.category.toUpperCase()}{opt.tip ? React.createElement(Tip, null, opt.tip) : null}</div>
-                                <div style={{ ...kpiValueStyle, color: val.color, fontSize: '1.4rem' }}>{val.value}</div>
+                                <div style={{ ...kpiLabelStyle, fontSize: '0.72rem' }}>{opt.icon} {opt.category.toUpperCase()}{opt.tip ? React.createElement(Tip, null, opt.tip) : null}</div>
+                                <div style={{ ...kpiValueStyle, color: val.color, fontSize: '1.6rem' }}>{val.value}</div>
                                 <div style={kpiSubStyle}>{val.sub}</div>
-                                {(() => { const ann = getKpiAnnotation(kpiKey, val.value); return ann ? React.createElement('div', { style:{fontSize:'0.76rem',color:'var(--gold)',marginTop:'3px',fontFamily:'Oswald',fontWeight:600,letterSpacing:'0.02em',opacity:0.7} }, ann) : null; })()}
+                                {/* Sparkline visualization */}
+                                {typeof Sparkline !== 'undefined' && val.sparkData && React.createElement(Sparkline, { data: val.sparkData, width: 90, height: 24, color: val.color || '#D4AF37' })}
+                                {/* Contextual annotation */}
+                                {(() => { const ann = getKpiAnnotation(kpiKey, val.value); return ann ? React.createElement('div', { style:{fontSize:'0.7rem',color:'var(--gold)',marginTop:'6px',fontFamily:'Oswald',fontWeight:600,letterSpacing:'0.02em',borderTop:'1px solid rgba(212,175,55,0.15)',paddingTop:'6px'} }, ann) : null; })()}
 
                                 {/* Dropdown picker */}
                                 {isEditing && (
@@ -6133,15 +6152,15 @@
                 ) : (
                 <React.Fragment>
                 {/* THE ATHLETIC-STYLE DASHBOARD */}
-                <div style={{ padding: '16px', maxWidth: '1200px', margin: '0 auto' }}>
+                <div style={{ padding: '24px 32px', maxWidth: '1200px', margin: '0 auto' }} className="wr-fade-in">
 
                     {/* 1. HERO STORY */}
                     <div style={{
                       background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(0,0,0,0.8))',
                       border: '2px solid rgba(212,175,55,0.3)',
                       borderRadius: '16px',
-                      padding: '24px 28px',
-                      marginBottom: '16px',
+                      padding: '28px 32px',
+                      marginBottom: '20px',
                       position: 'relative',
                       overflow: 'hidden'
                     }}>
@@ -6155,10 +6174,10 @@
                     </div>
 
                     {/* 2. TWO-COLUMN: TRANSACTION TICKER + POWER RANKINGS */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }} className="wr-fade-in-delay">
 
                       {/* LEFT: Transaction Ticker */}
-                      <div style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '16px', maxHeight: '420px', overflow: 'auto' }}>
+                      <div style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '20px', maxHeight: '460px', overflow: 'auto' }}>
                         <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '12px', letterSpacing: '0.06em' }}>TRANSACTION TICKER</div>
                         {transactions.length === 0 ? (
                           <SkeletonRows count={6} />
