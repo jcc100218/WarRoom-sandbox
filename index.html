@@ -3266,7 +3266,11 @@
                 case 'starter-gap': {
                     const analytics = analyticsData || (typeof runLeagueAnalytics === 'function' ? runLeagueAnalytics() : null);
                     const gap = analytics?.roster?.gaps?.find(g => g.severity === 'high') || analytics?.roster?.gaps?.[0];
-                    if (gap) return { value: gap.area.split(' ')[0] + ' ' + (gap.delta > 0 ? '+' : '') + (typeof gap.delta === 'number' ? gap.delta.toFixed(gap.delta < 1 ? 2 : 0) : gap.delta), sub: gap.severity + ' priority', color: gap.severity === 'high' ? '#E74C3C' : '#F0A500' };
+                    if (gap) {
+                        const area = gap.area || 'Unknown';
+                        const delta = typeof gap.delta === 'number' ? (gap.delta > 0 ? '+' : '') + gap.delta.toFixed(gap.delta < 1 ? 2 : 0) : gap.delta;
+                        return { value: delta, sub: area + ' (' + gap.severity + ')', color: gap.severity === 'high' ? '#E74C3C' : '#F0A500' };
+                    }
                     return { value: '\u2714', sub: 'No major gaps', color: '#2ECC71' };
                 }
                 case 'avg-age': {
@@ -3327,7 +3331,7 @@
                 }
                 case 'elite-count': {
                     const elites = myPlayers.filter(pid => (scores[pid] || 0) >= 7000).length;
-                    return { value: elites, sub: 'DHQ 7000+', color: elites >= 3 ? '#2ECC71' : elites >= 1 ? 'var(--gold)' : '#E74C3C' };
+                    return { value: elites + ' elite' + (elites !== 1 ? 's' : ''), sub: 'Players above 7000 DHQ', color: elites >= 3 ? '#2ECC71' : elites >= 1 ? 'var(--gold)' : '#E74C3C' };
                 }
                 case 'bench-quality': {
                     const starters = new Set(myRoster?.starters || []);
@@ -3480,9 +3484,9 @@
                         if (window.assessTeamFromGlobal && r) {
                             const assessment = window.assessTeamFromGlobal(r.roster_id);
                             if (assessment) {
-                                healthScore = Math.round((assessment.overallScore || 0) * 100);
-                                const tier = assessment.tier || '';
-                                tierColor = tier === 'contender' ? '#2ECC71' : tier === 'playoff' ? '#D4AF37' : tier === 'bubble' ? '#F0A500' : tier === 'rebuild' ? '#E74C3C' : 'var(--silver)';
+                                healthScore = assessment.healthScore || 0;
+                                const tier = (assessment.tier || '').toUpperCase();
+                                tierColor = tier === 'ELITE' ? '#D4AF37' : tier === 'CONTENDER' ? '#2ECC71' : tier === 'CROSSROADS' ? '#F0A500' : tier === 'REBUILDING' ? '#E74C3C' : 'var(--silver)';
                             }
                         }
                     } catch(e) {}
