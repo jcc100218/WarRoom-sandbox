@@ -22,7 +22,7 @@
             --black: #0A0A0A;
             --off-black: #1A1A1A;
             --charcoal: #2A2A2A;
-            --silver: #C0C0C0;
+            --silver: #D0D0D0;
             --white: #FFFFFF;
             --win-green: #2ECC71;
             --loss-red: #E74C3C;
@@ -43,6 +43,10 @@
         min-height: 100vh;
         position: relative;
         -webkit-overflow-scrolling: touch;
+        font-size: 14px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }
 
     /* Subdued logo background */
@@ -632,14 +636,14 @@
         /* Shrink key events */
         .key-events-title { font-size: 0.72rem; margin-bottom: 0.4rem; letter-spacing: 0.06em; }
         .event-item { padding: 0.4rem 0.45rem; margin-bottom: 0.35rem; }
-        .event-title { font-size: 0.62rem; }
-        .event-date  { font-size: 0.58rem; }
-        .event-league { font-size: 0.55rem; }
+        .event-title { font-size: 0.78rem; }
+        .event-date  { font-size: 0.74rem; }
+        .event-league { font-size: 0.72rem; }
 
         /* Shrink league window */
-        .league-window-header { font-size: 0.65rem; padding: 0.35rem 0.4rem; }
-        .league-item-name   { font-size: 0.65rem; }
-        .league-item-record { font-size: 0.56rem; }
+        .league-window-header { font-size: 0.8rem; padding: 0.35rem 0.4rem; }
+        .league-item-name   { font-size: 0.8rem; }
+        .league-item-record { font-size: 0.72rem; }
 
         /* Icon buttons — compact vertical column */
         .icon-button {
@@ -691,7 +695,7 @@
 
     .tc-pos-grid { display: flex; flex-direction: column; gap: 0.22rem; }
     .tc-pos-row { display: flex; align-items: center; gap: 0.4rem; }
-    .tc-pos-label { font-size: 0.6rem; font-weight: 700; width: 20px; flex-shrink: 0; }
+    .tc-pos-label { font-size: 0.76rem; font-weight: 700; width: 20px; flex-shrink: 0; }
     .tc-pos-dots { display: flex; gap: 2px; flex: 1; flex-wrap: wrap; }
     .tc-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .tc-dot-filled { background: var(--win-green); }
@@ -699,15 +703,15 @@
     .tc-dot-empty { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); }
     .tc-dot-surplus { background: var(--gold); }
     .tc-dot-deficit { background: var(--loss-red); }
-    .tc-pos-count { font-size: 0.58rem; width: 28px; text-align: right; flex-shrink: 0; }
-    .tc-pos-status-icon { font-size: 0.65rem; width: 14px; flex-shrink: 0; }
+    .tc-pos-count { font-size: 0.74rem; width: 28px; text-align: right; flex-shrink: 0; }
+    .tc-pos-status-icon { font-size: 0.8rem; width: 14px; flex-shrink: 0; }
 
     .tc-panic-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem; }
     .tc-panic-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); }
     .tc-panic-dot.tc-lit { background: var(--loss-red); border-color: var(--loss-red); box-shadow: 0 0 4px rgba(231,76,60,0.6); }
 
     .tc-chip-row { display: flex; flex-wrap: wrap; gap: 0.25rem; }
-    .tc-chip { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.05em; padding: 0.1rem 0.35rem; border-radius: 3px; text-transform: uppercase; }
+    .tc-chip { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; padding: 0.1rem 0.35rem; border-radius: 3px; text-transform: uppercase; }
     .tc-chip-strength { background: rgba(46,204,113,0.15); border: 1px solid rgba(46,204,113,0.4); color: #2ECC71; }
     .tc-chip-need { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.4); color: #E74C3C; }
     .tc-chip-thin { background: rgba(240,165,0,0.15); border: 1px solid rgba(240,165,0,0.4); color: #F0A500; }
@@ -715,19 +719,19 @@
     .tc-chip-dna { background: rgba(212,175,55,0.12); border: 1px solid rgba(212,175,55,0.3); color: var(--gold); }
 
     .tc-score-row { display: flex; align-items: center; gap: 0.5rem; }
-    .tc-score-label { font-size: 0.62rem; color: var(--silver); opacity: 0.7; width: 60px; flex-shrink: 0; }
+    .tc-score-label { font-size: 0.78rem; color: var(--silver); opacity: 0.7; width: 60px; flex-shrink: 0; }
     .tc-score-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
     .tc-score-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
-    .tc-score-val { font-size: 0.65rem; font-weight: 700; width: 32px; text-align: right; flex-shrink: 0; }
+    .tc-score-val { font-size: 0.8rem; font-weight: 700; width: 32px; text-align: right; flex-shrink: 0; }
 
     .tc-divider { height: 1px; background: rgba(212,175,55,0.1); margin: 0.25rem 0; }
     .tc-section-hdr { font-family: 'Bebas Neue', cursive; font-size: 0.9rem; color: var(--gold); letter-spacing: 0.12em; border-bottom: 1px solid rgba(212,175,55,0.2); padding-bottom: 0.3rem; margin-bottom: 0.6rem; }
     .tc-summary-bar { display: flex; gap: 1rem; padding: 0.5rem 0.75rem; background: rgba(212,175,55,0.05); border: 1px solid rgba(212,175,55,0.1); border-radius: 6px; margin-bottom: 0.75rem; flex-wrap: wrap; }
     .tc-summary-stat { display: flex; flex-direction: column; align-items: center; }
     .tc-summary-val { font-family: 'Bebas Neue', cursive; font-size: 1.1rem; color: var(--gold); }
-    .tc-summary-lbl { font-size: 0.55rem; color: var(--silver); opacity: 0.6; letter-spacing: 0.06em; text-transform: uppercase; }
-    .tc-my-team-badge { font-size: 0.55rem; background: var(--gold); color: var(--black); padding: 0.08rem 0.3rem; border-radius: 2px; font-weight: 700; letter-spacing: 0.04em; flex-shrink: 0; }
-    .tc-tier-badge { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.15rem 0.4rem; border-radius: 3px; flex-shrink: 0; border: 1px solid; text-transform: uppercase; }
+    .tc-summary-lbl { font-size: 0.72rem; color: var(--silver); opacity: 0.6; letter-spacing: 0.06em; text-transform: uppercase; }
+    .tc-my-team-badge { font-size: 0.72rem; background: var(--gold); color: var(--black); padding: 0.08rem 0.3rem; border-radius: 2px; font-weight: 700; letter-spacing: 0.04em; flex-shrink: 0; }
+    .tc-tier-badge { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.08em; padding: 0.15rem 0.4rem; border-radius: 3px; flex-shrink: 0; border: 1px solid; text-transform: uppercase; }
     .tc-filter-bar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
     .tc-filter-select { background: var(--charcoal); border: 1px solid rgba(212,175,55,0.3); color: var(--white); font-family: 'Oswald', sans-serif; font-size: 0.72rem; padding: 0.28rem 0.5rem; border-radius: 4px; cursor: pointer; }
 
@@ -753,11 +757,11 @@
     .tc-ta-roster-filter:focus { outline: none; border-color: var(--gold); }
     .tc-ta-roster-filter::placeholder { color: rgba(255,255,255,0.2); }
     .tc-ta-roster-list-tall { max-height: 300px; overflow-y: auto; background: var(--charcoal); border: 1px solid rgba(212,175,55,0.2); border-top: none; border-radius: 0 0 5px 5px; }
-    .tc-ta-pos-group-hdr { font-size: 0.65rem; font-weight: 700; color: var(--silver); opacity: 0.5; padding: 0.25rem 0.7rem; background: rgba(255,255,255,0.03); letter-spacing: 0.06em; text-transform: uppercase; }
+    .tc-ta-pos-group-hdr { font-size: 0.8rem; font-weight: 700; color: var(--silver); opacity: 0.65; padding: 0.25rem 0.7rem; background: rgba(255,255,255,0.03); letter-spacing: 0.06em; text-transform: uppercase; }
     .tc-ta-roster-item { padding: 0.42rem 0.7rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.1s; }
     .tc-ta-roster-item:hover:not(.tc-added) { background: rgba(212,175,55,0.08); }
     .tc-ta-roster-item.tc-added { opacity: 0.3; cursor: default; pointer-events: none; }
-    .tc-ta-roster-empty { padding: 0.6rem; font-size: 0.65rem; color: var(--silver); opacity: 0.4; text-align: center; }
+    .tc-ta-roster-empty { padding: 0.6rem; font-size: 0.8rem; color: var(--silver); opacity: 0.6; text-align: center; }
     .tc-ta-player-name { font-size: 0.8rem; }
     .tc-ta-player-meta { font-size: 0.7rem; color: var(--silver); opacity: 0.6; }
     .tc-ta-player-val { font-size: 0.72rem; font-weight: 700; color: var(--gold); flex-shrink: 0; }
@@ -779,10 +783,10 @@
     .tc-tax-table-row.tc-tax { background: rgba(231,76,60,0.05); }
     .tc-tax-table-row.tc-total { background: rgba(212,175,55,0.06); border-top: 1px solid rgba(212,175,55,0.2); font-weight: 700; }
     .tc-tax-name { flex: 1; font-weight: 600; font-size: 0.72rem; }
-    .tc-tax-desc { font-size: 0.65rem; color: var(--silver); opacity: 0.55; flex: 2; }
+    .tc-tax-desc { font-size: 0.8rem; color: var(--silver); opacity: 0.655; flex: 2; }
     .tc-tax-val { font-weight: 700; font-size: 0.78rem; width: 40px; text-align: right; flex-shrink: 0; }
 
-    .tc-posture-badge { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.07em; padding: 0.18rem 0.45rem; border-radius: 3px; border: 1px solid; text-transform: uppercase; }
+    .tc-posture-badge { font-size: 0.76rem; font-weight: 700; letter-spacing: 0.07em; padding: 0.18rem 0.45rem; border-radius: 3px; border: 1px solid; text-transform: uppercase; }
 
     /* DNA Grid */
     .tc-dna-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
@@ -797,7 +801,7 @@
     .tc-featured-wrap { display: grid; grid-template-columns: 1fr; gap: 1rem; background: var(--off-black); border: 2px solid var(--gold); border-radius: 10px; padding: 1rem; margin-bottom: 1.25rem; box-shadow: 0 0 24px rgba(212,175,55,0.1); }
     @media(min-width:750px){ .tc-featured-wrap { grid-template-columns: minmax(280px,340px) 1fr; } }
     .tc-commentary-card { background: rgba(212,175,55,0.04); border: 1px solid rgba(212,175,55,0.1); border-radius: 6px; padding: 0.65rem 0.8rem; }
-    .tc-commentary-card-title { font-size: 0.62rem; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.3rem; }
+    .tc-commentary-card-title { font-size: 0.78rem; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.3rem; }
     .tc-commentary-card-text { font-size: 0.7rem; color: var(--silver); line-height: 1.55; }
 
     /* Team detail expanded panel */
@@ -809,8 +813,8 @@
         .tc-ta-3col > * { min-width: 0; }
         .tc-ta-side { overflow: hidden; padding: 0.45rem 0.4rem; gap: 0.3rem; font-size: 0.72rem; }
         .tc-ta-player-row { padding: 0.28rem 0.35rem; gap: 0.3rem; }
-        .tc-ta-roster-item { padding: 0.25rem 0.35rem; font-size: 0.68rem; }
-        .tc-ta-pos-group-hdr { font-size: 0.58rem; padding: 0.18rem 0.35rem; }
+        .tc-ta-roster-item { padding: 0.25rem 0.35rem; font-size: 0.82rem; }
+        .tc-ta-pos-group-hdr { font-size: 0.74rem; padding: 0.18rem 0.35rem; }
         .tc-ta-total-val { font-size: 1.15rem; }
         .tc-ta-val-col { width: 42px; }
         .tc-ta-val-bar-wrap { display: none; }
@@ -831,7 +835,7 @@
     /* ── Tooltips ─────────────────────────────────────────── */
     .wr-tip-icon { display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:rgba(212,175,55,0.12);color:var(--gold);font-size:9px;font-weight:700;cursor:pointer;margin-left:4px;transition:all .15s;flex-shrink:0;vertical-align:middle;line-height:1;border:1px solid rgba(212,175,55,0.25) }
     .wr-tip-icon:hover { background:var(--gold);color:var(--black) }
-    .wr-tip-box { display:none;background:var(--off-black);border:1px solid rgba(212,175,55,0.25);border-radius:8px;padding:10px 12px;font-size:0.68rem;color:var(--silver);line-height:1.6;margin-top:6px;animation:wrTipIn .2s ease }
+    .wr-tip-box { display:none;background:var(--off-black);border:1px solid rgba(212,175,55,0.25);border-radius:8px;padding:10px 12px;font-size:0.78rem;color:var(--silver);line-height:1.6;margin-top:6px;animation:wrTipIn .2s ease }
     .wr-tip-box.show { display:block }
     @keyframes wrTipIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
     .wr-tip-box strong { color:var(--white);font-weight:600 }
@@ -847,7 +851,7 @@
     .wr-pulse { animation:wrPulseGold 2s ease infinite }
 
     /* ── Annotation callout ──────────────────────────────── */
-    .wr-annotation { font-size:0.52rem;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:0.02em;padding:3px 8px;border-radius:4px;border-left:2px solid var(--gold);background:rgba(212,175,55,0.06);color:var(--silver);line-height:1.4;margin-top:6px }
+    .wr-annotation { font-size:0.72rem;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:0.02em;padding:3px 8px;border-radius:4px;border-left:2px solid var(--gold);background:rgba(212,175,55,0.06);color:var(--silver);line-height:1.4;margin-top:6px }
 </style>
 
 </head>
@@ -1258,22 +1262,22 @@
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: link ? '0.4rem' : 0 }}>
                                                 {mate.avatar
                                                     ? <div style={{ width: 24, height: 24, flexShrink: 0 }}><img src={`https://sleepercdn.com/avatars/thumbs/${mate.avatar}`} style={{ width: 24, height: 24, borderRadius: '50%' }} onError={e => { e.target.style.display='none'; }} /></div>
-                                                    : <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(212,175,55,0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.65rem', fontWeight:700, flexShrink: 0 }}>{(mate.display_name || username || '?')[0].toUpperCase()}</div>
+                                                    : <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(212,175,55,0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.76rem', fontWeight:700, flexShrink: 0 }}>{(mate.display_name || username || '?')[0].toUpperCase()}</div>
                                                 }
                                                 <span style={{ flex: 1, fontSize: '0.78rem', color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                     {mate.display_name || username}
                                                 </span>
                                                 {matesAccess === null
-                                                    ? <span style={{ fontSize: '0.65rem', color: 'var(--silver)' }}>checking…</span>
+                                                    ? <span style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>checking…</span>
                                                     : hasAccess
-                                                        ? <span style={{ fontSize: '0.65rem', color: 'var(--win-green)', fontWeight: 700 }}>ok Has access</span>
-                                                        : <button onClick={() => handleGiftAccess(mate)} disabled={isGifting} style={{ padding: '0.2rem 0.55rem', background: 'var(--gold)', border: 'none', borderRadius: '4px', color: 'var(--black)', fontFamily: 'Oswald,sans-serif', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                                                        ? <span style={{ fontSize: '0.76rem', color: 'var(--win-green)', fontWeight: 700 }}>ok Has access</span>
+                                                        : <button onClick={() => handleGiftAccess(mate)} disabled={isGifting} style={{ padding: '0.2rem 0.55rem', background: 'var(--gold)', border: 'none', borderRadius: '4px', color: 'var(--black)', fontFamily: 'Oswald,sans-serif', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
                                                             {isGifting ? '…' : 'Generate Link'}
                                                         </button>
                                                 }
                                             </div>
                                             {link && (
-                                                <div style={{ fontSize: '0.65rem', color: 'var(--silver)', wordBreak: 'break-all', background: 'rgba(0,0,0,0.4)', padding: '0.3rem 0.4rem', borderRadius: '4px' }}>
+                                                <div style={{ fontSize: '0.76rem', color: 'var(--silver)', wordBreak: 'break-all', background: 'rgba(0,0,0,0.4)', padding: '0.3rem 0.4rem', borderRadius: '4px' }}>
                                                     <div><strong style={{ color: 'var(--gold)' }}>Link:</strong> {link.url}</div>
                                                     <div><strong style={{ color: 'var(--gold)' }}>Temp password:</strong> {link.password}</div>
                                                     <div style={{ color: 'rgba(255,255,255,0.4)', marginTop: '0.2rem' }}>Share both — they can change password after login</div>
@@ -1322,11 +1326,11 @@
                                 Object.keys(localStorage).filter(k => k.startsWith('dhq_hist_')).forEach(k => localStorage.removeItem(k));
                                 if (window.App) { window.App.LI = {}; window.App.LI_LOADED = false; }
                                 alert('DHQ cache cleared. Reload to rebuild.');
-                            }} style={{ padding: '6px 12px', fontSize: '0.68rem', fontFamily: 'Oswald', background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '4px', color: '#E74C3C', cursor: 'pointer' }}>
+                            }} style={{ padding: '6px 12px', fontSize: '0.78rem', fontFamily: 'Oswald', background: 'rgba(231,76,60,0.1)', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '4px', color: '#E74C3C', cursor: 'pointer' }}>
                                 Clear DHQ Cache
                             </button>
                             <button onClick={() => { sessionStorage.clear(); alert('Session cache cleared.'); }}
-                                style={{ padding: '6px 12px', fontSize: '0.68rem', fontFamily: 'Oswald', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' }}>
+                                style={{ padding: '6px 12px', fontSize: '0.78rem', fontFamily: 'Oswald', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--silver)', cursor: 'pointer' }}>
                                 Clear Session Cache
                             </button>
                         </div>
@@ -1334,7 +1338,7 @@
 
                     {/* ── ABOUT ── */}
                     <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(212,175,55,0.2)' }}>
-                        <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.5 }}>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.65 }}>
                             Fantasy War Room v2.0 &middot; Powered by DHQ Engine &middot; Part of the Fantasy Wars platform
                         </div>
                     </div>
@@ -1889,11 +1893,11 @@
         function TcPanicMeter({ level }) {
             return (
                 <div className="tc-panic-row">
-                    <span style={{ fontSize:'0.6rem', color:'var(--silver)', opacity:0.6, width:'40px' }}>PANIC</span>
+                    <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.6, width:'40px' }}>PANIC</span>
                     <span style={{ display:'flex', gap:'3px' }}>
                         {[1,2,3,4,5].map(i => <span key={i} className={`tc-panic-dot${i<=level?' tc-lit':''}`} />)}
                     </span>
-                    <span style={{ fontSize:'0.62rem', color:'var(--silver)', opacity:0.7 }}>{level}/5</span>
+                    <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.7 }}>{level}/5</span>
                 </div>
             );
         }
@@ -1912,7 +1916,7 @@
                     <div className="tc-card-header">
                         <div style={{ overflow:'hidden' }}>
                             <div style={{ fontSize:'0.92rem', fontWeight:700 }}>{ownerName}</div>
-                            <div style={{ fontSize:'0.62rem', color:'var(--silver)', opacity:0.7 }}>{teamName}</div>
+                            <div style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.7 }}>{teamName}</div>
                         </div>
                         <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'0.2rem', flexShrink:0 }}>
                             {isMyTeam && <span className="tc-my-team-badge">MY TEAM</span>}
@@ -1923,8 +1927,8 @@
                         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                             <span style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1.5rem', color:scoreBarColor, lineHeight:1 }}>{healthScore}</span>
                             <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end' }}>
-                                <span style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.8 }}>{wins}-{losses}{ties>0?`-${ties}`:''}</span>
-                                <span style={{ fontSize:'0.6rem', color:'var(--silver)', opacity:0.5 }}>{pf > 0 ? `${pf.toFixed(0)} PF` : ''}</span>
+                                <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.8 }}>{wins}-{losses}{ties>0?`-${ties}`:''}</span>
+                                <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>{pf > 0 ? `${pf.toFixed(0)} PF` : ''}</span>
                             </div>
                         </div>
                         <div className="tc-score-row">
@@ -1966,13 +1970,13 @@
                     {/* MY TEAM Featured */}
                     {myAssessment && (
                         <div>
-                            <div className="tc-section-hdr" style={{ marginBottom:'0.6rem' }}>MY TEAM <span className="tc-my-team-badge" style={{ marginLeft:'0.5rem', fontSize:'0.6rem', verticalAlign:'middle' }}>{myAssessment.ownerName}</span></div>
+                            <div className="tc-section-hdr" style={{ marginBottom:'0.6rem' }}>MY TEAM <span className="tc-my-team-badge" style={{ marginLeft:'0.5rem', fontSize:'0.72rem', verticalAlign:'middle' }}>{myAssessment.ownerName}</span></div>
                             <div className="tc-featured-wrap">
                                 <div>
                                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.5rem' }}>
                                         <div>
                                             <div style={{ fontWeight:700, fontSize:'1rem' }}>{myAssessment.teamName}</div>
-                                            <div style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.6 }}>{myAssessment.wins}-{myAssessment.losses}{myAssessment.ties>0?`-${myAssessment.ties}`:''} {myAssessment.pf > 0 ? `${myAssessment.pf.toFixed(0)} PF` : ''}</div>
+                                            <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6 }}>{myAssessment.wins}-{myAssessment.losses}{myAssessment.ties>0?`-${myAssessment.ties}`:''} {myAssessment.pf > 0 ? `${myAssessment.pf.toFixed(0)} PF` : ''}</div>
                                         </div>
                                         <div style={{ textAlign:'center' }}>
                                             {typeof MiniDonut !== 'undefined' ? React.createElement(MiniDonut, { value: myAssessment.healthScore, size: 56, label: 'HEALTH' }) : <div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'2.2rem', lineHeight:1, color: myAssessment.healthScore>=85?'#D4AF37':myAssessment.healthScore>=70?'#2ECC71':myAssessment.healthScore>=55?'#F0A500':'#E74C3C' }}>{myAssessment.healthScore}</div>}
@@ -1985,7 +1989,7 @@
                                     <TcPanicMeter level={myAssessment.panic} />
                                 </div>
                                 <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem' }}>
-                                    <span style={{ fontSize:'0.68rem', color:'var(--silver)', opacity:0.7, fontStyle:'italic' }}>
+                                    <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.7, fontStyle:'italic' }}>
                                         {myAssessment.tier === 'ELITE' ? 'Championship-caliber operation.' : myAssessment.tier === 'CONTENDER' ? 'Legitimate playoff threat.' : myAssessment.tier === 'CROSSROADS' ? 'At a crossroads — address the gaps or fall into rebuild.' : 'Building for the future.'}
                                     </span>
                                     {myAssessment.strengths.length > 0 && <div className="tc-commentary-card"><div className="tc-commentary-card-title">Trade Currency</div><div className="tc-commentary-card-text">Depth surplus at {myAssessment.strengths.join(', ')} gives you trading chips.</div></div>}
@@ -2002,12 +2006,12 @@
                         return (
                             <div className="tc-team-detail-panel">
                                 <div style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.5rem' }}>
-                                    <div style={{ fontWeight:700, fontSize:'0.9rem' }}>{detail.ownerName} <span style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.5rem' }}>{detail.teamName}</span></div>
+                                    <div style={{ fontWeight:700, fontSize:'0.9rem' }}>{detail.ownerName} <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.5rem' }}>{detail.teamName}</span></div>
                                     <button onClick={() => setSelectedAuditTeam(null)} style={{ background:'transparent', border:'1.5px solid var(--gold)', color:'var(--gold)', fontFamily:'Oswald,sans-serif', fontSize:'0.7rem', fontWeight:600, padding:'0.32rem 0.65rem', borderRadius:'4px', cursor:'pointer' }}>X Close</button>
                                 </div>
                                 <div>
                                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.5rem' }}>
-                                        <div style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.6 }}>{detail.wins}-{detail.losses} {detail.pf>0?`${detail.pf.toFixed(0)} PF`:''}</div>
+                                        <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6 }}>{detail.wins}-{detail.losses} {detail.pf>0?`${detail.pf.toFixed(0)} PF`:''}</div>
                                         <div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1.8rem', lineHeight:1, color:detail.tierColor }}>{detail.healthScore}</div>
                                     </div>
                                     <div className="tc-pos-grid">
@@ -2027,13 +2031,13 @@
                     {/* All Teams Grid */}
                     <div className="tc-section-hdr" style={{ marginBottom:'0.6rem' }}>ALL TEAMS</div>
                     <div className="tc-filter-bar">
-                        <span style={{ fontSize:'0.68rem', color:'var(--silver)', opacity:0.6 }}>SORT</span>
+                        <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.6 }}>SORT</span>
                         <select className="tc-filter-select" value={sortMode} onChange={e => setSortMode(e.target.value)}>
                             <option value="health">Health Score</option>
                             <option value="panic">Panic Level</option>
                             <option value="record">W-L Record</option>
                         </select>
-                        <span style={{ fontSize:'0.68rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.5rem' }}>TIER</span>
+                        <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.5rem' }}>TIER</span>
                         <select className="tc-filter-select" value={tierFilter} onChange={e => setTierFilter(e.target.value)}>
                             <option value="ALL">All Tiers</option>
                             <option value="ELITE">Elite</option>
@@ -2062,7 +2066,7 @@
             if (!assessments.length) return <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem' }}>No roster data.</div>;
             return (
                 <div>
-                    <div style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.55, marginBottom:'0.75rem', lineHeight:1.5 }}>
+                    <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.655, marginBottom:'0.75rem', lineHeight:1.5 }}>
                         Profile each owner's behavioral DNA. This unlocks psychological tax calculations in the Trade Analyzer.
                     </div>
                     {window.DraftHistory && (
@@ -2074,10 +2078,10 @@
                                 catch(e) { setDraftDnaSyncMsg(`Warning: ${e.message}`); }
                                 finally { setDraftDnaSyncing(false); }
                             }} disabled={draftDnaSyncing || !leagueId}
-                            style={{ fontSize:'0.65rem', padding:'0.3rem 0.75rem', border:'1px solid rgba(165,180,252,0.35)', color:'#a5b4fc', background:'transparent', borderRadius:'4px', cursor:'pointer', opacity:(draftDnaSyncing||!leagueId)?0.4:1 }}>
+                            style={{ fontSize:'0.76rem', padding:'0.3rem 0.75rem', border:'1px solid rgba(165,180,252,0.35)', color:'#a5b4fc', background:'transparent', borderRadius:'4px', cursor:'pointer', opacity:(draftDnaSyncing||!leagueId)?0.4:1 }}>
                                 {draftDnaSyncing ? 'Syncing...' : 'Sync Draft History (3 seasons)'}
                             </button>
-                            {draftDnaSyncMsg && <span style={{ fontSize:'0.6rem', color: draftDnaSyncMsg.startsWith('Draft') ? '#4ade80' : '#fbbf24' }}>{draftDnaSyncMsg}</span>}
+                            {draftDnaSyncMsg && <span style={{ fontSize:'0.72rem', color: draftDnaSyncMsg.startsWith('Draft') ? '#4ade80' : '#fbbf24' }}>{draftDnaSyncMsg}</span>}
                         </div>
                     )}
                     <div className="tc-dna-grid">
@@ -2101,58 +2105,58 @@
                                             {avatarSrc ? <img src={avatarSrc} alt={a.ownerName} style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => e.target.style.display='none'} /> : <span style={{ fontSize:'0.75rem', color:'var(--gold)', fontWeight:700 }}>{a.ownerName.charAt(0).toUpperCase()}</span>}
                                         </div>
                                         <div style={{ overflow:'hidden' }}>
-                                            <div style={{ fontWeight:700, fontSize:'0.82rem', display:'flex', alignItems:'center', gap:'0.35rem' }}>{a.ownerName}{isMyTeam && <span className="tc-my-team-badge">ME</span>}{tradeCount > 0 && <span style={{ fontSize:'0.6rem', color:'var(--silver)', opacity:0.6, fontWeight:400 }}>{tradeCount} trades</span>}</div>
-                                            <div style={{ fontSize:'0.6rem', color:'var(--silver)', opacity:0.6 }}>{a.teamName}</div>
+                                            <div style={{ fontWeight:700, fontSize:'0.82rem', display:'flex', alignItems:'center', gap:'0.35rem' }}>{a.ownerName}{isMyTeam && <span className="tc-my-team-badge">ME</span>}{tradeCount > 0 && <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.6, fontWeight:400 }}>{tradeCount} trades</span>}</div>
+                                            <div style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.6 }}>{a.teamName}</div>
                                         </div>
                                         <span className="tc-tier-badge" style={{ marginLeft:'auto', flexShrink:0, color:a.tierColor, borderColor:a.tierColor, background:a.tierBg }}>{a.tier}</span>
                                     </div>
                                     <div style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
-                                        <span style={{ fontSize:'0.6rem', color:'var(--silver)', opacity:0.5 }}>Posture:</span>
+                                        <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>Posture:</span>
                                         <span className="tc-posture-badge" style={{ color:posture.color, borderColor:posture.color, background:`${posture.color}18` }}>{posture.label}</span>
                                     </div>
                                     <div onClick={e => e.stopPropagation()}>
                                         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.2rem' }}>
-                                            <span style={{ fontSize:'0.58rem', color:'var(--silver)', opacity:0.5, textTransform:'uppercase', letterSpacing:'0.06em' }}>Owner DNA</span>
-                                            {(() => { const derived = deriveDNAFromHistory(a.ownerId, grudges); if (!derived) return null; const d = DNA_TYPES[derived]; return (<span style={{ fontSize:'0.55rem', fontWeight:700, padding:'0.1rem 0.35rem', borderRadius:3, border:`1px solid ${d?.color}55`, color:d?.color, background:`${d?.color}10` }}>AUTO: {d?.label}</span>); })()}
+                                            <span style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.65, textTransform:'uppercase', letterSpacing:'0.06em' }}>Owner DNA</span>
+                                            {(() => { const derived = deriveDNAFromHistory(a.ownerId, grudges); if (!derived) return null; const d = DNA_TYPES[derived]; return (<span style={{ fontSize:'0.78rem', fontWeight:700, padding:'0.1rem 0.35rem', borderRadius:3, border:`1px solid ${d?.color}55`, color:d?.color, background:`${d?.color}10` }}>AUTO: {d?.label}</span>); })()}
                                         </div>
                                         {aiDna && (
-                                            <div style={{ fontSize:'0.65rem', marginBottom:'6px' }}>
+                                            <div style={{ fontSize:'0.76rem', marginBottom:'6px' }}>
                                                 <span style={{ color:'var(--gold)', fontWeight:600 }}>AI Recommendation: </span>
                                                 <span style={{ color: DNA_TYPES[aiDna.key]?.color || 'var(--silver)', fontWeight:700 }}>{DNA_TYPES[aiDna.key]?.label || aiDna.key}</span>
                                                 <span style={{ color:'var(--silver)', marginLeft:'4px' }}>({aiDna.confidence}% confidence)</span>
-                                                <div style={{ fontSize:'0.6rem', color:'var(--silver)', opacity:0.7, marginTop:'2px' }}>{aiDna.reasoning}</div>
+                                                <div style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.7, marginTop:'2px' }}>{aiDna.reasoning}</div>
                                             </div>
                                         )}
                                         <select className="tc-dna-select" value={currentDna} onChange={e => updateDna(a.ownerId, e.target.value)}>
                                             {aiDna && <option value={aiDna.key}>AI: {DNA_TYPES[aiDna.key]?.label} (recommended)</option>}
                                             {Object.entries(DNA_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                                         </select>
-                                        {isOverridden && <span style={{ fontSize:'0.55rem', color:'#F0A500', marginLeft:'6px' }}>Overridden from AI suggestion</span>}
+                                        {isOverridden && <span style={{ fontSize:'0.78rem', color:'#F0A500', marginLeft:'6px' }}>Overridden from AI suggestion</span>}
                                     </div>
                                     {dnaKey && dnaKey !== 'NONE' && dna.desc && (
                                         <div className="tc-dna-profile">
                                             <div style={{ fontSize:'0.72rem', fontWeight:700, color:dna.color, marginBottom:'0.25rem' }}>{dna.label}</div>
-                                            <div style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.85, lineHeight:1.45 }}>{dna.desc}</div>
-                                            {dna.strategy && <div style={{ marginTop:'0.35rem', fontSize:'0.62rem', color:dna.color, opacity:0.9, fontStyle:'italic' }}>Strategy: {dna.strategy}</div>}
+                                            <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.85, lineHeight:1.45 }}>{dna.desc}</div>
+                                            {dna.strategy && <div style={{ marginTop:'0.35rem', fontSize:'0.74rem', color:dna.color, opacity:0.9, fontStyle:'italic' }}>Strategy: {dna.strategy}</div>}
                                             <div style={{ display:'flex', flexWrap:'wrap', gap:'0.25rem', marginTop:'0.4rem' }}>
-                                                {dna.taxes?.map((t,i) => <span key={i} style={{ fontSize:'0.55rem', padding:'0.1rem 0.35rem', borderRadius:3, border:'1px solid rgba(212,175,55,0.3)', color:'#F0A500', background:'rgba(240,165,0,0.08)' }}>{t}</span>)}
+                                                {dna.taxes?.map((t,i) => <span key={i} style={{ fontSize:'0.78rem', padding:'0.1rem 0.35rem', borderRadius:3, border:'1px solid rgba(212,175,55,0.3)', color:'#F0A500', background:'rgba(240,165,0,0.08)' }}>{t}</span>)}
                                             </div>
                                         </div>
                                     )}
                                     {draftDna && (
                                         <div style={{ background:'rgba(99,102,241,0.06)', border:'1px solid rgba(99,102,241,0.2)', borderRadius:'6px', padding:'0.4rem 0.6rem' }}>
                                             <div style={{ display:'flex', alignItems:'center', gap:'0.4rem', marginBottom:'0.2rem' }}>
-                                                <span style={{ fontSize:'0.55rem', color:'var(--silver)', opacity:0.5, textTransform:'uppercase' }}>Draft DNA</span>
-                                                <span style={{ fontSize:'0.65rem', fontWeight:700, color:'#a5b4fc' }}>{draftDna.label}</span>
-                                                <span style={{ fontSize:'0.55rem', color:'var(--silver)', opacity:0.4, marginLeft:'auto' }}>{draftDna.seasons} {draftDna.picksAnalyzed} picks</span>
+                                                <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.65, textTransform:'uppercase' }}>Draft DNA</span>
+                                                <span style={{ fontSize:'0.76rem', fontWeight:700, color:'#a5b4fc' }}>{draftDna.label}</span>
+                                                <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.6, marginLeft:'auto' }}>{draftDna.seasons} {draftDna.picksAnalyzed} picks</span>
                                             </div>
-                                            <div style={{ fontSize:'0.6rem', color:'var(--silver)', opacity:0.55, fontStyle:'italic' }}>{draftDna.tendency}</div>
+                                            <div style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.655, fontStyle:'italic' }}>{draftDna.tendency}</div>
                                         </div>
                                     )}
                                     <div style={{ display:'flex', gap:'0.75rem', paddingTop:'0.25rem' }}>
-                                        <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1rem', color:a.tierColor }}>{a.healthScore}</div><div style={{ fontSize:'0.52rem', color:'var(--silver)', opacity:0.5 }}>HEALTH</div></div>
-                                        <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1rem', color:a.panic>=3?'var(--loss-red)':'var(--silver)' }}>{a.panic}/5</div><div style={{ fontSize:'0.52rem', color:'var(--silver)', opacity:0.5 }}>PANIC</div></div>
-                                        <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1rem', color:'var(--silver)' }}>{a.wins}-{a.losses}</div><div style={{ fontSize:'0.52rem', color:'var(--silver)', opacity:0.5 }}>RECORD</div></div>
+                                        <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1rem', color:a.tierColor }}>{a.healthScore}</div><div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.65 }}>HEALTH</div></div>
+                                        <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1rem', color:a.panic>=3?'var(--loss-red)':'var(--silver)' }}>{a.panic}/5</div><div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.65 }}>PANIC</div></div>
+                                        <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1rem', color:'var(--silver)' }}>{a.wins}-{a.losses}</div><div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.65 }}>RECORD</div></div>
                                     </div>
                                     {expandedDnaOwner === rid && (() => {
                                         const trades = (window.App?.LI?.tradeHistory || []).filter(t => t.roster_ids?.includes(rid));
@@ -2162,7 +2166,7 @@
 
                                         return (
                                             <div style={{ marginTop:'10px', paddingTop:'10px', borderTop:'1px solid rgba(255,255,255,0.06)' }} onClick={e => e.stopPropagation()}>
-                                                <div style={{ display:'flex', gap:'12px', marginBottom:'10px', flexWrap:'wrap', fontSize:'0.65rem' }}>
+                                                <div style={{ display:'flex', gap:'12px', marginBottom:'10px', flexWrap:'wrap', fontSize:'0.76rem' }}>
                                                     <span style={{ color:'#2ECC71' }}>Won: {profile.tradesWon || 0}</span>
                                                     <span style={{ color:'#E74C3C' }}>Lost: {profile.tradesLost || 0}</span>
                                                     <span style={{ color:'var(--silver)' }}>Fair: {profile.tradesFair || 0}</span>
@@ -2188,42 +2192,42 @@
                                                     return (
                                                         <div key={ti} style={{ padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:'0.7rem' }}>
                                                             <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px' }}>
-                                                                <span style={{ fontSize:'0.6rem', color:'var(--silver)', opacity:0.5 }}>{t.season} W{t.week}</span>
-                                                                <span style={{ fontSize:'0.58rem', fontWeight:700, color:verdictCol, padding:'1px 6px', borderRadius:'3px', background:verdictCol + '15' }}>{verdict}</span>
-                                                                <span style={{ fontSize:'0.6rem', color:'var(--silver)' }}>vs {otherUser}</span>
-                                                                {t.fairness != null && <span style={{ fontSize:'0.58rem', color:'var(--silver)', opacity:0.4 }}>Fairness: {t.fairness}</span>}
+                                                                <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>{t.season} W{t.week}</span>
+                                                                <span style={{ fontSize:'0.7rem', fontWeight:700, color:verdictCol, padding:'1px 6px', borderRadius:'3px', background:verdictCol + '15' }}>{verdict}</span>
+                                                                <span style={{ fontSize:'0.72rem', color:'var(--silver)' }}>vs {otherUser}</span>
+                                                                {t.fairness != null && <span style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.6 }}>Fairness: {t.fairness}</span>}
                                                             </div>
                                                             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px' }}>
                                                                 <div>
-                                                                    <div style={{ fontSize:'0.58rem', color:'#2ECC71', marginBottom:'2px' }}>Received:</div>
+                                                                    <div style={{ fontSize:'0.7rem', color:'#2ECC71', marginBottom:'2px' }}>Received:</div>
                                                                     {(mySide.players || []).map(pid => (
-                                                                        <div key={pid} style={{ fontSize:'0.65rem', color:'var(--white)' }}>
+                                                                        <div key={pid} style={{ fontSize:'0.76rem', color:'var(--white)' }}>
                                                                             {playersData[pid]?.full_name || pid}
-                                                                            <span style={{ color:'var(--silver)', fontSize:'0.55rem', marginLeft:'4px' }}>
+                                                                            <span style={{ color:'var(--silver)', fontSize:'0.78rem', marginLeft:'4px' }}>
                                                                                 ({(window.App?.LI?.playerScores?.[pid] || 0).toLocaleString()} DHQ)
                                                                             </span>
                                                                         </div>
                                                                     ))}
                                                                     {(mySide.picks || []).map((pk, pi) => (
-                                                                        <div key={'pk'+pi} style={{ fontSize:'0.65rem', color:'#a78bfa' }}>{pk.season} Round {pk.round}</div>
+                                                                        <div key={'pk'+pi} style={{ fontSize:'0.76rem', color:'#a78bfa' }}>{pk.season} Round {pk.round}</div>
                                                                     ))}
                                                                 </div>
                                                                 <div>
-                                                                    <div style={{ fontSize:'0.58rem', color:'#E74C3C', marginBottom:'2px' }}>Sent:</div>
+                                                                    <div style={{ fontSize:'0.7rem', color:'#E74C3C', marginBottom:'2px' }}>Sent:</div>
                                                                     {(theirSide.players || []).map(pid => (
-                                                                        <div key={pid} style={{ fontSize:'0.65rem', color:'var(--white)' }}>
+                                                                        <div key={pid} style={{ fontSize:'0.76rem', color:'var(--white)' }}>
                                                                             {playersData[pid]?.full_name || pid}
-                                                                            <span style={{ color:'var(--silver)', fontSize:'0.55rem', marginLeft:'4px' }}>
+                                                                            <span style={{ color:'var(--silver)', fontSize:'0.78rem', marginLeft:'4px' }}>
                                                                                 ({(window.App?.LI?.playerScores?.[pid] || 0).toLocaleString()} DHQ)
                                                                             </span>
                                                                         </div>
                                                                     ))}
                                                                     {(theirSide.picks || []).map((pk, pi) => (
-                                                                        <div key={'pk'+pi} style={{ fontSize:'0.65rem', color:'#a78bfa' }}>{pk.season} Round {pk.round}</div>
+                                                                        <div key={'pk'+pi} style={{ fontSize:'0.76rem', color:'#a78bfa' }}>{pk.season} Round {pk.round}</div>
                                                                     ))}
                                                                 </div>
                                                             </div>
-                                                            <div style={{ display:'flex', gap:'12px', marginTop:'4px', fontSize:'0.6rem' }}>
+                                                            <div style={{ display:'flex', gap:'12px', marginTop:'4px', fontSize:'0.72rem' }}>
                                                                 <span style={{ color:'#2ECC71' }}>Got: {myValue.toLocaleString()}</span>
                                                                 <span style={{ color:'#E74C3C' }}>Gave: {theirValue.toLocaleString()}</span>
                                                                 <span style={{ color:verdictCol, fontWeight:700 }}>Net: {myValue >= theirValue ? '+' : ''}{(myValue - theirValue).toLocaleString()}</span>
@@ -2356,7 +2360,7 @@
                                 <div key={pkId} className="tc-ta-player-row">
                                     <button className="tc-ta-remove" onClick={() => removePick(side, pkId)}>X</button>
                                     <span className="tc-ta-pos-dot" style={{ background: pickColor }} />
-                                    <span style={{ flex:1, fontSize:'0.82rem', fontWeight:600 }}>{yr} {pickLabel(rd)}{!isOwn && via && <span style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
+                                    <span style={{ flex:1, fontSize:'0.82rem', fontWeight:600 }}>{yr} {pickLabel(rd)}{!isOwn && via && <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
                                     <div className="tc-ta-val-col" style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
                                         <div className="tc-ta-val-bar-wrap"><div className="tc-ta-val-bar-fill" style={{ width:`${pct}%`, background: pickColor }} /></div>
                                         <span style={{ fontSize:'0.7rem', fontWeight:700, color: pickColor }}>{val.toLocaleString()}</span>
@@ -2404,7 +2408,7 @@
                                                 return (
                                                     <div key={pkId} className={`tc-ta-roster-item${added?' tc-added':''}`} onClick={() => !added && addPick(side, pkId)}>
                                                         <span className="tc-ta-pos-dot" style={{ background: pickColor }} />
-                                                        <span style={{ flex:1, fontWeight:600 }}>{year} {pickLabel(round)}{!isOwn2 && via && <span style={{ fontSize:'0.62rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
+                                                        <span style={{ flex:1, fontWeight:600 }}>{year} {pickLabel(round)}{!isOwn2 && via && <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
                                                         <span className="tc-ta-player-val" style={{ color: pickColor }}>{val.toLocaleString()}</span>
                                                     </div>
                                                 );
@@ -2413,17 +2417,17 @@
                                     )}
                                 </div>
                             </div>
-                        ) : <div style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.4, textAlign:'center', padding:'0.5rem' }}>Select an owner above to view their roster</div>}
+                        ) : <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, textAlign:'center', padding:'0.5rem' }}>Select an owner above to view their roster</div>}
 
                         {/* FAAB */}
                         <div style={{ borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:'0.4rem', marginTop:'0.2rem' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                                <span style={{ fontSize:'0.6rem', fontWeight:700, color:'var(--win-green)', letterSpacing:'0.05em' }}>FAAB $</span>
+                                <span style={{ fontSize:'0.72rem', fontWeight:700, color:'var(--win-green)', letterSpacing:'0.05em' }}>FAAB $</span>
                                 <input type="number" min={0} value={faab || ''} onChange={e => setTradeFaab(prev => ({ ...prev, [side]: Math.max(0, Number(e.target.value)) }))} placeholder="0"
                                     style={{ width:70, background:'rgba(0,0,0,0.3)', border:'1px solid rgba(46,204,113,0.35)', color:'var(--win-green)', padding:'0.2rem 0.4rem', borderRadius:4, fontSize:'0.75rem', fontWeight:700 }} />
                                 {faab > 0 && <button className="tc-ta-remove" onClick={() => setTradeFaab(prev => ({ ...prev, [side]: 0 }))}>X</button>}
                             </div>
-                            {faab > 0 && <div style={{ fontSize:'0.58rem', color:'var(--silver)', opacity:0.6, marginTop:'0.2rem' }}>= {Math.round(faab * FAAB_RATE).toLocaleString()} dynasty pts</div>}
+                            {faab > 0 && <div style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.6, marginTop:'0.2rem' }}>= {Math.round(faab * FAAB_RATE).toLocaleString()} dynasty pts</div>}
                         </div>
 
                         {/* Total */}
@@ -2437,7 +2441,7 @@
 
             return (
                 <div>
-                    <div style={{ fontSize:'0.62rem', color:'var(--silver)', opacity:0.45, marginBottom:'0.75rem', lineHeight:1.5 }}>
+                    <div style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.65, marginBottom:'0.75rem', lineHeight:1.5 }}>
                         Values sourced from <strong style={{ color:'var(--gold)' }}>DHQ Engine</strong> (dynasty valuations). Select owners, add players and picks, and see the full psychological trade analysis.
                     </div>
 
@@ -2448,7 +2452,7 @@
                         {/* League Scouting Panel */}
                         <div className="tc-scout-panel">
                             <div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'0.92rem', color:'var(--gold)', letterSpacing:'0.1em', marginBottom:'0.2rem' }}>LEAGUE TEAMS</div>
-                            <div style={{ fontSize:'0.62rem', color:'var(--silver)', opacity:0.5, marginBottom:'0.3rem' }}>Click a team to set as Side B.</div>
+                            <div style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.65, marginBottom:'0.3rem' }}>Click a team to set as Side B.</div>
                             {assessments.filter(a => a.rosterId !== myRosterId).sort((a,b) => b.healthScore - a.healthScore).map(a => {
                                 const isSelected = tradeOwner.B === a.ownerId;
                                 const compat = myAssessment ? calcComplementarity(myAssessment, a) : 0;
@@ -2462,15 +2466,15 @@
                                             <span style={{ fontSize:'0.82rem', fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.ownerName}</span>
                                             <span className="tc-tier-badge" style={{ color:a.tierColor, borderColor:a.tierColor, background:a.tierBg, flexShrink:0 }}>{a.tier}</span>
                                         </div>
-                                        <div style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.55 }}>{a.teamName}</div>
-                                        <div style={{ fontSize:'0.65rem', display:'flex', alignItems:'center', gap:'0.4rem' }}>
+                                        <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.655 }}>{a.teamName}</div>
+                                        <div style={{ fontSize:'0.76rem', display:'flex', alignItems:'center', gap:'0.4rem' }}>
                                             <span style={{ color: a.weeklyPts >= WEEKLY_TARGET ? 'var(--win-green)' : 'var(--loss-red)', fontWeight:700 }}>{a.weeklyPts > 0 ? `${a.weeklyPts} pts` : '--'}</span>
-                                            <span style={{ color:'var(--silver)', opacity:0.4 }}>/ {WEEKLY_TARGET}</span>
-                                            {compat > 0 && <span style={{ marginLeft:'auto', fontSize:'0.6rem', color:compatColor, fontWeight:700 }}>{compat}% fit</span>}
+                                            <span style={{ color:'var(--silver)', opacity:0.6 }}>/ {WEEKLY_TARGET}</span>
+                                            {compat > 0 && <span style={{ marginLeft:'auto', fontSize:'0.72rem', color:compatColor, fontWeight:700 }}>{compat}% fit</span>}
                                         </div>
-                                        {a.needs.length > 0 && <div style={{ display:'flex', flexWrap:'wrap', gap:'0.2rem' }}><span style={{ fontSize:'0.58rem', color:'var(--silver)', opacity:0.4 }}>NEEDS:</span>{a.needs.slice(0,4).map(n => <span key={n.pos} className={`tc-chip ${n.urgency==='deficit'?'tc-chip-need':'tc-chip-thin'}`} style={{ fontSize:'0.55rem' }}>{n.pos}</span>)}</div>}
-                                        {a.strengths.length > 0 && <div style={{ display:'flex', flexWrap:'wrap', gap:'0.2rem' }}><span style={{ fontSize:'0.58rem', color:'var(--silver)', opacity:0.4 }}>HAS:</span>{a.strengths.map(s => <span key={s} className="tc-chip tc-chip-strength" style={{ fontSize:'0.55rem' }}>+{s}</span>)}</div>}
-                                        {dnaKey2 !== 'NONE' && dna2 && <div style={{ fontSize:'0.6rem', color:dna2.color, opacity:0.85, fontStyle:'italic' }}>{dna2.label}</div>}
+                                        {a.needs.length > 0 && <div style={{ display:'flex', flexWrap:'wrap', gap:'0.2rem' }}><span style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.6 }}>NEEDS:</span>{a.needs.slice(0,4).map(n => <span key={n.pos} className={`tc-chip ${n.urgency==='deficit'?'tc-chip-need':'tc-chip-thin'}`} style={{ fontSize:'0.78rem' }}>{n.pos}</span>)}</div>}
+                                        {a.strengths.length > 0 && <div style={{ display:'flex', flexWrap:'wrap', gap:'0.2rem' }}><span style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.6 }}>HAS:</span>{a.strengths.map(s => <span key={s} className="tc-chip tc-chip-strength" style={{ fontSize:'0.78rem' }}>+{s}</span>)}</div>}
+                                        {dnaKey2 !== 'NONE' && dna2 && <div style={{ fontSize:'0.72rem', color:dna2.color, opacity:0.85, fontStyle:'italic' }}>{dna2.label}</div>}
                                     </div>
                                 );
                             })}
@@ -2484,17 +2488,17 @@
                             <div style={{ display:'flex', alignItems:'baseline', gap:'0.6rem', flexWrap:'wrap' }}>
                                 <span className="tc-verdict-diff" style={{ color: verdictColor }}>{diffDisplay}</span>
                                 <span style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1.1rem', color: verdictColor }}>{verdictText}</span>
-                                <span style={{ fontSize:'0.62rem', color:'var(--silver)', opacity:0.55 }}>(gave {totalA.toLocaleString()} / received {totalB.toLocaleString()})</span>
+                                <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.655 }}>(gave {totalA.toLocaleString()} / received {totalB.toLocaleString()})</span>
                             </div>
                             {otherOwnerId && (
                                 <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', flexWrap:'wrap' }}>
-                                    <span style={{ fontSize:'0.6rem', color:'var(--silver)', opacity:0.5 }}>Their posture:</span>
+                                    <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>Their posture:</span>
                                     <span className="tc-posture-badge" style={{ color:theirPosture.color, borderColor:theirPosture.color, background:`${theirPosture.color}18` }}>{theirPosture.label}</span>
                                     {otherDnaKey !== 'NONE' && <span className="tc-chip tc-chip-dna">{otherDna.label}</span>}
                                 </div>
                             )}
                             <div>
-                                <div style={{ fontSize:'0.6rem', color:'var(--silver)', opacity:0.5, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'0.35rem' }}>Psychological Tax Breakdown</div>
+                                <div style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'0.35rem' }}>Psychological Tax Breakdown</div>
                                 <div className="tc-tax-table">
                                     {psychTaxes.map((t,i) => (
                                         <div key={i} className={`tc-tax-table-row ${t.type === 'BONUS' ? 'tc-bonus' : 'tc-tax'}`}>
@@ -2518,11 +2522,11 @@
                                 </div>
                             </div>
                             {otherDnaKey !== 'NONE' && otherDna.strategy && (
-                                <div style={{ fontSize:'0.65rem', color:otherDna.color, fontStyle:'italic', background:`${otherDna.color}0d`, border:`1px solid ${otherDna.color}25`, borderRadius:5, padding:'0.4rem 0.6rem' }}>Approach: {otherDna.strategy}</div>
+                                <div style={{ fontSize:'0.76rem', color:otherDna.color, fontStyle:'italic', background:`${otherDna.color}0d`, border:`1px solid ${otherDna.color}25`, borderRadius:5, padding:'0.4rem 0.6rem' }}>Approach: {otherDna.strategy}</div>
                             )}
                             <div>
                                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.3rem' }}>
-                                    <span style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.7, textTransform:'uppercase', letterSpacing:'0.06em' }}>Likelihood of Acceptance</span>
+                                    <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.7, textTransform:'uppercase', letterSpacing:'0.06em' }}>Likelihood of Acceptance</span>
                                     <span style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1.4rem', color: likelihoodColor }}>{likelihood}%</span>
                                 </div>
                                 <div className="tc-likelihood-bar-wrap"><div className="tc-likelihood-bar-fill" style={{ width:`${likelihood}%`, background: likelihoodColor }} /></div>
@@ -2540,7 +2544,7 @@
                 <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
                     {['audit','dna','analyzer','inbox'].map(tab => (
                         <button key={tab} onClick={() => setTcTab(tab)} style={{
-                            padding: '6px 14px', fontSize: '0.68rem', fontFamily: 'Oswald',
+                            padding: '6px 14px', fontSize: '0.78rem', fontFamily: 'Oswald',
                             textTransform: 'uppercase', letterSpacing: '0.04em',
                             background: tcTab === tab ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
                             color: tcTab === tab ? 'var(--black)' : 'var(--silver)',
@@ -2595,11 +2599,11 @@
 
         return (
             <div>
-                <div style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.55, marginBottom:'0.75rem', lineHeight:1.5 }}>
+                <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.655, marginBottom:'0.75rem', lineHeight:1.5 }}>
                     Recent trades analyzed with DHQ values and fairness grades.
                 </div>
                 {recentTrades.length === 0 ? (
-                    <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem', opacity:0.5 }}>No trades found in recent transactions.</div>
+                    <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem', opacity:0.65 }}>No trades found in recent transactions.</div>
                 ) : recentTrades.map(t => {
                     const name1 = ownerNameForRosterId(t.rid1) || 'Team ' + t.rid1;
                     const name2 = ownerNameForRosterId(t.rid2) || 'Team ' + t.rid2;
@@ -2612,24 +2616,24 @@
                             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.5rem' }}>
                                 <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
                                     <span style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1.2rem', color:t.gradeCol }}>{t.grade}</span>
-                                    <span style={{ fontSize:'0.6rem', color:'var(--silver)', opacity:0.5 }}>{t.pctDiff}% variance</span>
-                                    {winner && <span style={{ fontSize:'0.58rem', color:'var(--win-green)', fontWeight:700 }}>{winner} wins</span>}
+                                    <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>{t.pctDiff}% variance</span>
+                                    {winner && <span style={{ fontSize:'0.7rem', color:'var(--win-green)', fontWeight:700 }}>{winner} wins</span>}
                                 </div>
-                                <span style={{ fontSize:'0.55rem', color:'var(--silver)', opacity:0.4 }}>
+                                <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.6 }}>
                                     {t.trade.status_updated ? new Date(t.trade.status_updated).toLocaleDateString() : ''}
                                 </span>
                             </div>
                             <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:'0.5rem', alignItems:'start' }}>
                                 <div>
-                                    <div style={{ fontSize:'0.6rem', color:'var(--gold)', fontWeight:700, marginBottom:'0.25rem' }}>{name1} ({t.val1.toLocaleString()})</div>
-                                    {s1.players.map(pid => <div key={pid} style={{ fontSize:'0.68rem', color:'var(--white)' }}>{pn(pid)} <span style={{color:'var(--silver)',fontSize:'0.55rem'}}>{(getPlayerValue(pid).value||0).toLocaleString()}</span></div>)}
-                                    {s1.picks.map((pk,i) => <div key={'p'+i} style={{ fontSize:'0.68rem', color:'var(--gold)' }}>{pk.season} R{pk.round}</div>)}
+                                    <div style={{ fontSize:'0.72rem', color:'var(--gold)', fontWeight:700, marginBottom:'0.25rem' }}>{name1} ({t.val1.toLocaleString()})</div>
+                                    {s1.players.map(pid => <div key={pid} style={{ fontSize:'0.78rem', color:'var(--white)' }}>{pn(pid)} <span style={{color:'var(--silver)',fontSize:'0.78rem'}}>{(getPlayerValue(pid).value||0).toLocaleString()}</span></div>)}
+                                    {s1.picks.map((pk,i) => <div key={'p'+i} style={{ fontSize:'0.78rem', color:'var(--gold)' }}>{pk.season} R{pk.round}</div>)}
                                 </div>
                                 <div style={{ fontSize:'1rem', color:'var(--gold)', alignSelf:'center', fontWeight:700 }}>&#8644;</div>
                                 <div>
-                                    <div style={{ fontSize:'0.6rem', color:'var(--gold)', fontWeight:700, marginBottom:'0.25rem' }}>{name2} ({t.val2.toLocaleString()})</div>
-                                    {s2.players.map(pid => <div key={pid} style={{ fontSize:'0.68rem', color:'var(--white)' }}>{pn(pid)} <span style={{color:'var(--silver)',fontSize:'0.55rem'}}>{(getPlayerValue(pid).value||0).toLocaleString()}</span></div>)}
-                                    {s2.picks.map((pk,i) => <div key={'p'+i} style={{ fontSize:'0.68rem', color:'var(--gold)' }}>{pk.season} R{pk.round}</div>)}
+                                    <div style={{ fontSize:'0.72rem', color:'var(--gold)', fontWeight:700, marginBottom:'0.25rem' }}>{name2} ({t.val2.toLocaleString()})</div>
+                                    {s2.players.map(pid => <div key={pid} style={{ fontSize:'0.78rem', color:'var(--white)' }}>{pn(pid)} <span style={{color:'var(--silver)',fontSize:'0.78rem'}}>{(getPlayerValue(pid).value||0).toLocaleString()}</span></div>)}
+                                    {s2.picks.map((pk,i) => <div key={'p'+i} style={{ fontSize:'0.78rem', color:'var(--gold)' }}>{pk.season} R{pk.round}</div>)}
                                 </div>
                             </div>
                         </div>
@@ -2741,7 +2745,7 @@
         }, [availablePlayers, faFilter, faSort, statsData]);
 
         const faGridCols = '28px 1fr 36px 32px 54px 42px 42px 42px 36px 42px';
-        const faHeaderStyle = { fontSize: '0.55rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' };
+        const faHeaderStyle = { fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' };
 
         return (
             React.createElement('div', { style: { padding: '16px' } },
@@ -2756,14 +2760,14 @@
                     if (!hasFAAB) return null;
                     return React.createElement('div', { style: { display: 'flex', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' } },
                         React.createElement('div', { style: { background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '10px 16px' } },
-                            React.createElement('div', { style: { fontSize: '0.55rem', color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase' } }, 'FAAB Remaining'),
+                            React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase' } }, 'FAAB Remaining'),
                             React.createElement('div', { style: { fontSize: '1.4rem', fontFamily: 'Bebas Neue', color: remaining > budget * 0.5 ? '#2ECC71' : remaining > budget * 0.25 ? '#F0A500' : '#E74C3C' } }, '$' + remaining),
-                            React.createElement('div', { style: { fontSize: '0.58rem', color: 'var(--silver)' } }, '$' + budget + ' total budget')
+                            React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--silver)' } }, '$' + budget + ' total budget')
                         ),
                         React.createElement('div', { style: { background: 'var(--black)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '10px 16px' } },
-                            React.createElement('div', { style: { fontSize: '0.55rem', color: 'var(--silver)', fontFamily: 'Oswald', textTransform: 'uppercase' } }, 'Spent'),
+                            React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', fontFamily: 'Oswald', textTransform: 'uppercase' } }, 'Spent'),
                             React.createElement('div', { style: { fontSize: '1.4rem', fontFamily: 'Bebas Neue', color: 'var(--silver)' } }, '$' + spent),
-                            React.createElement('div', { style: { fontSize: '0.58rem', color: 'var(--silver)' } }, Math.round(spent / Math.max(1, budget) * 100) + '% used')
+                            React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--silver)' } }, Math.round(spent / Math.max(1, budget) * 100) + '% used')
                         )
                     );
                 })(),
@@ -2774,7 +2778,7 @@
                         React.createElement('button', {
                             key: pos, onClick: () => setFaFilter(pos),
                             style: {
-                                padding: '4px 10px', fontSize: '0.6rem', fontFamily: 'Oswald', textTransform: 'uppercase',
+                                padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'Oswald', textTransform: 'uppercase',
                                 background: faFilter === pos ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
                                 color: faFilter === pos ? 'var(--black)' : 'var(--silver)',
                                 border: '1px solid ' + (faFilter === pos ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
@@ -2824,14 +2828,14 @@
                                     React.createElement('div', { style: { overflow: 'hidden' } },
                                         React.createElement('div', { style: { fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'Unknown')
                                     ),
-                                    React.createElement('span', { style: { fontSize: '0.58rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' } }, pos),
+                                    React.createElement('span', { style: { fontSize: '0.7rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' } }, pos),
                                     React.createElement('span', { style: { color: 'var(--silver)' } }, p.age || '\u2014'),
                                     React.createElement('span', { style: { fontWeight: 700, fontFamily: 'Oswald', color: dhqCol } }, dhq > 0 ? dhq.toLocaleString() : '\u2014'),
                                     React.createElement('span', { style: { color: ppg > 0 ? 'var(--silver)' : 'rgba(255,255,255,0.2)' } }, ppg || '\u2014'),
-                                    React.createElement('span', { style: { fontSize: '0.6rem', color: trend > 0 ? '#2ECC71' : trend < 0 ? '#E74C3C' : 'var(--silver)', opacity: trend === 0 ? 0.3 : 1 } }, trend > 0 ? '+' + trend : trend || '\u2014'),
-                                    React.createElement('span', { style: { fontSize: '0.6rem', color: 'var(--silver)' } }, peak > 0 ? peak.toLocaleString() : '\u2014'),
-                                    React.createElement('span', { style: { fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.6 } }, p.years_exp != null ? p.years_exp : '\u2014'),
-                                    React.createElement('span', { style: { fontSize: '0.55rem', color: injStatus ? '#E74C3C' : 'rgba(255,255,255,0.15)' } }, injStatus || '\u2014')
+                                    React.createElement('span', { style: { fontSize: '0.72rem', color: trend > 0 ? '#2ECC71' : trend < 0 ? '#E74C3C' : 'var(--silver)', opacity: trend === 0 ? 0.3 : 1 } }, trend > 0 ? '+' + trend : trend || '\u2014'),
+                                    React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, peak > 0 ? peak.toLocaleString() : '\u2014'),
+                                    React.createElement('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 } }, p.years_exp != null ? p.years_exp : '\u2014'),
+                                    React.createElement('span', { style: { fontSize: '0.78rem', color: injStatus ? '#E74C3C' : 'rgba(255,255,255,0.15)' } }, injStatus || '\u2014')
                                 );
                             })
                     )
@@ -2911,7 +2915,7 @@
         }, [rookies, draftSort]);
 
         const draftGridCols = '24px 28px 1fr 36px 32px 54px 60px';
-        const draftHeaderStyle = { fontSize: '0.55rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' };
+        const draftHeaderStyle = { fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' };
 
         return (
             React.createElement('div', { style: { padding: '16px' } },
@@ -2926,7 +2930,7 @@
                     React.createElement('div', { style: { display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' } },
                         React.createElement('button', {
                             onClick: () => { if (typeof setReconPanelOpen === 'function') { setReconPanelOpen(true); sendReconMessage('What are the strongest position groups in the upcoming rookie draft class?'); } },
-                            style: { padding: '4px 10px', fontSize: '0.6rem', fontFamily: 'Oswald', background: 'rgba(124,107,248,0.1)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '4px', color: '#a78bfa', cursor: 'pointer' }
+                            style: { padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'Oswald', background: 'rgba(124,107,248,0.1)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '4px', color: '#a78bfa', cursor: 'pointer' }
                         }, 'Ask ReconAI about draft class')
                     )
                 ),
@@ -2938,12 +2942,12 @@
                         const yearPicks = myPicks.filter(pk => pk.year === yr);
                         if (!yearPicks.length) return null;
                         return React.createElement('div', { key: yr, style: { marginBottom: '12px' } },
-                            React.createElement('div', { style: { fontSize: '0.62rem', color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, yr),
+                            React.createElement('div', { style: { fontSize: '0.74rem', color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, yr),
                             React.createElement('div', { style: { display: 'flex', gap: '4px', flexWrap: 'wrap' } },
                                 yearPicks.map((pk, i) =>
-                                    React.createElement('div', { key: i, style: { padding: '4px 8px', borderRadius: '4px', background: pk.own ? 'rgba(212,175,55,0.08)' : 'rgba(124,107,248,0.1)', border: '1px solid ' + (pk.own ? 'rgba(212,175,55,0.25)' : 'rgba(124,107,248,0.25)'), fontSize: '0.65rem' } },
+                                    React.createElement('div', { key: i, style: { padding: '4px 8px', borderRadius: '4px', background: pk.own ? 'rgba(212,175,55,0.08)' : 'rgba(124,107,248,0.1)', border: '1px solid ' + (pk.own ? 'rgba(212,175,55,0.25)' : 'rgba(124,107,248,0.25)'), fontSize: '0.76rem' } },
                                         React.createElement('span', { style: { fontWeight: 700, color: pk.own ? 'var(--gold)' : '#a78bfa' } }, 'R' + pk.round),
-                                        !pk.own && React.createElement('span', { style: { fontSize: '0.55rem', color: 'var(--silver)', marginLeft: '4px' } }, '(acq)')
+                                        !pk.own && React.createElement('span', { style: { fontSize: '0.78rem', color: 'var(--silver)', marginLeft: '4px' } }, '(acq)')
                                     )
                                 )
                             )
@@ -2976,15 +2980,15 @@
                                 onMouseEnter: e => e.currentTarget.style.background = 'rgba(212,175,55,0.06)',
                                 onMouseLeave: e => e.currentTarget.style.background = 'transparent'
                             },
-                                React.createElement('span', { style: { fontFamily: 'Oswald', fontSize: '0.62rem', color: 'var(--silver)' } }, idx + 1),
+                                React.createElement('span', { style: { fontFamily: 'Oswald', fontSize: '0.74rem', color: 'var(--silver)' } }, idx + 1),
                                 React.createElement('div', { style: { width: '22px', height: '22px', flexShrink: 0 } },
                                     React.createElement('img', { src: 'https://sleepercdn.com/content/nfl/players/thumb/' + pid + '.jpg', alt: '', onError: e => e.target.style.display='none', style: { width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover' } })
                                 ),
                                 React.createElement('div', { style: { fontWeight: 600, color: 'var(--white)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' } }, p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'Unknown'),
-                                React.createElement('span', { style: { fontSize: '0.58rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' } }, pos),
+                                React.createElement('span', { style: { fontSize: '0.7rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' } }, pos),
                                 React.createElement('span', { style: { color: 'var(--silver)' } }, p.age || '\u2014'),
                                 React.createElement('span', { style: { fontWeight: 700, fontFamily: 'Oswald', color: dhqCol } }, dhq > 0 ? dhq.toLocaleString() : '\u2014'),
-                                React.createElement('span', { style: { fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.5, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' } }, p.college || p.metadata?.college || '\u2014')
+                                React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.65, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' } }, p.college || p.metadata?.college || '\u2014')
                             );
                         })
                     )
@@ -3864,7 +3868,7 @@
         const isViewingMyTeam = viewingOwnerId === sleeperUserId;
 
         // Stat column style shared by header and rows
-        const statColStyle = { width: '42px', textAlign: 'center', fontSize: '0.65rem', flexShrink: 0 };
+        const statColStyle = { width: '42px', textAlign: 'center', fontSize: '0.76rem', flexShrink: 0 };
 
         // Column header row for stat columns — merged into section labels
         const statLabels = ['DHQ', 'YRS', 'PTS', 'GP', 'AVG', 'PROJ'];
@@ -3913,7 +3917,7 @@
                         justifyContent: 'center',
                         width: '36px',
                         flexShrink: 0,
-                        fontSize: '0.65rem',
+                        fontSize: '0.76rem',
                         fontWeight: '700',
                         color: getPositionColor(pos),
                         border: '1.5px solid var(--gold)',
@@ -3953,13 +3957,13 @@
                         />
                         </div>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {getPlayerName(playerId)} <span style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.5 }}>{team}</span>
+                            {getPlayerName(playerId)} <span style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.65 }}>{team}</span>
                         </span>
                     </a>
                     {/* DHQ dynasty value */}
                     {(() => {
                       const dhq = window.App?.LI?.playerScores?.[playerId] || 0;
-                      if (!dhq) return <span style={{ ...statColStyle, color: 'var(--silver)', opacity: 0.4, fontSize: '0.65rem' }}>—</span>;
+                      if (!dhq) return <span style={{ ...statColStyle, color: 'var(--silver)', opacity: 0.6, fontSize: '0.76rem' }}>—</span>;
                       const col = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#D4AF37' : dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.4)';
                       return <span style={{ ...statColStyle, color: col, fontWeight: '700', fontFamily: 'Oswald, sans-serif', fontSize: '0.72rem', minWidth: '42px' }}>{dhq.toLocaleString()}</span>;
                     })()}
@@ -4081,7 +4085,7 @@
             return b.losses - a.losses;
           });
           const sortBtnStyle = (active) => ({
-            padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'Oswald, sans-serif', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', transition: 'all 0.15s',
+            padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'Oswald, sans-serif', fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', transition: 'all 0.15s',
             border: '1px solid ' + (active ? 'var(--gold)' : 'rgba(212,175,55,0.3)'),
             background: active ? 'var(--gold)' : 'transparent',
             color: active ? 'var(--black)' : 'var(--gold)',
@@ -4125,18 +4129,18 @@
                             {(() => {
                               const champs = window.App?.LI?.championships || {};
                               const champCount = Object.values(champs).filter(c => c.champion === roster?.roster_id).length;
-                              if (champCount > 0) return <span style={{ fontSize: '0.58rem', color: 'var(--gold)', fontWeight: 700 }}>{champCount > 1 ? champCount + 'x ' : ''}Champion</span>;
+                              if (champCount > 0) return <span style={{ fontSize: '0.7rem', color: 'var(--gold)', fontWeight: 700 }}>{champCount > 1 ? champCount + 'x ' : ''}Champion</span>;
                               return null;
                             })()}
                           </div>
-                          <div style={{ fontSize: '0.62rem', color: 'var(--silver)', display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <div style={{ fontSize: '0.74rem', color: 'var(--silver)', display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
                             {team.wins}-{team.losses} {'\u00B7'} {totalDHQ > 0 ? (totalDHQ/1000).toFixed(0) + 'k DHQ' : '\u2014'}
                             {(() => {
                               const hist = window.App?.LI?.leagueUsersHistory || {};
                               let yrs = 0;
                               Object.values(hist).forEach(users => { (users || []).forEach(u => { if (u.user_id === team.userId) yrs++; }); });
-                              if (yrs <= 1) return <span style={{ fontSize: '0.52rem', color: '#F0A500', fontWeight: 700, marginLeft: '4px' }}>NEW</span>;
-                              if (yrs >= 4) return <span style={{ fontSize: '0.52rem', color: 'var(--silver)', opacity: 0.6, marginLeft: '4px' }}>{yrs}yr</span>;
+                              if (yrs <= 1) return <span style={{ fontSize: '0.76rem', color: '#F0A500', fontWeight: 700, marginLeft: '4px' }}>NEW</span>;
+                              if (yrs >= 4) return <span style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginLeft: '4px' }}>{yrs}yr</span>;
                               return null;
                             })()}
                           </div>
@@ -4145,7 +4149,7 @@
                             const h = oh[roster?.roster_id];
                             if (!h || (!h.playoffWins && !h.playoffLosses && !h.totalTrades)) return null;
                             return (
-                              <div style={{ fontSize: '0.52rem', color: 'var(--silver)', display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap', opacity: 0.7 }}>
+                              <div style={{ fontSize: '0.76rem', color: 'var(--silver)', display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap', opacity: 0.7 }}>
                                 {(h.playoffWins > 0 || h.playoffLosses > 0) && <span>Playoffs {h.playoffRecord}</span>}
                                 {(h.playoffWins > 0 || h.playoffLosses > 0) && h.totalTrades > 0 && <span>{'\u00B7'}</span>}
                                 {h.totalTrades > 0 && <span>{h.totalTrades} trades</span>}
@@ -4175,7 +4179,7 @@
                           });
                         }
                         return (
-                          <div style={{ fontSize: '0.62rem', color: 'var(--silver)', lineHeight: 1.6 }}>
+                          <div style={{ fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.6 }}>
                             <div style={{ display: 'flex', gap: '8px', marginBottom: '4px', opacity: 0.7 }}>
                               <span>{rPlayers.length} players</span>
                               <span>{'\u00B7'} Avg {avgAge}yr</span>
@@ -4227,17 +4231,17 @@
                         <div style={{ display: 'flex', gap: '4px', marginBottom: '8px', flexWrap: 'wrap' }}>
                             {['','QB','RB','WR','TE','DL','LB','DB','K'].map(pos => (
                                 <button key={pos} onClick={() => setLpFilter(pos)} style={{
-                                    padding: '4px 10px', fontSize: '0.6rem', fontFamily: 'Oswald', textTransform: 'uppercase',
+                                    padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'Oswald', textTransform: 'uppercase',
                                     background: lpFilter === pos ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
                                     color: lpFilter === pos ? 'var(--black)' : 'var(--silver)',
                                     border: '1px solid ' + (lpFilter === pos ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
                                     borderRadius: '3px', cursor: 'pointer'
                                 }}>{pos || 'All'}</button>
                             ))}
-                            <span style={{ marginLeft: 'auto', fontSize: '0.6rem', color: 'var(--silver)', alignSelf: 'center' }}>{filtered.length} players</span>
+                            <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--silver)', alignSelf: 'center' }}>{filtered.length} players</span>
                         </div>
                         <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', overflow: 'hidden' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '24px 28px 1fr 36px 32px 54px 42px 100px', gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.55rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '24px 28px 1fr 36px 32px 54px 42px 100px', gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase' }}>
                                 <span>#</span><span></span>
                                 <span style={{ cursor: 'pointer' }} onClick={() => setLpSort(prev => prev.key === 'name' ? {...prev, dir: prev.dir*-1} : {key:'name',dir:1})}>Player{lpSort.key==='name'?(lpSort.dir===-1?' \u25BC':' \u25B2'):''}</span>
                                 <span>Pos</span>
@@ -4252,14 +4256,14 @@
                                         style={{ display: 'grid', gridTemplateColumns: '24px 28px 1fr 36px 32px 54px 42px 100px', gap: '4px', padding: '5px 10px', borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', fontSize: '0.72rem', alignItems: 'center', background: x.isMe ? 'rgba(212,175,55,0.04)' : 'transparent', transition: 'background 0.1s' }}
                                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.06)'}
                                         onMouseLeave={e => e.currentTarget.style.background = x.isMe ? 'rgba(212,175,55,0.04)' : 'transparent'}>
-                                        <span style={{ fontSize: '0.6rem', color: 'var(--silver)', fontFamily: 'Oswald' }}>{idx+1}</span>
+                                        <span style={{ fontSize: '0.72rem', color: 'var(--silver)', fontFamily: 'Oswald' }}>{idx+1}</span>
                                         <div style={{ width: '22px', height: '22px', flexShrink: 0 }}><img src={'https://sleepercdn.com/content/nfl/players/thumb/'+x.pid+'.jpg'} onError={e=>e.target.style.display='none'} style={{ width:'22px',height:'22px',borderRadius:'50%',objectFit:'cover' }} /></div>
                                         <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', fontWeight: 600, color: x.isMe ? 'var(--gold)' : 'var(--white)' }}>{x.p.full_name || (x.p.first_name+' '+x.p.last_name).trim()}</div>
-                                        <span style={{ fontSize: '0.58rem', fontWeight: 700, color: posColors[x.pos] || 'var(--silver)' }}>{x.pos}</span>
+                                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: posColors[x.pos] || 'var(--silver)' }}>{x.pos}</span>
                                         <span style={{ color: 'var(--silver)' }}>{x.age || '\u2014'}</span>
                                         <span style={{ fontWeight: 700, fontFamily: 'Oswald', color: x.dhq >= 7000 ? '#2ECC71' : x.dhq >= 4000 ? '#3498DB' : x.dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)' }}>{x.dhq > 0 ? x.dhq.toLocaleString() : '\u2014'}</span>
                                         <span style={{ color: 'var(--silver)' }}>{x.ppg || '\u2014'}</span>
-                                        <span style={{ fontSize: '0.62rem', color: x.isMe ? 'var(--gold)' : 'var(--silver)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.teamName}{x.isMe ? ' (You)' : ''}</span>
+                                        <span style={{ fontSize: '0.74rem', color: x.isMe ? 'var(--gold)' : 'var(--silver)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.teamName}{x.isMe ? ' (You)' : ''}</span>
                                     </div>
                                 ))}
                             </div>
@@ -4285,7 +4289,7 @@
                 <div key={yr} style={{ marginBottom: '16px' }}>
                     <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '8px' }}>{yr} DRAFT PICKS</div>
                     <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', overflow: 'hidden' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 1fr 60px', gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.55rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 1fr 60px', gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase' }}>
                             <span>Pick</span><span>Current Owner</span><span>Original Owner</span><span>Status</span>
                         </div>
                         <div style={{ maxHeight: '500px', overflow: 'auto' }}>
@@ -4318,7 +4322,7 @@
                                             <span style={{ color: 'var(--silver)', opacity: traded ? 1 : 0.4 }}>
                                                 {getOwner(originalRid)}{isMyOriginal ? ' (You)' : ''}
                                             </span>
-                                            <span style={{ fontSize: '0.58rem', fontWeight: 600, color: traded ? '#F0A500' : '#2ECC71' }}>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: traded ? '#F0A500' : '#2ECC71' }}>
                                                 {traded ? 'Traded' : 'Own'}
                                             </span>
                                         </div>
@@ -4353,21 +4357,21 @@
 
             return (
               <div style={{ padding: '16px' }}>
-                <button onClick={() => { setSelectedTeam(null); setLeagueViewMode('roster'); }} style={{ background: 'none', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '4px', padding: '4px 12px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'Oswald', fontSize: '0.68rem', marginBottom: '12px' }}>Back to League</button>
+                <button onClick={() => { setSelectedTeam(null); setLeagueViewMode('roster'); }} style={{ background: 'none', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '4px', padding: '4px 12px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'Oswald', fontSize: '0.78rem', marginBottom: '12px' }}>Back to League</button>
                 <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.4rem', color: 'var(--gold)', marginBottom: '4px' }}>{team.displayName}</div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--silver)', marginBottom: '12px' }}>{team.wins}-{team.losses} {'\u00B7'} {players.reduce((s,r) => s + r.dhq, 0).toLocaleString()} Total DHQ {'\u00B7'} {players.length} players</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginBottom: '12px' }}>{team.wins}-{team.losses} {'\u00B7'} {players.reduce((s,r) => s + r.dhq, 0).toLocaleString()} Total DHQ {'\u00B7'} {players.length} players</div>
 
                 {/* Roster / History toggle */}
                 <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
                     <button onClick={() => setLeagueViewMode('roster')} style={{
-                        padding: '5px 14px', fontSize: '0.65rem', fontFamily: 'Oswald', textTransform: 'uppercase',
+                        padding: '5px 14px', fontSize: '0.76rem', fontFamily: 'Oswald', textTransform: 'uppercase',
                         background: leagueViewMode === 'roster' ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
                         color: leagueViewMode === 'roster' ? 'var(--black)' : 'var(--silver)',
                         border: '1px solid ' + (leagueViewMode === 'roster' ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
                         borderRadius: '4px', cursor: 'pointer'
                     }}>Roster</button>
                     <button onClick={() => setLeagueViewMode('history')} style={{
-                        padding: '5px 14px', fontSize: '0.65rem', fontFamily: 'Oswald', textTransform: 'uppercase',
+                        padding: '5px 14px', fontSize: '0.76rem', fontFamily: 'Oswald', textTransform: 'uppercase',
                         background: leagueViewMode === 'history' ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
                         color: leagueViewMode === 'history' ? 'var(--black)' : 'var(--silver)',
                         border: '1px solid ' + (leagueViewMode === 'history' ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
@@ -4391,9 +4395,9 @@
                                     { label: 'Trade Record', value: h.tradesWon + '-' + h.tradesLost + '-' + h.tradesFair, sub: (h.avgValueDiff >= 0 ? '+' : '') + h.avgValueDiff + ' avg DHQ', color: h.avgValueDiff >= 0 ? '#2ECC71' : '#E74C3C' },
                                 ].map((stat, i) => (
                                     <div key={i} style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
-                                        <div style={{ fontSize: '0.55rem', color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{stat.label}</div>
+                                        <div style={{ fontSize: '0.78rem', color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>{stat.label}</div>
                                         <div style={{ fontSize: '1.2rem', fontWeight: 700, color: stat.color, fontFamily: 'Bebas Neue' }}>{stat.value}</div>
-                                        <div style={{ fontSize: '0.58rem', color: 'var(--silver)', marginTop: '2px' }}>{stat.sub}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', marginTop: '2px' }}>{stat.sub}</div>
                                     </div>
                                 ))}
                             </div>
@@ -4405,11 +4409,11 @@
                                     <div key={s.season} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.75rem' }}>
                                         <span style={{ fontFamily: 'Bebas Neue', fontSize: '0.95rem', color: 'var(--gold)', minWidth: '40px' }}>{s.season}</span>
                                         <span style={{
-                                            fontSize: '0.62rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px',
+                                            fontSize: '0.74rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px',
                                             background: s.finish === 'Champion' ? 'rgba(212,175,55,0.15)' : s.finish === 'Runner-Up' ? 'rgba(192,192,192,0.15)' : s.finish === 'Semi-Finals' ? 'rgba(205,127,50,0.15)' : s.finish === 'Playoffs' ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.04)',
                                             color: s.finish === 'Champion' ? '#D4AF37' : s.finish === 'Runner-Up' ? '#C0C0C0' : s.finish === 'Semi-Finals' ? '#CD7F32' : s.finish === 'Playoffs' ? '#2ECC71' : 'var(--silver)'
                                         }}>{s.finish}</span>
-                                        {s.hadFirstPick && <span style={{ fontSize: '0.58rem', color: '#a78bfa', fontWeight: 600 }}>#1 Overall Pick</span>}
+                                        {s.hadFirstPick && <span style={{ fontSize: '0.7rem', color: '#a78bfa', fontWeight: 600 }}>#1 Overall Pick</span>}
                                     </div>
                                 ))}
                             </div>
@@ -4420,7 +4424,7 @@
                                     <div style={{ fontFamily: 'Oswald', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>#1 Overall Picks</div>
                                     {h.numberOnePicks.map((pk, i) => (
                                         <div key={i} style={{ fontSize: '0.75rem', color: 'var(--white)', padding: '4px 0' }}>
-                                            <span style={{ color: 'var(--gold)', fontFamily: 'Bebas Neue', fontSize: '0.85rem' }}>{pk.season}</span> — {pk.player} <span style={{ color: 'var(--silver)', fontSize: '0.62rem' }}>({pk.pos})</span>
+                                            <span style={{ color: 'var(--gold)', fontFamily: 'Bebas Neue', fontSize: '0.85rem' }}>{pk.season}</span> — {pk.player} <span style={{ color: 'var(--silver)', fontSize: '0.74rem' }}>({pk.pos})</span>
                                         </div>
                                     ))}
                                 </div>
@@ -4430,14 +4434,14 @@
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                                 {h.bestPick && (
                                     <div style={{ background: 'rgba(46,204,113,0.06)', border: '1px solid rgba(46,204,113,0.15)', borderRadius: '8px', padding: '10px 14px' }}>
-                                        <div style={{ fontSize: '0.58rem', color: '#2ECC71', fontFamily: 'Oswald', textTransform: 'uppercase', marginBottom: '4px' }}>Best Draft Pick</div>
+                                        <div style={{ fontSize: '0.7rem', color: '#2ECC71', fontFamily: 'Oswald', textTransform: 'uppercase', marginBottom: '4px' }}>Best Draft Pick</div>
                                         <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--white)' }}>{h.bestPick.name}</div>
-                                        <div style={{ fontSize: '0.62rem', color: 'var(--silver)' }}>{h.bestPick.season} Round {h.bestPick.round} ({h.bestPick.pos})</div>
+                                        <div style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>{h.bestPick.season} Round {h.bestPick.round} ({h.bestPick.pos})</div>
                                     </div>
                                 )}
                                 {h.bustPicks.length > 0 && (
                                     <div style={{ background: 'rgba(231,76,60,0.06)', border: '1px solid rgba(231,76,60,0.15)', borderRadius: '8px', padding: '10px 14px' }}>
-                                        <div style={{ fontSize: '0.58rem', color: '#E74C3C', fontFamily: 'Oswald', textTransform: 'uppercase', marginBottom: '4px' }}>Draft Busts (R1-R2)</div>
+                                        <div style={{ fontSize: '0.7rem', color: '#E74C3C', fontFamily: 'Oswald', textTransform: 'uppercase', marginBottom: '4px' }}>Draft Busts (R1-R2)</div>
                                         {h.bustPicks.map((bp, i) => (
                                             <div key={i} style={{ fontSize: '0.72rem', color: 'var(--silver)', padding: '2px 0' }}>{bp.name} — {bp.season} R{bp.round}</div>
                                         ))}
@@ -4458,7 +4462,7 @@
                                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', fontSize: '0.75rem' }}>
                                                 <span style={{ fontWeight: 600, color: 'var(--white)' }}>{rivalUser?.display_name || 'Team ' + r.rosterId}</span>
                                                 <span style={{ color: r.wins > r.losses ? '#2ECC71' : r.wins < r.losses ? '#E74C3C' : 'var(--silver)', fontWeight: 700 }}>{r.wins}-{r.losses}</span>
-                                                <span style={{ fontSize: '0.6rem', color: 'var(--silver)' }}>({r.seasons.join(', ')})</span>
+                                                <span style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>({r.seasons.join(', ')})</span>
                                             </div>
                                         );
                                     })}
@@ -4472,7 +4476,7 @@
                 <div>
                 {/* TODO: integrate shared ROSTER_COLUMNS + renderCell system */}
                 <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', overflow: 'hidden' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '3px 28px 1fr 36px 32px 54px 42px 60px 52px', gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.55rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '3px 28px 1fr 36px 32px 54px 42px 60px 52px', gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase' }}>
                     <span></span><span></span><span>Player</span><span>Pos</span><span>Age</span><span>DHQ</span><span>PPG</span><span>Acquired</span><span>Date</span>
                   </div>
                   <div style={{ maxHeight: '600px', overflow: 'auto' }}>
@@ -4486,14 +4490,14 @@
                         <div style={{ width: '22px', height: '22px', flexShrink: 0 }}><img src={`https://sleepercdn.com/content/nfl/players/thumb/${r.pid}.jpg`} alt="" onError={e=>e.target.style.display='none'} style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover' }} /></div>
                         <div style={{ overflow: 'hidden' }}>
                           <div style={{ fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.p.full_name || (r.p.first_name + ' ' + r.p.last_name).trim()}</div>
-                          <div style={{ fontSize: '0.5rem', color: 'var(--silver)', opacity: 0.5 }}>{r.p.team || 'FA'}</div>
+                          <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.65 }}>{r.p.team || 'FA'}</div>
                         </div>
-                        <span style={{ fontSize: '0.58rem', fontWeight: 700, color: r.posCol }}>{r.pos}</span>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: r.posCol }}>{r.pos}</span>
                         <span style={{ color: 'var(--silver)' }}>{r.p.age || '\u2014'}</span>
                         <span style={{ fontWeight: 700, fontFamily: 'Oswald', color: r.dhq >= 7000 ? '#2ECC71' : r.dhq >= 4000 ? '#3498DB' : r.dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span>
                         <span style={{ color: 'var(--silver)' }}>{r.ppg || '\u2014'}</span>
-                        <span style={{ fontSize: '0.58rem', fontWeight: 600, color: r.acq.method === 'Drafted' ? '#a78bfa' : r.acq.method === 'Traded' ? '#F0A500' : r.acq.method === 'Waiver' ? '#2ECC71' : r.acq.method === 'FA' ? '#1ABC9C' : 'var(--silver)' }}>{r.acq.method}{r.acq.cost ? ' ' + r.acq.cost : ''}</span>
-                        <span style={{ fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.5 }}>{r.acq.date}</span>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: r.acq.method === 'Drafted' ? '#a78bfa' : r.acq.method === 'Traded' ? '#F0A500' : r.acq.method === 'Waiver' ? '#2ECC71' : r.acq.method === 'FA' ? '#1ABC9C' : 'var(--silver)' }}>{r.acq.method}{r.acq.cost ? ' ' + r.acq.cost : ''}</span>
+                        <span style={{ fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.65 }}>{r.acq.date}</span>
                       </div>
                     ))}
                   </div>
@@ -4660,17 +4664,17 @@
           // renderCell — renders each data cell with FM-style coloring
           function renderCell(colKey, r) {
             const col = ROSTER_COLUMNS[colKey];
-            const base = { width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem', padding: '0 3px' };
+            const base = { width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.78rem', padding: '0 3px' };
 
             switch(colKey) {
-              case 'pos': return <div key={colKey} style={{...base}}><span style={{ fontSize: '0.58rem', fontWeight: 700, padding: '1px 4px', borderRadius: '2px', background: (posColors[r.pos]||'#666')+'22', color: posColors[r.pos]||'var(--silver)' }}>{r.pos}</span></div>;
+              case 'pos': return <div key={colKey} style={{...base}}><span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '1px 4px', borderRadius: '2px', background: (posColors[r.pos]||'#666')+'22', color: posColors[r.pos]||'var(--silver)' }}>{r.pos}</span></div>;
               case 'age': return <div key={colKey} style={{...base, background: ageBg(r.age)}}><span style={{ color: ageCol(r.age), fontWeight: 600 }}>{r.age||'\u2014'}</span></div>;
               case 'dhq': return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}}><span style={{ color: dhqCol(r.dhq), fontWeight: 700, fontFamily: 'Oswald', fontSize: '0.72rem' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span></div>;
               case 'ppg': return <div key={colKey} style={{...base, background: ppgBg(r.curPPG, r.pos)}}><span style={{ color: r.curPPG >= (posP75[r.pos]||10) ? '#2ECC71' : 'var(--silver)' }}>{r.curPPG||'\u2014'}</span></div>;
               case 'prev': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', opacity: 0.6 }}>{r.prevPPG||'\u2014'}</span></div>;
-              case 'trend': return <div key={colKey} style={{...base, background: trendBg(r.trend)}}><span style={{ color: r.trend>=15?'#2ECC71':r.trend<=-15?'#E74C3C':'var(--silver)', fontWeight: 600, fontSize: '0.62rem' }}>{r.trend>0?'+'+r.trend+'%':r.trend<0?r.trend+'%':'\u2014'}</span></div>;
+              case 'trend': return <div key={colKey} style={{...base, background: trendBg(r.trend)}}><span style={{ color: r.trend>=15?'#2ECC71':r.trend<=-15?'#E74C3C':'var(--silver)', fontWeight: 600, fontSize: '0.74rem' }}>{r.trend>0?'+'+r.trend+'%':r.trend<0?r.trend+'%':'\u2014'}</span></div>;
               case 'peak': return <div key={colKey} style={{...base, flexDirection: 'column', gap: '1px'}}>
-                <span style={{ fontSize: '0.5rem', fontWeight: 700, color: r.peakPhase==='PRIME'?'#2ECC71':r.peakPhase==='PRE'?'#3498DB':'#E74C3C' }}>{r.peakPhase}</span>
+                <span style={{ fontSize: '0.76rem', fontWeight: 700, color: r.peakPhase==='PRIME'?'#2ECC71':r.peakPhase==='PRE'?'#3498DB':'#E74C3C' }}>{r.peakPhase}</span>
                 <div style={{ width: '30px', height: '3px', borderRadius: '1px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden', position: 'relative' }}>
                   <div style={{ position:'absolute',left:0,top:0,height:'100%',width:'30%',background:'rgba(52,152,219,0.4)' }}></div>
                   <div style={{ position:'absolute',left:'30%',top:0,height:'100%',width:'40%',background:'rgba(46,204,113,0.4)' }}></div>
@@ -4681,15 +4685,15 @@
               case 'action': {
                 const ann = getPlayerAnnotation(r.pid);
                 return <div key={colKey} style={{...base, position:'relative'}} title={ann?.text || ''}>
-                  <span style={{ fontSize:'0.58rem',fontWeight:700,padding:'1px 6px',borderRadius:'2px',background:r.rec==='BUY'?'rgba(46,204,113,0.15)':r.rec==='HOLD'?'rgba(212,175,55,0.12)':'rgba(231,76,60,0.12)',color:r.rec==='BUY'?'#2ECC71':r.rec==='HOLD'?'var(--gold)':'#E74C3C' }}>{r.rec}</span>
+                  <span style={{ fontSize:'0.7rem',fontWeight:700,padding:'1px 6px',borderRadius:'2px',background:r.rec==='BUY'?'rgba(46,204,113,0.15)':r.rec==='HOLD'?'rgba(212,175,55,0.12)':'rgba(231,76,60,0.12)',color:r.rec==='BUY'?'#2ECC71':r.rec==='HOLD'?'var(--gold)':'#E74C3C' }}>{r.rec}</span>
                   {ann && <div style={{position:'absolute',top:'-2px',right:'-2px',width:'5px',height:'5px',borderRadius:'50%',background:ann.color}} />}
                 </div>;
               }
-              case 'gp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.62rem' }}>{r.curGP||'\u2014'}</span></div>;
+              case 'gp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem' }}>{r.curGP||'\u2014'}</span></div>;
               case 'durability': return <div key={colKey} style={{...base}}><div style={{ width:'24px',height:'4px',borderRadius:'2px',background:'rgba(255,255,255,0.06)',overflow:'hidden' }}><div style={{ width:Math.min(100,(r.curGP/17)*100)+'%',height:'100%',background:r.curGP>=15?'#2ECC71':r.curGP>=10?'#F0A500':'#E74C3C',borderRadius:'2px' }}></div></div></div>;
               case 'yrsExp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)' }}>{r.p.years_exp ?? '\u2014'}</span></div>;
-              case 'college': return <div key={colKey} style={{...base, justifyContent: 'flex-start'}}><span style={{ color: 'var(--silver)', fontSize: '0.6rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.p.college || '\u2014'}</span></div>;
-              case 'nflDraft': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.62rem' }}>{r.p.draft_pick ? 'Rd ' + Math.ceil(r.p.draft_pick / 32) : '\u2014'}</span></div>;
+              case 'college': return <div key={colKey} style={{...base, justifyContent: 'flex-start'}}><span style={{ color: 'var(--silver)', fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.p.college || '\u2014'}</span></div>;
+              case 'nflDraft': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem' }}>{r.p.draft_pick ? 'Rd ' + Math.ceil(r.p.draft_pick / 32) : '\u2014'}</span></div>;
               case 'posRankLg': {
                 const allAtPos = (currentLeague.rosters||[]).flatMap(ros => (ros.players||[]).filter(pid => {
                   const pp = playersData[pid];
@@ -4705,15 +4709,15 @@
               case 'starterSzn': return <div key={colKey} style={{...base}}><span style={{ color: (r.meta?.starterSeasons||0)>=3?'#2ECC71':(r.meta?.starterSeasons||0)>=1?'var(--gold)':'var(--silver)', fontWeight: 600 }}>{r.meta?.starterSeasons ?? '\u2014'}</span></div>;
               case 'height': {
                 const h = r.p.height;
-                return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.6rem' }}>{h ? Math.floor(h/12)+"'"+h%12+'"' : '\u2014'}</span></div>;
+                return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.72rem' }}>{h ? Math.floor(h/12)+"'"+h%12+'"' : '\u2014'}</span></div>;
               }
-              case 'weight': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.6rem' }}>{r.p.weight || '\u2014'}</span></div>;
-              case 'depthChart': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.6rem' }}>{r.p.depth_chart_order ? '#'+r.p.depth_chart_order : '\u2014'}</span></div>;
-              case 'slot': return <div key={colKey} style={{...base}}><span style={{ fontSize:'0.52rem',color:'var(--silver)',opacity:0.5,textTransform:'uppercase' }}>{r.section==='starter'?'STR':r.section==='ir'?'IR':r.section==='taxi'?'TAX':'BN'}</span></div>;
+              case 'weight': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.72rem' }}>{r.p.weight || '\u2014'}</span></div>;
+              case 'depthChart': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.72rem' }}>{r.p.depth_chart_order ? '#'+r.p.depth_chart_order : '\u2014'}</span></div>;
+              case 'slot': return <div key={colKey} style={{...base}}><span style={{ fontSize:'0.76rem',color:'var(--silver)',opacity:0.65,textTransform:'uppercase' }}>{r.section==='starter'?'STR':r.section==='ir'?'IR':r.section==='taxi'?'TAX':'BN'}</span></div>;
               case 'acquired': {
                 const acq = getAcquisitionInfo(r.pid, myRoster?.roster_id);
                 const col = acq.method === 'Drafted' ? '#a78bfa' : acq.method === 'Traded' ? '#F0A500' : acq.method === 'Waiver' ? '#2ECC71' : acq.method === 'FA' ? '#1ABC9C' : 'var(--silver)';
-                return <div key={colKey} style={{...base}}><span style={{ fontSize: '0.58rem', fontWeight: 600, color: col }}>{acq.method}{acq.cost ? ' ' + acq.cost : ''}</span></div>;
+                return <div key={colKey} style={{...base}}><span style={{ fontSize: '0.7rem', fontWeight: 600, color: col }}>{acq.method}{acq.cost ? ' ' + acq.cost : ''}</span></div>;
               }
               case 'acquiredDate': {
                 const acq = getAcquisitionInfo(r.pid, myRoster?.roster_id);
@@ -4733,20 +4737,20 @@
                   if (myChampCount > 0) return <span style={{ fontSize: '0.72rem', color: 'var(--gold)', fontWeight: 700 }}>{myChampCount > 1 ? myChampCount + 'x ' : ''}Champion</span>;
                   return null;
                 })()}
-                <span style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>{allPlayers.length} players</span>
-                <span style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>Total DHQ: <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{rows.reduce((s,r) => s+r.dhq, 0).toLocaleString()}</span></span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{allPlayers.length} players</span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>Total DHQ: <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{rows.reduce((s,r) => s+r.dhq, 0).toLocaleString()}</span></span>
               </div>
 
               <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
                 <button onClick={() => setMyTeamView('roster')} style={{
-                  padding: '5px 14px', fontSize: '0.65rem', fontFamily: 'Oswald', textTransform: 'uppercase',
+                  padding: '5px 14px', fontSize: '0.76rem', fontFamily: 'Oswald', textTransform: 'uppercase',
                   background: myTeamView === 'roster' ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
                   color: myTeamView === 'roster' ? 'var(--black)' : 'var(--silver)',
                   border: '1px solid ' + (myTeamView === 'roster' ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
                   borderRadius: '6px', cursor: 'pointer', fontWeight: 700, letterSpacing: '0.04em'
                 }}>Roster</button>
                 <button onClick={() => setMyTeamView('compare')} style={{
-                  padding: '5px 14px', fontSize: '0.65rem', fontFamily: 'Oswald', textTransform: 'uppercase',
+                  padding: '5px 14px', fontSize: '0.76rem', fontFamily: 'Oswald', textTransform: 'uppercase',
                   background: myTeamView === 'compare' ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
                   color: myTeamView === 'compare' ? 'var(--black)' : 'var(--silver)',
                   border: '1px solid ' + (myTeamView === 'compare' ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
@@ -4814,9 +4818,9 @@
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '12px', marginBottom: '16px', alignItems: 'start' }}>
                           {/* You */}
                           <div style={{ textAlign: 'center', padding: '14px', background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '10px' }}>
-                            <div style={{ fontFamily: 'Oswald', fontSize: '0.68rem', color: 'var(--gold)', textTransform: 'uppercase', marginBottom: '6px' }}>You</div>
+                            <div style={{ fontFamily: 'Oswald', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', marginBottom: '6px' }}>You</div>
                             <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.3rem', color: 'var(--white)', marginBottom: '4px' }}>{myWins}-{myLosses}</div>
-                            <div style={{ fontSize: '0.6rem', color: 'var(--silver)', lineHeight: 1.6 }}>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.6 }}>
                               {myTotal.toLocaleString()} DHQ<br/>
                               Playoffs: {myPW}-{myPL}<br/>
                               {myChamps > 0 ? myChamps + 'x Champion' : 'No titles'}
@@ -4826,19 +4830,19 @@
                           <div style={{ textAlign: 'center', paddingTop: '10px' }}>
                             <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: 'var(--gold)', marginBottom: '6px' }}>VS</div>
                             {(h2hWins > 0 || h2hLosses > 0) ? (
-                              <div style={{ fontSize: '0.62rem', color: 'var(--silver)' }}>
+                              <div style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>
                                 <div style={{ fontWeight: 700, color: h2hWins > h2hLosses ? '#2ECC71' : h2hWins < h2hLosses ? '#E74C3C' : 'var(--silver)' }}>H2H: {h2hWins}-{h2hLosses}</div>
-                                <div style={{ opacity: 0.5, marginTop: '2px' }}>in playoffs</div>
+                                <div style={{ opacity: 0.65, marginTop: '2px' }}>in playoffs</div>
                               </div>
                             ) : (
-                              <div style={{ fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.4 }}>No playoff H2H</div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>No playoff H2H</div>
                             )}
                           </div>
                           {/* Them */}
                           <div style={{ textAlign: 'center', padding: '14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px' }}>
-                            <div style={{ fontFamily: 'Oswald', fontSize: '0.68rem', color: 'var(--silver)', textTransform: 'uppercase', marginBottom: '6px' }}>{theirUser?.display_name || 'Opponent'}</div>
+                            <div style={{ fontFamily: 'Oswald', fontSize: '0.78rem', color: 'var(--silver)', textTransform: 'uppercase', marginBottom: '6px' }}>{theirUser?.display_name || 'Opponent'}</div>
                             <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.3rem', color: 'var(--white)', marginBottom: '4px' }}>{theirWins}-{theirLosses}</div>
-                            <div style={{ fontSize: '0.6rem', color: 'var(--silver)', lineHeight: 1.6 }}>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.6 }}>
                               {theirTotal.toLocaleString()} DHQ<br/>
                               Playoffs: {theirPW}-{theirPL}<br/>
                               {theirChamps > 0 ? theirChamps + 'x Champion' : 'No titles'}
@@ -4865,7 +4869,7 @@
                                     <div key={pos} style={{ marginBottom: '12px', background: 'var(--black)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', overflow: 'hidden' }}>
                                         <div style={{ padding: '6px 10px', background: (posColors[pos] || '#666') + '15', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                             <span style={{ fontFamily: 'Oswald', fontSize: '0.72rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' }}>{pos}</span>
-                                            <div style={{ display: 'flex', gap: '12px', fontSize: '0.6rem' }}>
+                                            <div style={{ display: 'flex', gap: '12px', fontSize: '0.72rem' }}>
                                                 <span style={{ color: myPosDHQ >= theirPosDHQ ? '#2ECC71' : 'var(--silver)' }}>You: {myPosDHQ.toLocaleString()}</span>
                                                 <span style={{ color: theirPosDHQ >= myPosDHQ ? '#2ECC71' : 'var(--silver)' }}>Them: {theirPosDHQ.toLocaleString()}</span>
                                                 <span style={{ fontWeight: 700, color: posDiff > 0 ? '#2ECC71' : posDiff < 0 ? '#E74C3C' : 'var(--silver)' }}>{posDiff > 0 ? '+' : ''}{posDiff.toLocaleString()}</span>
@@ -4877,22 +4881,22 @@
                                             return (
                                                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                                                     {/* My player */}
-                                                    <div style={{ padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.68rem', borderRight: '1px solid rgba(255,255,255,0.04)', background: my && their && my.dhq > their.dhq ? 'rgba(46,204,113,0.04)' : 'transparent', cursor: my ? 'pointer' : 'default' }}
+                                                    <div style={{ padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', borderRight: '1px solid rgba(255,255,255,0.04)', background: my && their && my.dhq > their.dhq ? 'rgba(46,204,113,0.04)' : 'transparent', cursor: my ? 'pointer' : 'default' }}
                                                         onClick={() => { if (my && window.openFWPlayerModal) openFWPlayerModal(my.pid, playersData, statsData); }}>
                                                         {my ? (<>
                                                             <div style={{ width: '18px', height: '18px', flexShrink: 0 }}><img src={'https://sleepercdn.com/content/nfl/players/thumb/'+my.pid+'.jpg'} onError={e=>e.target.style.display='none'} style={{ width:'18px',height:'18px',borderRadius:'50%',objectFit:'cover' }} /></div>
                                                             <span style={{ flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: 'var(--white)', cursor: 'pointer' }}>{my.p?.full_name || '?'}</span>
-                                                            <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: '0.65rem', color: my.dhq >= 7000 ? '#2ECC71' : my.dhq >= 4000 ? '#3498DB' : 'var(--silver)' }}>{my.dhq > 0 ? my.dhq.toLocaleString() : '\u2014'}</span>
-                                                        </>) : <span style={{ color: 'var(--silver)', opacity: 0.3, fontSize: '0.6rem' }}>{'\u2014'}</span>}
+                                                            <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: '0.76rem', color: my.dhq >= 7000 ? '#2ECC71' : my.dhq >= 4000 ? '#3498DB' : 'var(--silver)' }}>{my.dhq > 0 ? my.dhq.toLocaleString() : '\u2014'}</span>
+                                                        </>) : <span style={{ color: 'var(--silver)', opacity: 0.3, fontSize: '0.72rem' }}>{'\u2014'}</span>}
                                                     </div>
                                                     {/* Their player */}
-                                                    <div style={{ padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.68rem', background: their && my && their.dhq > my.dhq ? 'rgba(46,204,113,0.04)' : 'transparent', cursor: their ? 'pointer' : 'default' }}
+                                                    <div style={{ padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', background: their && my && their.dhq > my.dhq ? 'rgba(46,204,113,0.04)' : 'transparent', cursor: their ? 'pointer' : 'default' }}
                                                         onClick={() => { if (their && window.openFWPlayerModal) openFWPlayerModal(their.pid, playersData, statsData); }}>
                                                         {their ? (<>
                                                             <div style={{ width: '18px', height: '18px', flexShrink: 0 }}><img src={'https://sleepercdn.com/content/nfl/players/thumb/'+their.pid+'.jpg'} onError={e=>e.target.style.display='none'} style={{ width:'18px',height:'18px',borderRadius:'50%',objectFit:'cover' }} /></div>
                                                             <span style={{ flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: 'var(--white)', cursor: 'pointer' }}>{their.p?.full_name || '?'}</span>
-                                                            <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: '0.65rem', color: their.dhq >= 7000 ? '#2ECC71' : their.dhq >= 4000 ? '#3498DB' : 'var(--silver)' }}>{their.dhq > 0 ? their.dhq.toLocaleString() : '\u2014'}</span>
-                                                        </>) : <span style={{ color: 'var(--silver)', opacity: 0.3, fontSize: '0.6rem' }}>{'\u2014'}</span>}
+                                                            <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: '0.76rem', color: their.dhq >= 7000 ? '#2ECC71' : their.dhq >= 4000 ? '#3498DB' : 'var(--silver)' }}>{their.dhq > 0 ? their.dhq.toLocaleString() : '\u2014'}</span>
+                                                        </>) : <span style={{ color: 'var(--silver)', opacity: 0.3, fontSize: '0.72rem' }}>{'\u2014'}</span>}
                                                     </div>
                                                 </div>
                                             );
@@ -4912,7 +4916,7 @@
               <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                 {['All','Starters','Bench','Taxi','IR','Offense','IDP'].map(f => (
                   <button key={f} onClick={() => setRosterFilter(f)} style={{
-                    padding: '4px 10px', fontSize: '0.6rem', fontWeight: rosterFilter === f ? 700 : 400,
+                    padding: '4px 10px', fontSize: '0.72rem', fontWeight: rosterFilter === f ? 700 : 400,
                     fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.03em',
                     background: rosterFilter === f ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
                     color: rosterFilter === f ? 'var(--black)' : 'var(--silver)',
@@ -4920,16 +4924,16 @@
                     borderRadius: '3px', cursor: 'pointer'
                   }}>{f}</button>
                 ))}
-                <span style={{ marginLeft: 'auto', fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.5 }}>{filtered.length} shown</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.65 }}>{filtered.length} shown</span>
               </div>
 
               {/* Preset buttons + column picker */}
               <div style={{ display: 'flex', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.5, fontFamily: 'Oswald' }}>VIEW:</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65, fontFamily: 'Oswald' }}>VIEW:</span>
                 {Object.entries(COLUMN_PRESETS).map(([key, cols]) => (
                   <button key={key} onClick={() => { setVisibleCols(cols); setColPreset(key); }}
                     style={{
-                      padding: '3px 10px', fontSize: '0.58rem', fontWeight: colPreset === key ? 700 : 400,
+                      padding: '3px 10px', fontSize: '0.7rem', fontWeight: colPreset === key ? 700 : 400,
                       fontFamily: 'Oswald', textTransform: 'uppercase',
                       background: colPreset === key ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
                       color: colPreset === key ? 'var(--black)' : 'var(--silver)',
@@ -4938,7 +4942,7 @@
                     }}>{key}</button>
                 ))}
                 <button onClick={() => setShowColPicker(!showColPicker)} style={{
-                  marginLeft: 'auto', padding: '3px 10px', fontSize: '0.58rem',
+                  marginLeft: 'auto', padding: '3px 10px', fontSize: '0.7rem',
                   fontFamily: 'Oswald', background: showColPicker ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.04)',
                   color: showColPicker ? 'var(--gold)' : 'var(--silver)',
                   border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', cursor: 'pointer'
@@ -4956,7 +4960,7 @@
                     return (
                       <label key={key} style={{
                         display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px',
-                        borderRadius: '4px', cursor: 'pointer', fontSize: '0.65rem',
+                        borderRadius: '4px', cursor: 'pointer', fontSize: '0.76rem',
                         background: active ? 'rgba(212,175,55,0.1)' : 'transparent',
                         color: active ? 'var(--gold)' : 'var(--silver)'
                       }}>
@@ -4966,7 +4970,7 @@
                           setColPreset('custom');
                         }} style={{ accentColor: 'var(--gold)' }} />
                         {col.label}
-                        <span style={{ fontSize: '0.5rem', opacity: 0.4, marginLeft: 'auto' }}>{col.group}</span>
+                        <span style={{ fontSize: '0.76rem', opacity: 0.6, marginLeft: 'auto' }}>{col.group}</span>
                       </label>
                     );
                   })}
@@ -4979,7 +4983,7 @@
                 {/* Frozen columns: status + photo + name (always visible) */}
                 <div style={{ flexShrink: 0, width: '220px', borderRight: '2px solid rgba(212,175,55,0.15)' }}>
                   {/* Header */}
-                  <div style={{ height: '30px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: '0.55rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' }}
+                  <div style={{ height: '30px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => setRosterSort(prev => prev.key === 'name' ? {...prev, dir: prev.dir*-1} : {key: 'name', dir: 1})}>
                     Player{rosterSort.key === 'name' ? (rosterSort.dir === -1 ? ' \u25BC' : ' \u25B2') : ''}
                   </div>
@@ -4997,7 +5001,7 @@
                       <div style={{ width: '24px', height: '24px', flexShrink: 0 }}><img src={'https://sleepercdn.com/content/nfl/players/thumb/'+r.pid+'.jpg'} alt="" onError={e=>e.target.style.display='none'} style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} /></div>
                       <div style={{ overflow: 'hidden', flex: 1 }}>
                         <div style={{ fontWeight: 600, color: 'var(--white)', fontSize: '0.72rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getPlayerName(r.pid)}</div>
-                        <div style={{ fontSize: '0.5rem', color: 'var(--silver)', opacity: 0.5 }}>{r.p.team || 'FA'}{r.injury ? ' \u00B7 '+r.injury : ''}</div>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.65 }}>{r.p.team || 'FA'}{r.injury ? ' \u00B7 '+r.injury : ''}</div>
                       </div>
                     </div>
                   ))}
@@ -5012,7 +5016,7 @@
                       if (!col) return null;
                       return (
                         <div key={colKey} onClick={() => setRosterSort(prev => prev.key === colKey ? {...prev, dir: prev.dir*-1} : {key: colKey, dir: -1})}
-                          style={{ width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' }}>
+                          style={{ width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' }}>
                           {col.shortLabel || col.label}{rosterSort.key === colKey ? (rosterSort.dir === -1 ? ' \u25BC' : ' \u25B2') : ''}
                         </div>
                       );
@@ -5036,9 +5040,9 @@
                   const stCount = posRows.filter(r => r.isStarter).length;
                   return (
                     <div key={pos} style={{ background: col + '11', border: '1px solid ' + col + '33', borderRadius: '6px', padding: '6px 10px', minWidth: '70px' }}>
-                      <div style={{ fontSize: '0.62rem', fontWeight: 700, color: col }}>{pos}</div>
+                      <div style={{ fontSize: '0.74rem', fontWeight: 700, color: col }}>{pos}</div>
                       <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--white)', fontFamily: 'Oswald' }}>{posRows.length}</div>
-                      <div style={{ fontSize: '0.52rem', color: 'var(--silver)' }}>{stCount} start {'\u00B7'} {(total/1000).toFixed(0)}k</div>
+                      <div style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>{stCount} start {'\u00B7'} {(total/1000).toFixed(0)}k</div>
                     </div>
                   );
                 })}
@@ -5068,7 +5072,7 @@
             borderRadius: '10px', padding: '12px 14px', textAlign: 'center'
         };
         const kpiLabelStyle = {
-            fontSize: '0.6rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif',
+            fontSize: '0.72rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif',
             letterSpacing: '0.08em', marginBottom: '6px', fontWeight: '700'
         };
         const kpiValueStyle = {
@@ -5076,7 +5080,7 @@
             fontFamily: 'Bebas Neue, cursive', lineHeight: 1, letterSpacing: '0.03em'
         };
         const kpiSubStyle = {
-            fontSize: '0.6rem', color: 'var(--silver)', marginTop: '4px',
+            fontSize: '0.72rem', color: 'var(--silver)', marginTop: '4px',
             fontFamily: 'Oswald, sans-serif', opacity: 0.7
         };
 
@@ -5100,7 +5104,7 @@
                             }}></div>
                             <div>
                                 <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.75rem', color: 'var(--gold)', fontWeight: 700, letterSpacing: '0.04em' }}>BUILDING LEAGUE INTELLIGENCE</div>
-                                <div style={{ fontSize: '0.68rem', color: 'var(--silver)', marginTop: '2px' }}>{dhqStatus.step}</div>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginTop: '2px' }}>{dhqStatus.step}</div>
                             </div>
                         </div>
                         <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '4px', height: '4px', overflow: 'hidden' }}>
@@ -5110,7 +5114,7 @@
                                 borderRadius: '4px', transition: 'width 0.5s ease'
                             }}></div>
                         </div>
-                        <div style={{ fontSize: '0.6rem', color: 'var(--silver)', marginTop: '6px', opacity: 0.6 }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginTop: '6px', opacity: 0.6 }}>
                             {dhqStatus.progress < 50 ? 'Analyzing 5 years of stats, drafts, and transactions. First time takes ~15 seconds, then it\'s cached.' :
                              dhqStatus.progress < 80 ? 'Scoring every player in your league\'s scoring system...' :
                              'Almost done — blending market data and computing trade values.'}
@@ -5139,12 +5143,12 @@
                     {/* Notification bell */}
                     <div style={{ padding:'0 16px', marginBottom:'12px', position:'relative' }}>
                         <button onClick={() => setShowNotifications(!showNotifications)} style={{ background:'none', border:'1px solid rgba(212,175,55,0.2)', borderRadius:'6px', padding:'6px 12px', cursor:'pointer', color:'var(--silver)', fontSize:'0.7rem', fontFamily:'Oswald,sans-serif', width:'100%', textAlign:'left', display:'flex', alignItems:'center', gap:'6px' }}>
-                            Alerts {notifications.length > 0 && <span style={{ background:'var(--loss-red)', color:'var(--white)', fontSize:'0.55rem', fontWeight:700, padding:'1px 5px', borderRadius:'8px', marginLeft:'auto' }}>{notifications.length}</span>}
+                            Alerts {notifications.length > 0 && <span style={{ background:'var(--loss-red)', color:'var(--white)', fontSize:'0.78rem', fontWeight:700, padding:'1px 5px', borderRadius:'8px', marginLeft:'auto' }}>{notifications.length}</span>}
                         </button>
                         {showNotifications && notifications.length > 0 && (
                             <div style={{ position:'absolute', left:'16px', right:'16px', top:'36px', background:'var(--black)', border:'1px solid rgba(212,175,55,0.3)', borderRadius:'8px', zIndex:200, maxHeight:'300px', overflowY:'auto', boxShadow:'0 8px 24px rgba(0,0,0,0.6)' }}>
                                 {notifications.map((n, i) => (
-                                    <div key={i} style={{ padding:'8px 12px', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:'0.65rem', color:'var(--silver)', display:'flex', alignItems:'center', gap:'6px' }}>
+                                    <div key={i} style={{ padding:'8px 12px', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:'0.76rem', color:'var(--silver)', display:'flex', alignItems:'center', gap:'6px' }}>
                                         <span style={{ width:'6px', height:'6px', borderRadius:'50%', flexShrink:0, background: n.type==='warn'?'var(--loss-red)':n.type==='trade'?'var(--gold)':'#5DADE2' }} />
                                         {n.text}
                                     </div>
@@ -5191,7 +5195,7 @@
                     <div style={{ flex: 1 }}></div>
 
                     {/* Sync Status */}
-                    <div style={{ fontSize: '0.5rem', color: window.App?.LI_LOADED ? '#2ECC71' : 'var(--silver)', textAlign: 'center', fontFamily: 'Oswald', opacity: 0.7, marginBottom: '4px' }}>
+                    <div style={{ fontSize: '0.76rem', color: window.App?.LI_LOADED ? '#2ECC71' : 'var(--silver)', textAlign: 'center', fontFamily: 'Oswald', opacity: 0.7, marginBottom: '4px' }}>
                         <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: window.App?.LI_LOADED ? '#2ECC71' : 'var(--silver)', margin: '0 auto 2px' }}></div>
                         {window.App?.LI_LOADED ? 'Synced' : 'Loading'}
                     </div>
@@ -5255,7 +5259,7 @@
                                 style={{
                                     padding: '0.2rem 0.55rem',
                                     borderRadius: '4px',
-                                    fontSize: '0.68rem',
+                                    fontSize: '0.78rem',
                                     fontWeight: '700',
                                     fontFamily: 'Oswald, sans-serif',
                                     color: year === activeYear ? 'var(--black)' : 'var(--silver)',
@@ -5271,7 +5275,7 @@
                         ))}
                     </div>
                     <div style={{ color: 'rgba(212,175,55,0.3)', fontSize: '0.8rem' }}>|</div>
-                    <div style={{ color: 'var(--silver)', fontSize: '0.68rem', fontFamily: 'Oswald, sans-serif', opacity: 0.7 }}>
+                    <div style={{ color: 'var(--silver)', fontSize: '0.78rem', fontFamily: 'Oswald, sans-serif', opacity: 0.7 }}>
                         Half PPR · {standings.length} Teams
                     </div>
                 </div>
@@ -5281,7 +5285,7 @@
                     <div style={{
                         padding: '6px 16px', background: 'rgba(212,175,55,0.06)',
                         borderBottom: '1px solid rgba(212,175,55,0.1)',
-                        fontSize: '0.68rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif',
+                        fontSize: '0.78rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif',
                         display: 'flex', alignItems: 'center', gap: '8px'
                     }}>
                         <div style={{ width: '12px', height: '12px', border: '2px solid rgba(212,175,55,0.3)', borderTopColor: 'var(--gold)', borderRadius: '50%', animation: 'dhqSpin 0.8s linear infinite' }}></div>
@@ -5311,7 +5315,7 @@
                                         border: 'none', borderRadius: '50%', cursor: 'pointer',
                                         background: isEditing ? 'var(--gold)' : 'rgba(255,255,255,0.06)',
                                         color: isEditing ? 'var(--black)' : 'var(--silver)',
-                                        fontSize: '0.55rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                         transition: 'all 0.15s', opacity: 0.6
                                     }}
                                     onMouseEnter={e => e.currentTarget.style.opacity = '1'}
@@ -5320,10 +5324,10 @@
                                 >{isEditing ? '\u2715' : '\u270E'}</button>
 
                                 {/* KPI content */}
-                                <div style={{ ...kpiLabelStyle, fontSize: '0.52rem' }}>{opt.icon} {opt.category.toUpperCase()}{opt.tip ? React.createElement(Tip, null, opt.tip) : null}</div>
+                                <div style={{ ...kpiLabelStyle, fontSize: '0.76rem' }}>{opt.icon} {opt.category.toUpperCase()}{opt.tip ? React.createElement(Tip, null, opt.tip) : null}</div>
                                 <div style={{ ...kpiValueStyle, color: val.color, fontSize: '1.4rem' }}>{val.value}</div>
                                 <div style={kpiSubStyle}>{val.sub}</div>
-                                {(() => { const ann = getKpiAnnotation(kpiKey, val.value); return ann ? React.createElement('div', { style:{fontSize:'0.48rem',color:'var(--gold)',marginTop:'3px',fontFamily:'Oswald',fontWeight:600,letterSpacing:'0.02em',opacity:0.7} }, ann) : null; })()}
+                                {(() => { const ann = getKpiAnnotation(kpiKey, val.value); return ann ? React.createElement('div', { style:{fontSize:'0.76rem',color:'var(--gold)',marginTop:'3px',fontFamily:'Oswald',fontWeight:600,letterSpacing:'0.02em',opacity:0.7} }, ann) : null; })()}
 
                                 {/* Dropdown picker */}
                                 {isEditing && (
@@ -5344,7 +5348,7 @@
                                                         setSelectedKpis(updated);
                                                         setEditingKpi(null);
                                                     }} style={{
-                                                        padding: '6px 10px', cursor: 'pointer', fontSize: '0.68rem',
+                                                        padding: '6px 10px', cursor: 'pointer', fontSize: '0.78rem',
                                                         display: 'flex', alignItems: 'center', gap: '6px',
                                                         background: isActive ? 'rgba(212,175,55,0.15)' : 'transparent',
                                                         color: isActive ? 'var(--gold)' : 'var(--white)',
@@ -5357,7 +5361,7 @@
                                                         <span style={{ fontSize: '0.8rem' }}>{o.icon}</span>
                                                         <div>
                                                             <div style={{ fontWeight: 600 }}>{o.label}</div>
-                                                            <div style={{ fontSize: '0.55rem', color: 'var(--silver)', opacity: 0.6 }}>{o.category}</div>
+                                                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>{o.category}</div>
                                                         </div>
                                                         {isActive && <span style={{ marginLeft: 'auto', color: 'var(--gold)', fontSize: '0.7rem' }}>{'\u2713'}</span>}
                                                     </div>
@@ -5420,7 +5424,7 @@
                     return (
                     <div style={{ padding: '16px' }}>
                         <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.8rem', color: 'var(--gold)', letterSpacing: '0.05em', marginBottom: '4px' }}>LEAGUE ANALYTICS</div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '16px' }}>Winners = top 3 by record (championship bracket data not yet available)</div>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '16px' }}>Winners = top 3 by record (championship bracket data not yet available)</div>
 
                         {/* Sub-tab navigation */}
                         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -5903,7 +5907,7 @@
                                                     <div style={{ fontSize: '0.78rem', color: isMyChamp ? 'var(--gold)' : 'var(--white)', fontWeight: isMyChamp ? 700 : 400 }}>
                                                         Champion: {champName}{isMyChamp ? ' (You!)' : ''}
                                                     </div>
-                                                    <div style={{ fontSize: '0.68rem', color: 'var(--silver)' }}>
+                                                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>
                                                         Runner-up: {runnerName}{isMyRunner ? ' (You)' : ''}
                                                     </div>
                                                 </div>
@@ -5927,8 +5931,8 @@
                                                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                                                         <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.85rem', color: 'var(--white)', fontWeight: 600, flex: 1 }}>{rivalName}</span>
                                                         <span style={{ fontSize: '0.78rem', color: r.wins > r.losses ? goodColor : r.wins < r.losses ? badColor : warnColor, fontWeight: 700, fontFamily: 'Oswald' }}>{r.wins}-{r.losses}</span>
-                                                        <span style={{ fontSize: '0.62rem', color: 'var(--silver)' }}>{r.total} meetings</span>
-                                                        <span style={{ fontSize: '0.58rem', color: 'var(--silver)', opacity: 0.5 }}>{r.seasons.join(', ')}</span>
+                                                        <span style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>{r.total} meetings</span>
+                                                        <span style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65 }}>{r.seasons.join(', ')}</span>
                                                     </div>
                                                 );
                                             })}
@@ -5985,9 +5989,9 @@
                                                     {yearEvents.map((ev, i) => (
                                                         <div key={i} style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(212,175,55,0.12)', borderLeft:'3px solid '+ev.color, borderRadius:'6px', padding:'10px 14px', marginBottom:'8px', position:'relative' }}>
                                                             <div style={{ position:'absolute', left:'-14px', top:'12px', width:'8px', height:'8px', background:ev.color, borderRadius:'50%', border:'2px solid var(--black)' }} />
-                                                            <div style={{ fontSize:'0.55rem', color:ev.color, textTransform:'uppercase', fontFamily:'Oswald,sans-serif', letterSpacing:'0.06em', marginBottom:'3px' }}>{ev.type === 'champ' ? 'Championship' : ev.type === 'finals' ? 'Runner-Up' : 'Trade'}</div>
+                                                            <div style={{ fontSize:'0.78rem', color:ev.color, textTransform:'uppercase', fontFamily:'Oswald,sans-serif', letterSpacing:'0.06em', marginBottom:'3px' }}>{ev.type === 'champ' ? 'Championship' : ev.type === 'finals' ? 'Runner-Up' : 'Trade'}</div>
                                                             <div style={{ fontSize:'0.78rem', color:'var(--white)', fontWeight:600 }}>{ev.title}</div>
-                                                            {ev.sub && <div style={{ fontSize:'0.62rem', color:'var(--silver)', opacity:0.6, marginTop:'2px' }}>{ev.sub}</div>}
+                                                            {ev.sub && <div style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.6, marginTop:'2px' }}>{ev.sub}</div>}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -6019,7 +6023,7 @@
                             if (!myMatch || !oppMatch) {
                                 return <div style={{color:'var(--silver)',textAlign:'center',padding:'2rem'}}>
                                     <div style={{marginBottom:'8px'}}>No matchup data for Week {week}.</div>
-                                    <div style={{fontSize:'0.75rem',opacity:0.5}}>Matchup data is available during the regular season.</div>
+                                    <div style={{fontSize:'0.75rem',opacity:0.65}}>Matchup data is available during the regular season.</div>
                                 </div>;
                             }
 
@@ -6061,22 +6065,22 @@
                                     <div style={{textAlign:'center',flex:1}}>
                                         <div style={{fontFamily:'Oswald,sans-serif',fontSize:'0.8rem',color:'var(--silver)',marginBottom:'4px'}}>YOU</div>
                                         <div style={{fontFamily:'Bebas Neue,cursive',fontSize:'2.5rem',color:myWinning?'var(--win-green)':'var(--white)',lineHeight:1}}>{myPts.toFixed(1)}</div>
-                                        <div style={{fontSize:'0.65rem',color:'var(--silver)',opacity:0.5,marginTop:'4px'}}>Proj: {myProjTotal.toFixed(1)}</div>
+                                        <div style={{fontSize:'0.76rem',color:'var(--silver)',opacity:0.65,marginTop:'4px'}}>Proj: {myProjTotal.toFixed(1)}</div>
                                     </div>
                                     <div style={{textAlign:'center',padding:'0 24px'}}>
                                         <div style={{fontFamily:'Bebas Neue,cursive',fontSize:'1rem',color:'var(--gold)'}}>WEEK {week}</div>
-                                        <div style={{fontSize:'0.65rem',color:'var(--silver)',opacity:0.5}}>vs</div>
+                                        <div style={{fontSize:'0.76rem',color:'var(--silver)',opacity:0.65}}>vs</div>
                                     </div>
                                     <div style={{textAlign:'center',flex:1}}>
                                         <div style={{fontFamily:'Oswald,sans-serif',fontSize:'0.8rem',color:'var(--silver)',marginBottom:'4px'}}>{oppName.toUpperCase()}</div>
                                         <div style={{fontFamily:'Bebas Neue,cursive',fontSize:'2.5rem',color:!myWinning?'var(--win-green)':'var(--white)',lineHeight:1}}>{oppPts.toFixed(1)}</div>
-                                        <div style={{fontSize:'0.65rem',color:'var(--silver)',opacity:0.5,marginTop:'4px'}}>Proj: {oppProjTotal.toFixed(1)}</div>
+                                        <div style={{fontSize:'0.76rem',color:'var(--silver)',opacity:0.65,marginTop:'4px'}}>Proj: {oppProjTotal.toFixed(1)}</div>
                                     </div>
                                 </div>
 
                                 {/* Position-by-position breakdown */}
                                 <div style={{background:'var(--black)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:'12px',overflow:'hidden'}}>
-                                    <div style={{display:'grid',gridTemplateColumns:'60px 1fr 50px 20px 50px 1fr 80px',gap:'0',padding:'8px 12px',background:'rgba(212,175,55,0.06)',fontSize:'0.6rem',fontFamily:'Oswald,sans-serif',color:'var(--gold)',textTransform:'uppercase',letterSpacing:'0.06em'}}>
+                                    <div style={{display:'grid',gridTemplateColumns:'60px 1fr 50px 20px 50px 1fr 80px',gap:'0',padding:'8px 12px',background:'rgba(212,175,55,0.06)',fontSize:'0.72rem',fontFamily:'Oswald,sans-serif',color:'var(--gold)',textTransform:'uppercase',letterSpacing:'0.06em'}}>
                                         <span>Slot</span><span>Your Player</span><span style={{textAlign:'right'}}>PPG</span><span></span><span>PPG</span><span>Their Player</span><span style={{textAlign:'right'}}>Edge</span>
                                     </div>
                                     {rows.map((r, i) => {
@@ -6085,13 +6089,13 @@
                                         const advCol = r.adv > 2 ? 'var(--win-green)' : r.adv < -2 ? 'var(--loss-red)' : 'var(--silver)';
                                         const mAnn = getMatchupAnnotation(r.myPPG, r.oppPPG, r.slot);
                                         return <div key={i} style={{display:'grid',gridTemplateColumns:'60px 1fr 50px 20px 50px 1fr 80px',gap:'0',padding:'8px 12px',borderTop:'1px solid rgba(255,255,255,0.04)',alignItems:'center'}}>
-                                            <span style={{fontSize:'0.65rem',color:'var(--gold)',fontWeight:700,fontFamily:'Oswald,sans-serif'}}>{r.slot}</span>
-                                            <div style={{fontSize:'0.72rem',fontWeight:600,color:'var(--white)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{myP?.full_name || (r.myPid ? 'Empty' : '-')}{myP?.team ? <span style={{color:'var(--silver)',fontSize:'0.6rem',marginLeft:'4px'}}>{myP.team}</span> : ''}</div>
+                                            <span style={{fontSize:'0.76rem',color:'var(--gold)',fontWeight:700,fontFamily:'Oswald,sans-serif'}}>{r.slot}</span>
+                                            <div style={{fontSize:'0.72rem',fontWeight:600,color:'var(--white)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{myP?.full_name || (r.myPid ? 'Empty' : '-')}{myP?.team ? <span style={{color:'var(--silver)',fontSize:'0.72rem',marginLeft:'4px'}}>{myP.team}</span> : ''}</div>
                                             <span style={{textAlign:'right',fontSize:'0.72rem',fontWeight:700,color:r.myPPG>r.oppPPG?'var(--win-green)':'var(--white)',fontFamily:'Oswald,sans-serif'}}>{r.myPPG||'-'}</span>
-                                            <span style={{textAlign:'center',fontSize:'0.6rem',color:advCol,fontWeight:700}}>{r.adv>0?'+':''}{r.adv!==0?r.adv.toFixed(0):'-'}</span>
+                                            <span style={{textAlign:'center',fontSize:'0.72rem',color:advCol,fontWeight:700}}>{r.adv>0?'+':''}{r.adv!==0?r.adv.toFixed(0):'-'}</span>
                                             <span style={{fontSize:'0.72rem',fontWeight:700,color:r.oppPPG>r.myPPG?'var(--win-green)':'var(--white)',fontFamily:'Oswald,sans-serif'}}>{r.oppPPG||'-'}</span>
-                                            <div style={{fontSize:'0.72rem',fontWeight:600,color:'var(--white)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{oppP?.full_name || (r.oppPid ? 'Empty' : '-')}{oppP?.team ? <span style={{color:'var(--silver)',fontSize:'0.6rem',marginLeft:'4px'}}>{oppP.team}</span> : ''}</div>
-                                            <span style={{fontSize:'0.52rem',fontWeight:600,color:mAnn.color,textAlign:'right',fontFamily:'Oswald,sans-serif'}}>{mAnn.text}</span>
+                                            <div style={{fontSize:'0.72rem',fontWeight:600,color:'var(--white)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{oppP?.full_name || (r.oppPid ? 'Empty' : '-')}{oppP?.team ? <span style={{color:'var(--silver)',fontSize:'0.72rem',marginLeft:'4px'}}>{oppP.team}</span> : ''}</div>
+                                            <span style={{fontSize:'0.76rem',fontWeight:600,color:mAnn.color,textAlign:'right',fontFamily:'Oswald,sans-serif'}}>{mAnn.text}</span>
                                         </div>;
                                     })}
                                     {/* Totals row */}
@@ -6099,10 +6103,10 @@
                                         <span style={{fontSize:'0.7rem',color:'var(--gold)',fontWeight:700,fontFamily:'Oswald,sans-serif'}}>TOTAL</span>
                                         <span></span>
                                         <span style={{textAlign:'right',fontSize:'0.8rem',fontWeight:800,color:projWinning?'var(--win-green)':'var(--white)',fontFamily:'Bebas Neue,cursive'}}>{myProjTotal.toFixed(1)}</span>
-                                        <span style={{textAlign:'center',fontSize:'0.65rem',color:projWinning?'var(--win-green)':'var(--loss-red)',fontWeight:700}}>{(myProjTotal-oppProjTotal)>0?'+':''}{(myProjTotal-oppProjTotal).toFixed(1)}</span>
+                                        <span style={{textAlign:'center',fontSize:'0.76rem',color:projWinning?'var(--win-green)':'var(--loss-red)',fontWeight:700}}>{(myProjTotal-oppProjTotal)>0?'+':''}{(myProjTotal-oppProjTotal).toFixed(1)}</span>
                                         <span style={{fontSize:'0.8rem',fontWeight:800,color:!projWinning?'var(--win-green)':'var(--white)',fontFamily:'Bebas Neue,cursive'}}>{oppProjTotal.toFixed(1)}</span>
                                         <span></span>
-                                        <span style={{textAlign:'right',fontSize:'0.6rem',fontWeight:700,color:projWinning?'var(--win-green)':'var(--loss-red)',fontFamily:'Oswald,sans-serif'}}>{projWinning?'Projected W':'Projected L'}</span>
+                                        <span style={{textAlign:'right',fontSize:'0.72rem',fontWeight:700,color:projWinning?'var(--win-green)':'var(--loss-red)',fontFamily:'Oswald,sans-serif'}}>{projWinning?'Projected W':'Projected L'}</span>
                                     </div>
                                 </div>
                             </div>;
@@ -6141,11 +6145,11 @@
                       position: 'relative',
                       overflow: 'hidden'
                     }}>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '8px' }}>THIS WEEK IN {currentLeague.name?.toUpperCase()}</div>
+                      <div style={{ fontSize: '0.76rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '8px' }}>THIS WEEK IN {currentLeague.name?.toUpperCase()}</div>
                       <div style={{ fontFamily: 'Crimson Text, serif', fontSize: '1.15rem', color: 'var(--white)', lineHeight: 1.6 }}>
                         {heroStory || computeDataDrivenHero()}
                       </div>
-                      <button onClick={generateHeroStory} style={{ marginTop: '8px', padding: '4px 12px', background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', fontFamily: 'Oswald, sans-serif', fontSize: '0.6rem', fontWeight: 600, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6 }}>
+                      <button onClick={generateHeroStory} style={{ marginTop: '8px', padding: '4px 12px', background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', fontFamily: 'Oswald, sans-serif', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6 }}>
                         Rewrite with AI
                       </button>
                     </div>
@@ -6161,14 +6165,14 @@
                         ) : transactions.map((txn, ti) => (
                           <div key={ti} style={{ padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                              <span style={{ fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.5, minWidth: '40px' }}>{timeAgo(txn.created)}</span>
-                              <span style={{ fontSize: '0.58rem', fontWeight: 700, padding: '1px 6px', borderRadius: '3px',
+                              <span style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.65, minWidth: '40px' }}>{timeAgo(txn.created)}</span>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '1px 6px', borderRadius: '3px',
                                 background: txn.type === 'trade' ? 'rgba(124,107,248,0.2)' : txn.type === 'waiver' ? 'rgba(52,211,153,0.2)' : txn.type === 'free_agent' ? 'rgba(59,130,246,0.2)' : 'rgba(248,113,113,0.2)',
                                 color: txn.type === 'trade' ? '#a78bfa' : txn.type === 'waiver' ? '#34d399' : txn.type === 'free_agent' ? '#60a5fa' : '#f87171'
                               }}>{(txn.type === 'free_agent' ? 'FA' : txn.type || '').toUpperCase()}</span>
                               <span style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{getOwnerName(txn.roster_ids?.[0])}</span>
                               {txn.type === 'trade' && txn.roster_ids?.[1] && (
-                                <span style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.5 }}>{'\u2194'} {getOwnerName(txn.roster_ids[1])}</span>
+                                <span style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.65 }}>{'\u2194'} {getOwnerName(txn.roster_ids[1])}</span>
                               )}
                             </div>
                             <div style={{ fontSize: '0.78rem', color: 'var(--white)', paddingLeft: '48px' }}>
@@ -6185,7 +6189,7 @@
                               ))}
                               {txn.settings?.waiver_bid > 0 && <span style={{ color: '#F0A500', marginLeft: '4px' }}>${txn.settings.waiver_bid}</span>}
                               {txn.type === 'trade' && txn.draft_picks?.length > 0 && (
-                                <span style={{ color: '#a78bfa', fontSize: '0.68rem', marginLeft: '6px' }}>
+                                <span style={{ color: '#a78bfa', fontSize: '0.78rem', marginLeft: '6px' }}>
                                   +{txn.draft_picks.length} pick{txn.draft_picks.length !== 1 ? 's' : ''}
                                 </span>
                               )}
@@ -6209,7 +6213,7 @@
                             {team.avatar ? (
                               <img src={'https://sleepercdn.com/avatars/thumbs/' + team.avatar} alt="" style={{ width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0 }} />
                             ) : (
-                              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--charcoal)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', color: 'var(--silver)' }}>{team.displayName.charAt(0)}</div>
+                              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--charcoal)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.76rem', color: 'var(--silver)' }}>{team.displayName.charAt(0)}</div>
                             )}
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--white)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -6220,17 +6224,17 @@
                                     const r = currentLeague.rosters?.find(ros => ros.owner_id === team.userId);
                                     return c.champion === r?.roster_id;
                                   }).length;
-                                  if (cnt > 0) return <span style={{ fontSize: '0.52rem', color: 'var(--gold)', fontWeight: 700, flexShrink: 0 }}>{cnt > 1 ? cnt + 'x' : ''}{'\uD83C\uDFC6'}</span>;
+                                  if (cnt > 0) return <span style={{ fontSize: '0.76rem', color: 'var(--gold)', fontWeight: 700, flexShrink: 0 }}>{cnt > 1 ? cnt + 'x' : ''}{'\uD83C\uDFC6'}</span>;
                                   return null;
                                 })()}
                               </div>
-                              <div style={{ fontSize: '0.62rem', color: 'var(--silver)' }}>{team.wins}-{team.losses} {'\u00B7'} {team.totalDHQ?.toLocaleString()} DHQ</div>
+                              <div style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>{team.wins}-{team.losses} {'\u00B7'} {team.totalDHQ?.toLocaleString()} DHQ</div>
                             </div>
                             <div style={{ width: '60px' }}>
                               <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
                                 <div style={{ width: (team.healthScore || 0) + '%', height: '100%', background: team.tierColor || 'var(--gold)', borderRadius: '2px' }}></div>
                               </div>
-                              <div style={{ fontSize: '0.58rem', color: team.tierColor || 'var(--silver)', textAlign: 'right', marginTop: '2px' }}>{team.healthScore || '\u2014'}</div>
+                              <div style={{ fontSize: '0.7rem', color: team.tierColor || 'var(--silver)', textAlign: 'right', marginTop: '2px' }}>{team.healthScore || '\u2014'}</div>
                             </div>
                           </div>
                         ))}
@@ -6279,12 +6283,12 @@
                             {divKeys.map(divKey => (
                               <div key={divKey} style={{ marginBottom: hasDivisions ? '16px' : '0' }}>
                                 {hasDivisions && (
-                                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.68rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid rgba(212,175,55,0.2)' }}>
+                                  <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid rgba(212,175,55,0.2)' }}>
                                     Division {divKey}
                                   </div>
                                 )}
                                 {/* Header */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '20px 1fr 48px 48px 56px 56px', gap: '4px', padding: '4px 8px', fontSize: '0.55rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid rgba(212,175,55,0.15)' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '20px 1fr 48px 48px 56px 56px', gap: '4px', padding: '4px 8px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid rgba(212,175,55,0.15)' }}>
                                   <span>#</span><span>Team</span><span style={{textAlign:'right'}}>W-L</span><span style={{textAlign:'right'}}>PF</span><span style={{textAlign:'right'}}>DHQ</span><span style={{textAlign:'right'}}>Rank</span>
                                 </div>
                                 {/* Rows */}
@@ -6309,13 +6313,13 @@
                                       <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '0.9rem', color: idx === 0 ? '#D4AF37' : idx === 1 ? '#C0C0C0' : idx === 2 ? '#CD7F32' : 'var(--silver)' }}>{idx + 1}</span>
                                       <div style={{ overflow: 'hidden' }}>
                                         <div style={{ fontWeight: isMe ? 700 : 500, color: isMe ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                          {team.displayName}{isMe && <span style={{ fontSize: '0.55rem', color: 'var(--gold)', marginLeft: '4px' }}>YOU</span>}
+                                          {team.displayName}{isMe && <span style={{ fontSize: '0.78rem', color: 'var(--gold)', marginLeft: '4px' }}>YOU</span>}
                                         </div>
                                       </div>
                                       <span style={{ textAlign: 'right', fontFamily: 'Oswald, sans-serif', fontWeight: 600, color: 'var(--white)' }}>{team.wins}-{team.losses}</span>
-                                      <span style={{ textAlign: 'right', fontSize: '0.68rem', color: 'var(--silver)' }}>{pf > 0 ? pf.toFixed(0) : '—'}</span>
-                                      <span style={{ textAlign: 'right', fontSize: '0.68rem', fontFamily: 'Oswald, sans-serif', color: totalDHQ >= 80000 ? '#2ECC71' : totalDHQ >= 50000 ? 'var(--gold)' : 'var(--silver)' }}>{totalDHQ > 0 ? (totalDHQ / 1000).toFixed(0) + 'k' : '—'}</span>
-                                      <span style={{ textAlign: 'right', fontSize: '0.68rem', color: overallRank <= 3 ? '#2ECC71' : overallRank <= 6 ? 'var(--gold)' : 'var(--silver)' }}>#{overallRank}</span>
+                                      <span style={{ textAlign: 'right', fontSize: '0.78rem', color: 'var(--silver)' }}>{pf > 0 ? pf.toFixed(0) : '—'}</span>
+                                      <span style={{ textAlign: 'right', fontSize: '0.78rem', fontFamily: 'Oswald, sans-serif', color: totalDHQ >= 80000 ? '#2ECC71' : totalDHQ >= 50000 ? 'var(--gold)' : 'var(--silver)' }}>{totalDHQ > 0 ? (totalDHQ / 1000).toFixed(0) + 'k' : '—'}</span>
+                                      <span style={{ textAlign: 'right', fontSize: '0.78rem', color: overallRank <= 3 ? '#2ECC71' : overallRank <= 6 ? 'var(--gold)' : 'var(--silver)' }}>#{overallRank}</span>
                                     </div>
                                   );
                                 })}
@@ -6371,7 +6375,7 @@
                 {getReconChips().map((chip, i) => (
                   <button key={i} onClick={() => sendReconMessage(chip.prompt)}
                     style={{
-                      padding: '4px 10px', fontSize: '0.65rem', borderRadius: '20px',
+                      padding: '4px 10px', fontSize: '0.76rem', borderRadius: '20px',
                       border: '1px solid rgba(124,107,248,0.3)', background: 'rgba(124,107,248,0.06)',
                       color: '#a78bfa', cursor: 'pointer', fontFamily: 'inherit'
                     }}>
@@ -6720,7 +6724,7 @@
                                 <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#f0f0f3', letterSpacing: '-0.02em' }}>
                                     Recon<span style={{ color: '#7c6bf8' }}>AI</span>
                                 </div>
-                                <div style={{ fontSize: '0.55rem', color: '#7d8291', marginTop: '2px' }}>AI Advisor</div>
+                                <div style={{ fontSize: '0.78rem', color: '#7d8291', marginTop: '2px' }}>AI Advisor</div>
                             </div>
                         </a>
                     </div>
