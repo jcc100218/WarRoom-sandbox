@@ -2112,7 +2112,7 @@
                                             radarVals[pos] = Math.min(100, Math.round((actual / ideal) * 100));
                                         });
                                         return Object.keys(radarVals).length >= 3 ? React.createElement('div', { style:{display:'flex',justifyContent:'center',marginBottom:'8px'} },
-                                            React.createElement(RadarChart, { values: radarVals, size: 160 })
+                                            React.createElement(RadarChart, { values: radarVals, size: 280 })
                                         ) : null;
                                     })()}
                                     <div className="wr-annotation" style={{ fontSize:'0.78rem' }}>
@@ -2156,6 +2156,12 @@
 
                     {/* All Teams Grid */}
                     <div className="tc-section-hdr" style={{ marginBottom:'0.6rem' }}>ALL TEAMS</div>
+                    <div style={{ display:'flex', gap:'1rem', fontSize:'0.74rem', marginBottom:'0.6rem', color:'var(--silver)', opacity:0.7, flexWrap:'wrap' }}>
+                        <span><span style={{ color:'#2ECC71' }}>●</span> Surplus</span>
+                        <span><span style={{ color:'var(--silver)' }}>○</span> OK</span>
+                        <span><span style={{ color:'#F39C12' }}>↑</span> Thin</span>
+                        <span><span style={{ color:'#E74C3C' }}>✗</span> Deficit</span>
+                    </div>
                     <div className="tc-filter-bar">
                         <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.6 }}>SORT</span>
                         <select className="tc-filter-select" value={sortMode} onChange={e => setSortMode(e.target.value)}>
@@ -3786,8 +3792,12 @@
         // Dashboard helpers
         function timeAgo(ts) {
             if (!ts) return '';
-            const ms = Date.now() - ts * 1000;
-            const mins = Math.floor(ms / 60000);
+            // Sleeper API returns seconds; convert to ms. Guard against already-ms values.
+            const tsMs = ts > 1e12 ? ts : ts * 1000;
+            const diff = Date.now() - tsMs;
+            if (diff < 0) return 'just now';
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return 'just now';
             if (mins < 60) return mins + 'm ago';
             const hrs = Math.floor(mins / 60);
             if (hrs < 24) return hrs + 'h ago';
@@ -5132,7 +5142,9 @@
 
               {/* Frozen left + scrollable right table */}
               {/* TODO: integrate shared ROSTER_COLUMNS + renderCell system */}
-              <div style={{ display: 'flex', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', overflow: 'hidden', background: 'var(--black)' }}>
+              <div style={{ position: 'relative', display: 'flex', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', overflow: 'hidden', background: 'var(--black)' }}>
+                {/* Scroll fade indicator on right edge */}
+                <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '24px', background: 'linear-gradient(to right, transparent, rgba(0,0,0,0.6))', pointerEvents: 'none', zIndex: 2 }} />
                 {/* Frozen columns: status + photo + name (always visible) */}
                 <div style={{ flexShrink: 0, width: '220px', borderRight: '2px solid rgba(212,175,55,0.15)' }}>
                   {/* Header */}
@@ -5161,7 +5173,7 @@
                 </div>
 
                 {/* Scrollable data columns */}
-                <div style={{ flex: 1, overflowX: 'auto' }}>
+                <div style={{ flex: 1, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                   {/* Header */}
                   <div style={{ display: 'flex', height: '30px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)' }}>
                     {visibleCols.map(colKey => {
@@ -5296,11 +5308,13 @@
                     {/* Notification bell */}
                     <div style={{ padding:'0 16px', marginBottom:'12px', position:'relative' }}>
                         <button onClick={() => setShowNotifications(!showNotifications)} style={{ background:'none', border:'1px solid rgba(212,175,55,0.2)', borderRadius:'6px', padding:'6px 12px', cursor:'pointer', color:'var(--silver)', fontSize:'0.7rem', fontFamily:'Oswald,sans-serif', width:'100%', textAlign:'left', display:'flex', alignItems:'center', gap:'6px' }}>
-                            Alerts {notifications.length > 0 && <span style={{ background:'var(--loss-red)', color:'var(--white)', fontSize:'0.78rem', fontWeight:700, padding:'1px 5px', borderRadius:'8px', marginLeft:'auto' }}>{notifications.length}</span>}
+                            Alerts <span style={{ background: notifications.length > 0 ? 'var(--loss-red)' : 'rgba(255,255,255,0.1)', color: notifications.length > 0 ? 'var(--white)' : 'var(--silver)', fontSize:'0.78rem', fontWeight:700, padding:'1px 5px', borderRadius:'8px', marginLeft:'auto' }}>{notifications.length}</span>
                         </button>
-                        {showNotifications && notifications.length > 0 && (
+                        {showNotifications && (
                             <div style={{ position:'absolute', left:'16px', right:'16px', top:'36px', background:'var(--black)', border:'1px solid rgba(212,175,55,0.3)', borderRadius:'8px', zIndex:200, maxHeight:'300px', overflowY:'auto', boxShadow:'0 8px 24px rgba(0,0,0,0.6)' }}>
-                                {notifications.map((n, i) => (
+                                {notifications.length === 0 ? (
+                                    <div style={{ padding:'12px', fontSize:'0.76rem', color:'var(--silver)', opacity:0.5, textAlign:'center' }}>No alerts right now</div>
+                                ) : notifications.map((n, i) => (
                                     <div key={i} style={{ padding:'8px 12px', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:'0.76rem', color:'var(--silver)', display:'flex', alignItems:'center', gap:'6px' }}>
                                         <span style={{ width:'6px', height:'6px', borderRadius:'50%', flexShrink:0, background: n.type==='warn'?'var(--loss-red)':n.type==='trade'?'var(--gold)':'#5DADE2' }} />
                                         {n.text}
@@ -6305,7 +6319,7 @@
                       <div style={{ fontFamily: 'Crimson Text, serif', fontSize: '1.15rem', color: 'var(--white)', lineHeight: 1.6 }}>
                         {heroStory || computeDataDrivenHero()}
                       </div>
-                      <button onClick={generateHeroStory} style={{ marginTop: '8px', padding: '4px 12px', background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', fontFamily: 'Oswald, sans-serif', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6 }}>
+                      <button onClick={generateHeroStory} style={{ marginTop: '8px', padding: '4px 12px', background: 'var(--gold)', color: 'var(--black)', border: '1px solid var(--gold)', borderRadius: '6px', fontFamily: 'Oswald, sans-serif', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         Rewrite with AI
                       </button>
                     </div>
