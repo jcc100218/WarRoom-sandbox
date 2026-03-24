@@ -855,6 +855,15 @@
     function wrToggleTip(id) { const el = document.getElementById(id); if (el) el.classList.toggle('show'); }
     window.wrToggleTip = wrToggleTip;
 
+    // ===== TOOLTIP COMPONENT (top-level so all components can use it) =====
+    function Tip({ id, children }) {
+        const [open, setOpen] = React.useState(false);
+        return <>
+            <span className="wr-tip-icon" onClick={e => { e.stopPropagation(); setOpen(!open); }}>?</span>
+            {open && <div className="wr-tip-box show" onClick={e => e.stopPropagation()}>{children}</div>}
+        </>;
+    }
+
     // ===== DEV MODE =====
     const DEV_MODE = new URLSearchParams(window.location.search).has('dev') || window.location.hostname.includes('sandbox');
     if (DEV_MODE) {
@@ -1299,15 +1308,6 @@
             LOCKED:    { label:'Locked In', color:'#7F8C8D', desc:'Satisfied roster, high attachment.' },
         };
 
-        // ── Tooltip component ──
-        function Tip({ id, children }) {
-            const [open, setOpen] = React.useState(false);
-            return <>
-                <span className="wr-tip-icon" onClick={e => { e.stopPropagation(); setOpen(!open); }}>?</span>
-                {open && <div className="wr-tip-box show" onClick={e => e.stopPropagation()}>{children}</div>}
-            </>;
-        }
-
         // ── DNA Guide component ──
         function DnaGuide() {
             const [open, setOpen] = React.useState(false);
@@ -1702,6 +1702,12 @@
         const [draftDnaSyncing, setDraftDnaSyncing] = useState(false);
         const [draftDnaSyncMsg, setDraftDnaSyncMsg] = useState(null);
         const [expandedDnaOwner, setExpandedDnaOwner] = useState(null);
+
+        // Trade Finder state
+        const [finderMode, setFinderMode] = useState('my');
+        const [finderAsset, setFinderAsset] = useState(null);
+        const [finderResults, setFinderResults] = useState(null);
+        const [finderLoading, setFinderLoading] = useState(false);
 
         const allRosters = currentLeague.rosters || [];
         const leagueUsers = currentLeague.users || [];
@@ -2489,10 +2495,7 @@
 
     // ── Trade Finder ──────────────────────────────────────────────────────
     function renderTradeFinder() {
-        const [finderAsset, setFinderAsset] = React.useState(null); // { pid, side: 'my'|'their', fromRid }
-        const [finderResults, setFinderResults] = React.useState(null);
-        const [finderLoading, setFinderLoading] = React.useState(false);
-        const [finderMode, setFinderMode] = React.useState('my'); // 'my' = trade away my player, 'acquire' = acquire a player
+        // State is hoisted to TradeCalcTab: finderMode, finderAsset, finderResults, finderLoading
 
         const myPlayers = (allRosters.find(r => r.roster_id === myRosterId)?.players || [])
             .map(pid => ({ pid, name: playersData[pid]?.full_name || pid, pos: playersData[pid]?.position || '?', val: getPlayerValue(pid).value }))
