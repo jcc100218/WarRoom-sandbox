@@ -818,6 +818,26 @@
     }
 
     .tc-source-badge { font-size: 0.45rem; background: rgba(240,165,0,0.15); border: 1px solid rgba(240,165,0,0.35); color: #F0A500; padding: 0.05rem 0.25rem; border-radius: 2px; margin-left: 0.2rem; letter-spacing: 0.05em; }
+
+    /* ── Loading Skeletons ───────────────────────────────── */
+    @keyframes skeletonShimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+    .skel { background:linear-gradient(90deg,rgba(212,175,55,0.04) 25%,rgba(212,175,55,0.10) 50%,rgba(212,175,55,0.04) 75%);background-size:800px 100%;animation:skeletonShimmer 1.8s ease infinite;border-radius:6px }
+    .skel-line { height:12px;margin-bottom:8px;border-radius:4px }
+    .skel-block { height:80px;margin-bottom:12px }
+    .skel-card { background:rgba(212,175,55,0.04);border:1px solid rgba(212,175,55,0.12);border-radius:10px;padding:16px;margin-bottom:12px }
+    .skel-row { display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.03) }
+    .skel-circle { width:32px;height:32px;border-radius:50%;flex-shrink:0 }
+
+    /* ── Tooltips ─────────────────────────────────────────── */
+    .wr-tip-icon { display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:rgba(212,175,55,0.12);color:var(--gold);font-size:9px;font-weight:700;cursor:pointer;margin-left:4px;transition:all .15s;flex-shrink:0;vertical-align:middle;line-height:1;border:1px solid rgba(212,175,55,0.25) }
+    .wr-tip-icon:hover { background:var(--gold);color:var(--black) }
+    .wr-tip-box { display:none;background:var(--off-black);border:1px solid rgba(212,175,55,0.25);border-radius:8px;padding:10px 12px;font-size:0.68rem;color:var(--silver);line-height:1.6;margin-top:6px;animation:wrTipIn .2s ease }
+    .wr-tip-box.show { display:block }
+    @keyframes wrTipIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+    .wr-tip-box strong { color:var(--white);font-weight:600 }
+
+    /* ── Section Header (global) ─────────────────────────── */
+    .wr-section-hdr { font-family:'Bebas Neue',cursive;font-size:1rem;color:var(--gold);letter-spacing:0.08em;margin-bottom:8px }
 </style>
 
 </head>
@@ -841,6 +861,37 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <script type="text/babel">
+    // ===== GLOBAL UI COMPONENTS =====
+    function Tip({ children }) {
+        const [open, setOpen] = React.useState(false);
+        return React.createElement(React.Fragment, null,
+            React.createElement('span', { className:'wr-tip-icon', onClick:function(e){ e.stopPropagation(); setOpen(!open); } }, '?'),
+            open ? React.createElement('div', { className:'wr-tip-box show', onClick:function(e){ e.stopPropagation(); } }, children) : null
+        );
+    }
+
+    function SkeletonRows({ count, cols }) {
+        const rows = [];
+        for (let i = 0; i < (count||6); i++) {
+            rows.push(React.createElement('div', { key:i, className:'skel-row' },
+                React.createElement('div', { className:'skel skel-circle' }),
+                React.createElement('div', { style:{flex:1} },
+                    React.createElement('div', { className:'skel skel-line', style:{width:(60+Math.random()*30)+'%'} })
+                ),
+                React.createElement('div', { className:'skel skel-line', style:{width:'50px',marginBottom:0} })
+            ));
+        }
+        return React.createElement('div', null, rows);
+    }
+
+    function SkeletonKPI() {
+        return React.createElement('div', { className:'skel-card', style:{textAlign:'center',minWidth:'120px'} },
+            React.createElement('div', { className:'skel skel-line', style:{width:'60%',margin:'0 auto 8px'} }),
+            React.createElement('div', { className:'skel skel-line', style:{width:'40%',height:'24px',margin:'0 auto 6px'} }),
+            React.createElement('div', { className:'skel skel-line', style:{width:'50%',margin:'0 auto'} })
+        );
+    }
+
     // ===== DEV MODE =====
     const DEV_MODE = new URLSearchParams(window.location.search).has('dev') || window.location.hostname.includes('sandbox');
     if (DEV_MODE) {
@@ -2834,28 +2885,28 @@
 
         // Default 5 KPIs — customizable per owner, saved in localStorage
         const KPI_OPTIONS = {
-            'starter-gap':    { label: 'Starter Gap', icon: '', category: 'Roster' },
-            'portfolio':      { label: 'Portfolio DHQ', icon: '', category: 'Roster' },
-            'value-rank':     { label: 'Value Rank', icon: '', category: 'League' },
-            'health-score':   { label: 'Health Score', icon: '', category: 'Roster' },
-            'avg-age':        { label: 'Avg Age', icon: '', category: 'Roster' },
-            'top5-conc':      { label: 'Top 5 Concentration', icon: '', category: 'Roster' },
-            'hit-rate':       { label: 'Draft Hit Rate', icon: '', category: 'Draft' },
-            'faab-efficiency':{ label: 'FAAB Efficiency', icon: '', category: 'Waivers' },
-            'net-trade':      { label: 'Net DHQ/Trade', icon: '', category: 'Trades' },
-            'trade-velocity': { label: 'Trade Velocity', icon: '', category: 'Trades' },
-            'window':         { label: 'Compete Window', icon: '', category: 'Projection' },
-            'aging-cliff':    { label: 'Aging Cliff %', icon: '', category: 'Projection' },
-            'partner-wr':     { label: 'Partner Win Rate', icon: '', category: 'Trades' },
-            'elite-count':    { label: 'Elite Players', icon: '', category: 'Roster' },
-            'bench-quality':  { label: 'Bench Quality', icon: '', category: 'Roster' },
-            'championships':    { label: 'Championships Won', icon: '', category: 'History' },
-            'playoff-record':   { label: 'Playoff Win-Loss', icon: '', category: 'History' },
-            'playoff-winpct':   { label: 'Playoff Win %', icon: '', category: 'History' },
-            'champ-appearances':{ label: 'Championship Appearances', icon: '', category: 'History' },
-            'dynasty-score':    { label: 'Dynasty Score', icon: '', category: 'History' },
-            'draft-roi':        { label: 'Draft ROI', icon: '', category: 'Draft' },
-            'roster-turnover':  { label: 'Roster Turnover', icon: '', category: 'Roster' },
+            'starter-gap':    { label: 'Starter Gap', icon: '', category: 'Roster', tip: 'Difference between your optimal weekly PPG and league target (median x1.05)' },
+            'portfolio':      { label: 'Portfolio DHQ', icon: '', category: 'Roster', tip: 'Sum of all DHQ values on your roster' },
+            'value-rank':     { label: 'Value Rank', icon: '', category: 'League', tip: 'Where your total roster DHQ ranks in the league' },
+            'health-score':   { label: 'Health Score', icon: '', category: 'Roster', tip: '60% Scoring Power + 40% Position Coverage. 90+=Elite, 75+=Contender' },
+            'avg-age':        { label: 'Avg Age', icon: '', category: 'Roster', tip: 'DHQ-weighted average age. Lower = longer dynasty window' },
+            'top5-conc':      { label: 'Top 5 Concentration', icon: '', category: 'Roster', tip: '% of DHQ held by top 5 players. High = fragile roster' },
+            'hit-rate':       { label: 'Draft Hit Rate', icon: '', category: 'Draft', tip: '% of drafted players who became fantasy starters' },
+            'faab-efficiency':{ label: 'FAAB Efficiency', icon: '', category: 'Waivers', tip: 'DHQ value gained per FAAB dollar spent' },
+            'net-trade':      { label: 'Net DHQ/Trade', icon: '', category: 'Trades', tip: 'Average DHQ gained or lost per trade' },
+            'trade-velocity': { label: 'Trade Velocity', icon: '', category: 'Trades', tip: 'Number of trades completed' },
+            'window':         { label: 'Compete Window', icon: '', category: 'Projection', tip: 'Estimated years your roster can compete based on age decay' },
+            'aging-cliff':    { label: 'Aging Cliff %', icon: '', category: 'Projection', tip: '% of DHQ held by players past peak within 2 years' },
+            'partner-wr':     { label: 'Partner Win Rate', icon: '', category: 'Trades', tip: '% of trades where you gained >15% more DHQ' },
+            'elite-count':    { label: 'Elite Players', icon: '', category: 'Roster', tip: 'Players with DHQ 7000+ (league-winning assets)' },
+            'bench-quality':  { label: 'Bench Quality', icon: '', category: 'Roster', tip: 'Average DHQ of non-starter roster players' },
+            'championships':    { label: 'Championships Won', icon: '', category: 'History', tip: 'Total league championships from bracket data' },
+            'playoff-record':   { label: 'Playoff Win-Loss', icon: '', category: 'History', tip: 'Career playoff wins and losses' },
+            'playoff-winpct':   { label: 'Playoff Win %', icon: '', category: 'History', tip: 'Win percentage in playoff matchups' },
+            'champ-appearances':{ label: 'Championship Appearances', icon: '', category: 'History', tip: 'Times reached the championship round' },
+            'dynasty-score':    { label: 'Dynasty Score', icon: '', category: 'History', tip: 'Championships (40%) + Playoffs (30%) + Regular Season (30%)' },
+            'draft-roi':        { label: 'Draft ROI', icon: '', category: 'Draft', tip: 'Current DHQ of drafted players vs capital spent' },
+            'roster-turnover':  { label: 'Roster Turnover', icon: '', category: 'Roster', tip: 'Trades completed this cycle' },
         };
         const DEFAULT_KPIS = ['starter-gap', 'hit-rate', 'faab-efficiency', 'net-trade', 'window'];
         const [selectedKpis, setSelectedKpis] = useState(() => {
@@ -3040,6 +3091,16 @@
             }
         }, [activeTab]);
 
+        // Auto-populate home page content when data is ready
+        useEffect(() => {
+            if (rankedTeams.length > 0 && !heroStory) {
+                setHeroStory(computeDataDrivenHero());
+            }
+            if (rankedTeams.length > 0 && aiStories.length === 0) {
+                generateAiStories();
+            }
+        }, [rankedTeams, transactions]);
+
         // Keyboard shortcut: Cmd/Ctrl+K to toggle ReconAI panel
         useEffect(() => {
           const handler = e => {
@@ -3131,12 +3192,14 @@
                 setLoadStage('Loading player data...');
 
                 // Fire ALL data fetches in parallel
-                const [stats, projections, prevStats, players, tradedPicks] = await Promise.all([
+                const currentWeek = currentLeague.settings?.leg || 1;
+                const [stats, projections, prevStats, players, tradedPicks, matchupsData] = await Promise.all([
                     fetchSeasonStats(currentLeague.season).catch(() => ({})),
                     fetchSeasonProjections(currentLeague.season).catch(() => ({})),
                     fetchSeasonStats(STATS_YEAR).catch(() => ({})),
                     fetchAllPlayers().catch(() => ({})),
                     fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/traded_picks`).catch(() => []),
+                    fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/matchups/${currentWeek}`).catch(() => []),
                 ]);
 
                 setStatsData(stats);
@@ -3157,7 +3220,9 @@
                     window.S.season = activeYear;
                     window.S.nflState = { season: activeYear };
                     window.S.tradedPicks = tradedPicks || [];
+                    window.S.matchups = matchupsData || [];
                     window.S.myRosterId = myRosterData?.roster_id;
+                    window.S.myUserId = sleeperUserId;
 
                     // Bridge stats data
                     Object.entries(stats).forEach(([pid, s]) => {
@@ -3389,22 +3454,41 @@
             return user?.display_name || user?.username || 'Unknown';
         }
 
+        function computeDataDrivenHero() {
+            const parts = [];
+            if (rankedTeams.length) {
+                const top = rankedTeams[0];
+                const myRank = rankedTeams.findIndex(t => t.userId === sleeperUserId) + 1;
+                parts.push(top.displayName + ' leads the power rankings with a ' + top.healthScore + ' health score and ' + top.wins + '-' + top.losses + ' record.');
+                if (myRank && myRank !== 1) {
+                    const me = rankedTeams[myRank - 1];
+                    parts.push('You sit at #' + myRank + ' (' + me.wins + '-' + me.losses + ') with ' + (me.totalDHQ||0).toLocaleString() + ' total DHQ.');
+                } else if (myRank === 1) {
+                    parts.push('You hold the top spot in the league.');
+                }
+            }
+            const recentTrade = transactions.find(t => t.type === 'trade');
+            if (recentTrade) {
+                const addPids = Object.keys(recentTrade.adds || {});
+                const names = addPids.slice(0, 2).map(pid => getPlayerName(pid)).filter(Boolean).join(' and ');
+                if (names) parts.push('Latest trade: ' + names + ' changed hands between ' + getOwnerName(recentTrade.roster_ids?.[0]) + ' and ' + getOwnerName(recentTrade.roster_ids?.[1]) + '.');
+            }
+            return parts.join(' ') || 'Welcome to your War Room. League intelligence is loading.';
+        }
+
         async function generateHeroStory() {
-            if (typeof dhqAI !== 'function' && typeof window.dhqAI !== 'function' && typeof window.callClaude !== 'function') {
-                setHeroStory('AI stories require an API key. Add one in Settings to enable AI-generated narratives.');
-                return;
+            // Try AI first, fall back to data-driven
+            if (typeof dhqAI === 'function' || typeof window.dhqAI === 'function' || typeof window.callClaude === 'function') {
+                setHeroStory('Generating...');
+                try {
+                    const ctx = typeof dhqContext === 'function' ? dhqContext(true) : '';
+                    const prompt = "Write a 3-4 sentence sports journalist narrative about the current state of this dynasty league. Focus on the biggest storyline this week — trades, injuries, power shifts, or playoff implications. Write in the style of The Athletic — dramatic, informed, specific. Use owner names and player names when possible.";
+                    const aiFn = typeof dhqAI === 'function' ? dhqAI : window.dhqAI;
+                    const reply = await aiFn('home-chat', prompt, ctx);
+                    if (reply) { setHeroStory(reply); return; }
+                } catch(e) { console.warn('Hero story AI failed, using data-driven:', e); }
             }
-            setHeroStory('Generating...');
-            try {
-                const ctx = typeof dhqContext === 'function' ? dhqContext(true) : '';
-                const prompt = "Write a 3-4 sentence sports journalist narrative about the current state of this dynasty league. Focus on the biggest storyline this week — trades, injuries, power shifts, or playoff implications. Write in the style of The Athletic — dramatic, informed, specific. Use owner names and player names when possible.";
-                const aiFn = typeof dhqAI === 'function' ? dhqAI : window.dhqAI;
-                const reply = await aiFn('home-chat', prompt, ctx);
-                setHeroStory(reply || 'Unable to generate story at this time.');
-            } catch(e) {
-                console.warn('Hero story generation error:', e);
-                setHeroStory('Unable to generate story. Check your API key in Settings, or ensure League Intelligence has loaded.');
-            }
+            setHeroStory(computeDataDrivenHero());
         }
 
         async function generateAiStories() {
@@ -3552,9 +3636,33 @@
 
         if (loading) {
             return (
-                <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--gold)', gap: '1rem' }}>
-                    <div style={{ fontSize: '1.5rem' }}>Loading {currentLeague.name}...</div>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--silver)' }}>Fetching player database & stats</div>
+                <div className="app-container" style={{ paddingBottom: '60px' }}>
+                    {/* Skeleton left nav */}
+                    <div style={{ position:'fixed', left:0, top:0, bottom:0, width:'160px', background:'var(--black)', borderRight:'1px solid rgba(212,175,55,0.2)', padding:'16px 0', zIndex:100 }}>
+                        <div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1.3rem', color:'var(--gold)', padding:'0 16px', marginBottom:'20px' }}>WAR ROOM</div>
+                        {['Home','My Team','League','Analytics','Trades','Free Agency','Draft'].map((label,i) => (
+                            <div key={i} style={{ padding:'10px 16px', fontSize:'0.82rem', fontFamily:'Oswald,sans-serif', color: i===0?'var(--gold)':'rgba(255,255,255,0.3)', borderLeft: i===0?'3px solid var(--gold)':'3px solid transparent', background: i===0?'rgba(212,175,55,0.12)':'transparent' }}>{label}</div>
+                        ))}
+                    </div>
+                    {/* Skeleton main content */}
+                    <div style={{ marginLeft:'160px', padding:'24px 32px' }}>
+                        <div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1.1rem', color:'var(--gold)', marginBottom:'16px' }}>{currentLeague.name}</div>
+                        {/* KPI skeleton row */}
+                        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:'12px', marginBottom:'24px' }}>
+                            <SkeletonKPI /><SkeletonKPI /><SkeletonKPI /><SkeletonKPI /><SkeletonKPI />
+                        </div>
+                        {/* Hero skeleton */}
+                        <div className="skel-card" style={{ height:'120px', marginBottom:'20px' }}>
+                            <div className="skel skel-line" style={{ width:'70%' }} />
+                            <div className="skel skel-line" style={{ width:'90%' }} />
+                            <div className="skel skel-line" style={{ width:'50%' }} />
+                        </div>
+                        {/* Two-column skeleton */}
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+                            <div className="skel-card"><div className="skel skel-line" style={{width:'40%',marginBottom:'12px'}} /><SkeletonRows count={5} /></div>
+                            <div className="skel-card"><div className="skel skel-line" style={{width:'40%',marginBottom:'12px'}} /><SkeletonRows count={5} /></div>
+                        </div>
+                    </div>
                 </div>
             );
         }
@@ -4835,6 +4943,7 @@
                     {[
                         {label: 'Home', tab: 'dashboard'},
                         {label: 'My Team', tab: 'myteam'},
+                        {label: 'Matchup', tab: 'matchup'},
                         {label: 'League', tab: 'league'},
                         {label: 'Analytics', tab: 'analytics'},
                         {label: 'Trades', tab: 'trades'},
@@ -4997,7 +5106,7 @@
                                 >{isEditing ? '\u2715' : '\u270E'}</button>
 
                                 {/* KPI content */}
-                                <div style={{ ...kpiLabelStyle, fontSize: '0.52rem' }}>{opt.icon} {opt.category.toUpperCase()}</div>
+                                <div style={{ ...kpiLabelStyle, fontSize: '0.52rem' }}>{opt.icon} {opt.category.toUpperCase()}{opt.tip ? React.createElement(Tip, null, opt.tip) : null}</div>
                                 <div style={{ ...kpiValueStyle, color: val.color, fontSize: '1.4rem' }}>{val.value}</div>
                                 <div style={kpiSubStyle}>{val.sub}</div>
 
@@ -5618,7 +5727,110 @@
                         )}
                     </div>
                     );
-                })() : activeTab === 'fa' ? (
+                })() : activeTab === 'matchup' ? (
+                    <div style={{ padding:'16px', maxWidth:'1200px', margin:'0 auto' }}>
+                        <div className="wr-section-hdr" style={{ fontSize:'1.4rem', marginBottom:'16px' }}>WEEKLY MATCHUP</div>
+                        {(() => {
+                            // Find current week matchup
+                            const week = currentLeague.settings?.leg || 1;
+                            const myRid = myRoster?.roster_id;
+                            if (!myRid) return <div style={{color:'var(--silver)',textAlign:'center',padding:'2rem'}}>No roster found.</div>;
+
+                            // Try to get matchups from window.S
+                            const matchups = window.S?.matchups || [];
+                            const myMatch = matchups.find(m => m.roster_id === myRid);
+                            const oppMatch = myMatch ? matchups.find(m => m.matchup_id === myMatch.matchup_id && m.roster_id !== myRid) : null;
+
+                            if (!myMatch || !oppMatch) {
+                                return <div style={{color:'var(--silver)',textAlign:'center',padding:'2rem'}}>
+                                    <div style={{marginBottom:'8px'}}>No matchup data for Week {week}.</div>
+                                    <div style={{fontSize:'0.75rem',opacity:0.5}}>Matchup data is available during the regular season.</div>
+                                </div>;
+                            }
+
+                            const myStarters = myMatch.starters || [];
+                            const oppStarters = oppMatch.starters || [];
+                            const oppRoster = currentLeague.rosters?.find(r => r.roster_id === oppMatch.roster_id);
+                            const oppOwner = standings.find(t => {
+                                const r = currentLeague.rosters?.find(r2 => r2.roster_id === oppMatch.roster_id);
+                                return r && t.userId === r.owner_id;
+                            });
+                            const oppName = oppOwner?.displayName || 'Opponent';
+
+                            const rosterPositions = currentLeague.roster_positions?.filter(p => p !== 'BN') || [];
+                            const myPts = myMatch.points || 0;
+                            const oppPts = oppMatch.points || 0;
+
+                            const getP = pid => playersData[pid] || {};
+                            const getDHQ = pid => window.App?.LI?.playerScores?.[pid] || 0;
+                            const getPPG = pid => { const s = statsData[pid]; return s?.pts_half_ppr && s?.gp ? +(s.pts_half_ppr / s.gp).toFixed(1) : 0; };
+
+                            let myProjTotal = 0, oppProjTotal = 0;
+                            const rows = rosterPositions.map((slot, i) => {
+                                const myPid = myStarters[i] || null;
+                                const oppPid = oppStarters[i] || null;
+                                const myPPG = myPid ? getPPG(myPid) : 0;
+                                const oppPPG = oppPid ? getPPG(oppPid) : 0;
+                                myProjTotal += myPPG;
+                                oppProjTotal += oppPPG;
+                                const adv = myPPG - oppPPG;
+                                return { slot, myPid, oppPid, myPPG, oppPPG, adv };
+                            });
+
+                            const myWinning = myPts > oppPts;
+                            const projWinning = myProjTotal > oppProjTotal;
+
+                            return <div>
+                                {/* Score header */}
+                                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'20px 24px',background:'var(--black)',border:'2px solid rgba(212,175,55,0.3)',borderRadius:'12px',marginBottom:'16px'}}>
+                                    <div style={{textAlign:'center',flex:1}}>
+                                        <div style={{fontFamily:'Oswald,sans-serif',fontSize:'0.8rem',color:'var(--silver)',marginBottom:'4px'}}>YOU</div>
+                                        <div style={{fontFamily:'Bebas Neue,cursive',fontSize:'2.5rem',color:myWinning?'var(--win-green)':'var(--white)',lineHeight:1}}>{myPts.toFixed(1)}</div>
+                                        <div style={{fontSize:'0.65rem',color:'var(--silver)',opacity:0.5,marginTop:'4px'}}>Proj: {myProjTotal.toFixed(1)}</div>
+                                    </div>
+                                    <div style={{textAlign:'center',padding:'0 24px'}}>
+                                        <div style={{fontFamily:'Bebas Neue,cursive',fontSize:'1rem',color:'var(--gold)'}}>WEEK {week}</div>
+                                        <div style={{fontSize:'0.65rem',color:'var(--silver)',opacity:0.5}}>vs</div>
+                                    </div>
+                                    <div style={{textAlign:'center',flex:1}}>
+                                        <div style={{fontFamily:'Oswald,sans-serif',fontSize:'0.8rem',color:'var(--silver)',marginBottom:'4px'}}>{oppName.toUpperCase()}</div>
+                                        <div style={{fontFamily:'Bebas Neue,cursive',fontSize:'2.5rem',color:!myWinning?'var(--win-green)':'var(--white)',lineHeight:1}}>{oppPts.toFixed(1)}</div>
+                                        <div style={{fontSize:'0.65rem',color:'var(--silver)',opacity:0.5,marginTop:'4px'}}>Proj: {oppProjTotal.toFixed(1)}</div>
+                                    </div>
+                                </div>
+
+                                {/* Position-by-position breakdown */}
+                                <div style={{background:'var(--black)',border:'1px solid rgba(212,175,55,0.2)',borderRadius:'12px',overflow:'hidden'}}>
+                                    <div style={{display:'grid',gridTemplateColumns:'60px 1fr 50px 20px 50px 1fr',gap:'0',padding:'8px 12px',background:'rgba(212,175,55,0.06)',fontSize:'0.6rem',fontFamily:'Oswald,sans-serif',color:'var(--gold)',textTransform:'uppercase',letterSpacing:'0.06em'}}>
+                                        <span>Slot</span><span>Your Player</span><span style={{textAlign:'right'}}>PPG</span><span></span><span>PPG</span><span>Their Player</span>
+                                    </div>
+                                    {rows.map((r, i) => {
+                                        const myP = r.myPid ? getP(r.myPid) : null;
+                                        const oppP = r.oppPid ? getP(r.oppPid) : null;
+                                        const advCol = r.adv > 2 ? 'var(--win-green)' : r.adv < -2 ? 'var(--loss-red)' : 'var(--silver)';
+                                        return <div key={i} style={{display:'grid',gridTemplateColumns:'60px 1fr 50px 20px 50px 1fr',gap:'0',padding:'8px 12px',borderTop:'1px solid rgba(255,255,255,0.04)',alignItems:'center'}}>
+                                            <span style={{fontSize:'0.65rem',color:'var(--gold)',fontWeight:700,fontFamily:'Oswald,sans-serif'}}>{r.slot}</span>
+                                            <div style={{fontSize:'0.72rem',fontWeight:600,color:'var(--white)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{myP?.full_name || (r.myPid ? 'Empty' : '-')}{myP?.team ? <span style={{color:'var(--silver)',fontSize:'0.6rem',marginLeft:'4px'}}>{myP.team}</span> : ''}</div>
+                                            <span style={{textAlign:'right',fontSize:'0.72rem',fontWeight:700,color:r.myPPG>r.oppPPG?'var(--win-green)':'var(--white)',fontFamily:'Oswald,sans-serif'}}>{r.myPPG||'-'}</span>
+                                            <span style={{textAlign:'center',fontSize:'0.6rem',color:advCol,fontWeight:700}}>{r.adv>0?'+':''}{r.adv!==0?r.adv.toFixed(0):'-'}</span>
+                                            <span style={{fontSize:'0.72rem',fontWeight:700,color:r.oppPPG>r.myPPG?'var(--win-green)':'var(--white)',fontFamily:'Oswald,sans-serif'}}>{r.oppPPG||'-'}</span>
+                                            <div style={{fontSize:'0.72rem',fontWeight:600,color:'var(--white)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{oppP?.full_name || (r.oppPid ? 'Empty' : '-')}{oppP?.team ? <span style={{color:'var(--silver)',fontSize:'0.6rem',marginLeft:'4px'}}>{oppP.team}</span> : ''}</div>
+                                        </div>;
+                                    })}
+                                    {/* Totals row */}
+                                    <div style={{display:'grid',gridTemplateColumns:'60px 1fr 50px 20px 50px 1fr',gap:'0',padding:'10px 12px',borderTop:'2px solid rgba(212,175,55,0.3)',background:'rgba(212,175,55,0.04)'}}>
+                                        <span style={{fontSize:'0.7rem',color:'var(--gold)',fontWeight:700,fontFamily:'Oswald,sans-serif'}}>TOTAL</span>
+                                        <span></span>
+                                        <span style={{textAlign:'right',fontSize:'0.8rem',fontWeight:800,color:projWinning?'var(--win-green)':'var(--white)',fontFamily:'Bebas Neue,cursive'}}>{myProjTotal.toFixed(1)}</span>
+                                        <span style={{textAlign:'center',fontSize:'0.65rem',color:projWinning?'var(--win-green)':'var(--loss-red)',fontWeight:700}}>{(myProjTotal-oppProjTotal)>0?'+':''}{(myProjTotal-oppProjTotal).toFixed(1)}</span>
+                                        <span style={{fontSize:'0.8rem',fontWeight:800,color:!projWinning?'var(--win-green)':'var(--white)',fontFamily:'Bebas Neue,cursive'}}>{oppProjTotal.toFixed(1)}</span>
+                                        <span></span>
+                                    </div>
+                                </div>
+                            </div>;
+                        })()}
+                    </div>
+                ) : activeTab === 'fa' ? (
                     React.createElement(FreeAgencyTab, {
                         playersData: playersData,
                         statsData: statsData,
@@ -5653,13 +5865,11 @@
                     }}>
                       <div style={{ fontSize: '0.65rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '8px' }}>THIS WEEK IN {currentLeague.name?.toUpperCase()}</div>
                       <div style={{ fontFamily: 'Crimson Text, serif', fontSize: '1.15rem', color: 'var(--white)', lineHeight: 1.6 }}>
-                        {heroStory || 'Loading league intel...'}
+                        {heroStory || computeDataDrivenHero()}
                       </div>
-                      {!heroStory && (
-                        <button onClick={generateHeroStory} style={{ marginTop: '12px', padding: '6px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Oswald, sans-serif', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          Generate Story
-                        </button>
-                      )}
+                      <button onClick={generateHeroStory} style={{ marginTop: '8px', padding: '4px 12px', background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', fontFamily: 'Oswald, sans-serif', fontSize: '0.6rem', fontWeight: 600, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6 }}>
+                        Rewrite with AI
+                      </button>
                     </div>
 
                     {/* 2. TWO-COLUMN: TRANSACTION TICKER + POWER RANKINGS */}
@@ -5669,7 +5879,7 @@
                       <div style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '16px', maxHeight: '420px', overflow: 'auto' }}>
                         <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '12px', letterSpacing: '0.06em' }}>TRANSACTION TICKER</div>
                         {transactions.length === 0 ? (
-                          <div style={{ color: 'var(--silver)', fontSize: '0.78rem', opacity: 0.6, padding: '16px 0', textAlign: 'center' }}>No recent transactions found</div>
+                          <SkeletonRows count={6} />
                         ) : transactions.map((txn, ti) => (
                           <div key={ti} style={{ padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -5752,10 +5962,8 @@
                     {/* 3. AI STORIES (3 cards) */}
                     <div style={{ marginBottom: '16px' }}>
                       {aiStories.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '16px' }}>
-                          <button onClick={generateAiStories} style={{ padding: '8px 20px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', fontFamily: 'Oswald, sans-serif', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                            Generate Stories
-                          </button>
+                        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px' }}>
+                          {[0,1,2].map(i => <div key={i} className="skel-card" style={{height:'120px'}}><div className="skel skel-line" style={{width:'30%'}} /><div className="skel skel-line" style={{width:'80%'}} /><div className="skel skel-line" style={{width:'60%'}} /></div>)}
                         </div>
                       ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
