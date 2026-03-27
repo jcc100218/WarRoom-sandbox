@@ -5614,7 +5614,6 @@
                             // Dynamic elite threshold: top 5% of all valued players, or 5000 if league max < 8000
                             const allScores = Object.values(window.App?.LI?.playerScores || {}).filter(v => v > 0).sort((a,b) => b - a);
                             const eliteThreshold = allScores.length > 20 ? allScores[Math.floor(allScores.length * 0.05)] : 5000;
-                            // Recompute elite counts with dynamic threshold
                             const playerScores = window.App?.LI?.playerScores || {};
                             const SS = window.S || window.App?.S;
                             const allRosters = SS?.rosters || [];
@@ -5629,76 +5628,341 @@
                             const lElite = countElite(allRosters);
                             const myRid = SS?.myRosterId;
                             const mElite = countElite(allRosters.filter(ros => ros.roster_id === myRid));
-                            const eliteLabel = 'Elite (' + Math.round(eliteThreshold).toLocaleString() + '+)';
-                            const rows = [
-                                ['Avg Age', w.avgAge, l.avgAge, m.avgAge, (m.avgAge - w.avgAge).toFixed(1), m.avgAge > w.avgAge + 1],
-                                [eliteLabel, wElite, lElite, mElite, (mElite - wElite).toFixed(1), mElite < wElite - 0.3],
-                                ['Starters', w.avgStarterCount, l.avgStarterCount, m.avgStarterCount, (m.avgStarterCount - w.avgStarterCount).toFixed(1), m.avgStarterCount < w.avgStarterCount - 0.5],
-                                ['Top 5 Conc.', pctFmt(w.topPlayerConcentration), pctFmt(l.topPlayerConcentration), pctFmt(m.topPlayerConcentration), ((m.topPlayerConcentration - w.topPlayerConcentration) * 100).toFixed(0) + '%', Math.abs(m.topPlayerConcentration - w.topPlayerConcentration) > 0.10],
-                                ['Bench Quality', numFmt(w.avgBenchQuality), numFmt(l.avgBenchQuality), numFmt(m.avgBenchQuality), numFmt(m.avgBenchQuality - w.avgBenchQuality), m.avgBenchQuality < w.avgBenchQuality * 0.75],
-                                ['Total DHQ', numFmt(w.avgTotalDHQ), numFmt(l.avgTotalDHQ), numFmt(m.avgTotalDHQ), numFmt(m.avgTotalDHQ - w.avgTotalDHQ), m.avgTotalDHQ < w.avgTotalDHQ * 0.85],
-                            ];
+
+                            // Health score
+                            let healthScore = 0;
+                            try {
+                                if (window.assessTeamFromGlobal) {
+                                    const assessment = window.assessTeamFromGlobal(myRid);
+                                    if (assessment) healthScore = assessment.healthScore || 0;
+                                }
+                            } catch(e) {}
+                            // Winner avg health
+                            let winnerHealthTotal = 0, winnerHealthCount = 0;
+                            try {
+                                winnerIds.forEach(wid => {
+                                    if (window.assessTeamFromGlobal) {
+                                        const wa = window.assessTeamFromGlobal(wid);
+                                        if (wa) { winnerHealthTotal += wa.healthScore || 0; winnerHealthCount++; }
+                                    }
+                                });
+                            } catch(e) {}
+                            const winnerHealthAvg = winnerHealthCount > 0 ? Math.round(winnerHealthTotal / winnerHealthCount) : 0;
+                            const healthDelta = healthScore - winnerHealthAvg;
+
+                            // Compete window
+                            const compWindow = d.window || {};
+                            const compYears = compWindow.years || 0;
+                            // Avg compete window across league
+                            let lgWindowTotal = 0, lgWindowCount = 0;
+                            try {
+                                allRosters.forEach(ros => {
+                                    const pw = typeof projectCompetitiveWindow === 'function' ? null : null; // skip if expensive
+                                });
+                            } catch(e) {}
+
+                            // KPI sparkline data: build from projection years
+                            const projData = (d.projection || []).map(p => p.projectedDHQ);
+                            const healthData = (d.projection || []).map(p => p.projectedHealth || healthScore);
+
+                            // ── KPI Card style ──
+                            const kpiCardStyle = {
+                                background: 'linear-gradient(135deg, rgba(26,26,26,0.95), rgba(10,10,10,0.98))',
+                                border: '1px solid rgba(212,175,55,0.25)',
+                                borderRadius: '14px',
+                                padding: '20px 18px 14px',
+                                flex: '1 1 0',
+                                minWidth: '140px',
+                                position: 'relative',
+                                overflow: 'hidden',
+                            };
+                            const kpiNumberStyle = {
+                                fontFamily: 'Bebas Neue, cursive',
+                                fontSize: '2.4rem',
+                                lineHeight: 1,
+                                color: 'var(--white)',
+                                marginBottom: '2px',
+                            };
+                            const kpiLabelStyle = {
+                                fontFamily: 'Oswald, sans-serif',
+                                fontSize: '0.7rem',
+                                color: 'var(--silver)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.08em',
+                                opacity: 0.7,
+                            };
+                            const kpiDeltaStyle = (positive) => ({
+                                fontFamily: 'Oswald, sans-serif',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                color: positive ? goodColor : badColor,
+                                marginTop: '4px',
+                            });
+
+                            // ── Position data for BarChart ──
                             const allPos = [...new Set([...Object.keys(w.posInvestment || {}), ...Object.keys(m.posInvestment || {})])].filter(p => p !== 'UNK').sort();
+                            const posBarItems = allPos.map(pos => ({
+                                label: pos,
+                                value: Math.round((m.posInvestment[pos] || 0) * 100),
+                                color: '#4ECDC4',
+                            }));
+                            const posBarWinnerItems = allPos.map(pos => ({
+                                label: pos,
+                                value: Math.round((w.posInvestment[pos] || 0) * 100),
+                                color: CHART_COLORS?.gold || '#D4AF37',
+                            }));
+
+                            // ── Radar data ──
+                            const radarValues = {};
+                            allPos.forEach(pos => {
+                                const wPct = (w.posInvestment[pos] || 0) * 100;
+                                const mPct = (m.posInvestment[pos] || 0) * 100;
+                                radarValues[pos] = Math.min(100, Math.round(mPct / Math.max(wPct, 1) * 70));
+                            });
+
+                            // ── Rankings: all teams sorted by health ──
+                            const teamRankings = [];
+                            allRosters.forEach(ros => {
+                                let hs = 0, tier = '';
+                                try {
+                                    if (window.assessTeamFromGlobal) {
+                                        const a = window.assessTeamFromGlobal(ros.roster_id);
+                                        if (a) { hs = a.healthScore || 0; tier = a.tier || ''; }
+                                    }
+                                } catch(e) {}
+                                const totalDhq = (ros.players || []).reduce((s, pid) => s + (playerScores[pid] || 0), 0);
+                                const s = ros.settings || {};
+                                teamRankings.push({
+                                    rosterId: ros.roster_id,
+                                    name: getOwnerName(ros.roster_id),
+                                    wins: s.wins || 0,
+                                    losses: s.losses || 0,
+                                    healthScore: hs,
+                                    totalDhq,
+                                    tier,
+                                    isMe: ros.roster_id === myRid,
+                                });
+                            });
+                            teamRankings.sort((a, b) => b.healthScore - a.healthScore);
+
+                            // ── Insight cards ──
+                            const insights = [];
+                            const ageDiff = m.avgAge - w.avgAge;
+                            if (Math.abs(ageDiff) > 0.3) {
+                                insights.push({
+                                    color: ageDiff > 0 ? badColor : goodColor,
+                                    title: ageDiff > 0 ? 'Roster Running Older' : 'Youth Advantage',
+                                    text: 'Your roster is ' + Math.abs(ageDiff).toFixed(1) + ' years ' + (ageDiff > 0 ? 'older' : 'younger') + ' than champion average (' + w.avgAge.toFixed(1) + ' yrs).',
+                                });
+                            }
+                            const eliteDiff = mElite - wElite;
+                            if (eliteDiff < -0.3) {
+                                insights.push({
+                                    color: badColor,
+                                    title: 'Elite Player Deficit',
+                                    text: 'You need ' + Math.abs(eliteDiff).toFixed(1) + ' more elite players (DHQ ' + Math.round(eliteThreshold).toLocaleString() + '+) to match winners.',
+                                });
+                            }
+                            if (m.avgBenchQuality < w.avgBenchQuality * 0.75) {
+                                insights.push({
+                                    color: warnColor,
+                                    title: 'Bench Depth Concern',
+                                    text: 'Bench quality (' + numFmt(m.avgBenchQuality) + ') is significantly below winner benchmark (' + numFmt(w.avgBenchQuality) + ').',
+                                });
+                            }
+                            if (m.avgTotalDHQ < w.avgTotalDHQ * 0.85) {
+                                insights.push({
+                                    color: badColor,
+                                    title: 'Total Value Gap',
+                                    text: 'Your total DHQ (' + numFmt(m.avgTotalDHQ) + ') trails winner average (' + numFmt(w.avgTotalDHQ) + ') by ' + Math.round((1 - m.avgTotalDHQ / w.avgTotalDHQ) * 100) + '%.',
+                                });
+                            }
+                            if (compYears >= 3) {
+                                insights.push({
+                                    color: goodColor,
+                                    title: 'Strong Compete Window',
+                                    text: compYears + ' years remaining in your competitive window. Maximize with targeted upgrades.',
+                                });
+                            }
+
+                            const gapsList = d.gaps || r.gaps || [];
+
                             return (
                             <React.Fragment>
-                                <div style={aCardStyle}>
-                                    <div style={aHeaderStyle}>CHAMPION TEMPLATE vs YOUR ROSTER</div>
-                                    <div style={{ ...tableRowStyle(0) }}>
-                                        <div>Metric</div><div>Champions</div><div>League Avg</div><div>You</div><div>Gap</div>
-                                    </div>
-                                    {rows.map(([label, wVal, lVal, mVal, delta, isBad], i) => (
-                                        <div key={i} style={{ ...tableRowStyle(1), ...aValStyle }}>
-                                            <div style={{ color: 'var(--silver)' }}>{label}</div>
-                                            <div style={{ color: 'var(--gold)' }}>{wVal}</div>
-                                            <div style={{ color: 'var(--silver)', opacity: 0.7 }}>{lVal}</div>
-                                            <div>{mVal}</div>
-                                            <div style={{ color: isBad ? badColor : warnColor }}>{isBad ? '\uD83D\uDD34' : '\u26A0\uFE0F'} {delta > 0 ? '+' : ''}{delta}</div>
+                                {/* ── TOP KPI CARDS ── */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+                                    {/* Total DHQ */}
+                                    <div style={kpiCardStyle}>
+                                        <div style={kpiLabelStyle}>Total DHQ</div>
+                                        <div style={kpiNumberStyle}>{(m.avgTotalDHQ || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
+                                        <div style={kpiDeltaStyle(m.avgTotalDHQ >= w.avgTotalDHQ)}>
+                                            {m.avgTotalDHQ >= w.avgTotalDHQ ? '\u25B2' : '\u25BC'} {Math.abs(Math.round((m.avgTotalDHQ - l.avgTotalDHQ) / Math.max(l.avgTotalDHQ, 1) * 100))}% vs lg avg
                                         </div>
-                                    ))}
+                                        <div style={{ marginTop: '8px' }}>
+                                            {typeof Sparkline !== 'undefined' && projData.length >= 2 && React.createElement(Sparkline, { data: projData, width: 120, height: 28, color: m.avgTotalDHQ >= w.avgTotalDHQ ? goodColor : badColor })}
+                                        </div>
+                                    </div>
+                                    {/* Health Score */}
+                                    <div style={kpiCardStyle}>
+                                        <div style={kpiLabelStyle}>Health Score</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <div style={kpiNumberStyle}>{healthScore}</div>
+                                            <div style={{ marginTop: '4px' }}>
+                                                {typeof MiniDonut !== 'undefined' && React.createElement(MiniDonut, { value: healthScore, size: 48, thickness: 5 })}
+                                            </div>
+                                        </div>
+                                        <div style={kpiDeltaStyle(healthDelta >= 0)}>
+                                            {healthDelta >= 0 ? '\u25B2' : '\u25BC'}{Math.abs(healthDelta)} vs winners
+                                        </div>
+                                    </div>
+                                    {/* Elite Count */}
+                                    <div style={kpiCardStyle}>
+                                        <div style={kpiLabelStyle}>Elite Players</div>
+                                        <div style={kpiNumberStyle}>{mElite}</div>
+                                        <div style={kpiDeltaStyle(mElite >= wElite)}>
+                                            {mElite >= wElite ? '= ' : '\u25BC '}{mElite >= wElite ? 'above' : Math.abs(mElite - wElite).toFixed(1) + ' below'} winners ({wElite})
+                                        </div>
+                                        <div style={{ fontSize: '0.65rem', color: 'var(--silver)', opacity: 0.5, marginTop: '4px' }}>Threshold: {Math.round(eliteThreshold).toLocaleString()}+ DHQ</div>
+                                    </div>
+                                    {/* Compete Window */}
+                                    <div style={kpiCardStyle}>
+                                        <div style={kpiLabelStyle}>Compete Window</div>
+                                        <div style={kpiNumberStyle}>{compYears}<span style={{ fontSize: '1rem', color: 'var(--silver)', marginLeft: '4px' }}>yr</span></div>
+                                        <div style={kpiDeltaStyle(compYears >= 3)}>
+                                            {compYears >= 3 ? '\u25B2 Strong' : compYears >= 1 ? '\u25AC Narrowing' : '\u25BC Rebuild mode'}
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, marginTop: '4px' }}>{compWindow.label || ''}</div>
+                                    </div>
                                 </div>
 
-                                <div style={aCardStyle}>
-                                    <div style={aHeaderStyle}>POSITION INVESTMENT</div>
-                                    {allPos.map(pos => {
-                                        const wPct = (w.posInvestment[pos] || 0) * 100;
-                                        const mPct = (m.posInvestment[pos] || 0) * 100;
-                                        const maxPct = Math.max(wPct, mPct, 1);
-                                        return (
-                                        <div key={pos} style={{ marginBottom: '10px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                                                <span style={{ color: 'var(--silver)', fontSize: '0.85rem', fontFamily: 'Oswald, sans-serif' }}>{pos}</span>
-                                                <span style={{ color: 'var(--silver)', fontSize: '0.75rem' }}>{wPct.toFixed(0)}% win / {mPct.toFixed(0)}% you</span>
+                                {/* ── TWO-COLUMN CHART GRID ── */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                                    {/* Left: Position Investment BarChart */}
+                                    <div style={aCardStyle}>
+                                        <div style={aHeaderStyle}>POSITION INVESTMENT</div>
+                                        <div style={{ marginBottom: '12px' }}>
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Winners</div>
+                                            {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: posBarWinnerItems, width: Math.min(380, 360), height: 18, gap: 4 })}
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: '0.7rem', color: '#4ECDC4', fontFamily: 'Oswald, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>You</div>
+                                            {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: posBarItems, width: Math.min(380, 360), height: 18, gap: 4 })}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '0.72rem' }}>
+                                            <span style={{ color: 'var(--gold)' }}>{'\u25A0'} Winners %</span>
+                                            <span style={{ color: '#4ECDC4' }}>{'\u25A0'} Your %</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Right: Gap Analysis Visual Cards */}
+                                    <div style={aCardStyle}>
+                                        <div style={aHeaderStyle}>GAP ANALYSIS</div>
+                                        {gapsList.length === 0 && <div style={{ color: goodColor, fontSize: '0.9rem', padding: '12px 0' }}>Your roster matches the winner template closely.</div>}
+                                        {gapsList.slice(0, 6).map((g, i) => {
+                                            const sev = g.priority || g.severity || 'low';
+                                            const sevBg = sev === 'high' || sev === 'critical' ? 'rgba(231,76,60,0.08)' : sev === 'medium' ? 'rgba(240,165,0,0.08)' : 'rgba(46,204,113,0.06)';
+                                            return (
+                                            <div key={i} style={{
+                                                padding: '10px 14px', marginBottom: '8px',
+                                                background: sevBg,
+                                                borderLeft: '3px solid ' + sevColor(sev),
+                                                borderRadius: '0 8px 8px 0',
+                                            }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span style={{ color: sevColor(sev), fontWeight: 700, fontSize: '0.82rem', fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase' }}>
+                                                        {g.action || g.area}
+                                                    </span>
+                                                    <span style={{
+                                                        fontSize: '0.65rem', fontFamily: 'Oswald, sans-serif', padding: '2px 8px',
+                                                        borderRadius: '10px', background: sevColor(sev), color: 'var(--black)', fontWeight: 700,
+                                                    }}>
+                                                        {(sev).toUpperCase()}
+                                                    </span>
+                                                </div>
+                                                <div style={{ color: 'var(--silver)', fontSize: '0.78rem', marginTop: '4px' }}>
+                                                    {g.detail || (g.unit === '%' ? pctFmt(g.yours) + ' (winners: ' + pctFmt(g.winners) + ')' : numFmt(g.yours) + ' ' + g.unit + ' (winners: ' + numFmt(g.winners) + ')')}
+                                                </div>
                                             </div>
-                                            <div style={{ position: 'relative', height: '18px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
-                                                <div style={{ position: 'absolute', top: 0, left: 0, height: '9px', width: (wPct / maxPct * 100) + '%', background: 'var(--gold)', borderRadius: '4px 4px 0 0', opacity: 0.7 }} />
-                                                <div style={{ position: 'absolute', bottom: 0, left: 0, height: '9px', width: (mPct / maxPct * 100) + '%', background: '#4ECDC4', borderRadius: '0 0 4px 4px', opacity: 0.7 }} />
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* ── RADAR CHART: Position Balance ── */}
+                                {Object.keys(radarValues).length >= 3 && (
+                                <div style={{ ...aCardStyle, display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '20px' }}>
+                                    <div>
+                                        <div style={aHeaderStyle}>POSITION BALANCE vs WINNERS</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '8px' }}>70 = matched to winner allocation. Above = overweight, below = underweight.</div>
+                                    </div>
+                                    <div style={{ margin: '0 auto' }}>
+                                        {typeof RadarChart !== 'undefined' && React.createElement(RadarChart, { values: radarValues, size: 200, color: '#4ECDC4' })}
+                                    </div>
+                                </div>
+                                )}
+
+                                {/* ── PERFORMANCE RANKINGS TABLE ── */}
+                                <div style={{ ...aCardStyle, marginBottom: '20px' }}>
+                                    <div style={aHeaderStyle}>LEAGUE POWER RANKINGS</div>
+                                    {/* Header row */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '36px 1.4fr 0.7fr 80px 0.9fr 0.7fr', gap: '8px', padding: '8px 0', borderBottom: '2px solid rgba(212,175,55,0.2)', fontWeight: 700, color: 'var(--gold)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'Oswald, sans-serif' }}>
+                                        <div>#</div><div>Team</div><div>Record</div><div>Health</div><div>Total DHQ</div><div>Tier</div>
+                                    </div>
+                                    {teamRankings.map((team, i) => {
+                                        const tierBadgeColors = { 'Contender': goodColor, 'Playoff Team': warnColor, 'Rebuilding': badColor, 'Deep Rebuild': badColor };
+                                        const tierBg = tierBadgeColors[team.tier] || 'var(--silver)';
+                                        return (
+                                        <div key={team.rosterId} style={{
+                                            display: 'grid', gridTemplateColumns: '36px 1.4fr 0.7fr 80px 0.9fr 0.7fr', gap: '8px', padding: '8px 0',
+                                            borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                            background: team.isMe ? 'rgba(212,175,55,0.06)' : 'transparent',
+                                            borderLeft: team.isMe ? '3px solid var(--gold)' : '3px solid transparent',
+                                            paddingLeft: '4px',
+                                        }}>
+                                            <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.1rem', color: i < 3 ? 'var(--gold)' : 'var(--silver)' }}>{i + 1}</div>
+                                            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.85rem', color: team.isMe ? 'var(--gold)' : 'var(--white)', fontWeight: team.isMe ? 700 : 400 }}>
+                                                {team.name}{team.isMe ? ' (You)' : ''}
+                                            </div>
+                                            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.82rem', color: 'var(--silver)' }}>{team.wins}-{team.losses}</div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                {typeof MiniDonut !== 'undefined' && React.createElement(MiniDonut, { value: team.healthScore, size: 32, thickness: 3 })}
+                                            </div>
+                                            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.85rem', color: 'var(--silver)' }}>
+                                                {team.totalDhq.toLocaleString()}
+                                                {/* Mini bar indicator */}
+                                                <div style={{ height: '3px', marginTop: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                                                    <div style={{ height: '100%', width: Math.min(100, Math.round(team.totalDhq / Math.max(teamRankings[0]?.totalDhq || 1, 1) * 100)) + '%', background: 'var(--gold)', opacity: 0.5, borderRadius: '2px' }} />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span style={{
+                                                    fontSize: '0.65rem', fontFamily: 'Oswald, sans-serif', padding: '2px 8px', borderRadius: '10px',
+                                                    background: tierBg + '22', color: tierBg, border: '1px solid ' + tierBg + '44', fontWeight: 600,
+                                                    whiteSpace: 'nowrap',
+                                                }}>{team.tier || '\u2014'}</span>
                                             </div>
                                         </div>
                                         );
                                     })}
-                                    <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '0.75rem' }}>
-                                        <span style={{ color: 'var(--gold)' }}>{'\u25A0'} Winners</span>
-                                        <span style={{ color: '#4ECDC4' }}>{'\u25A0'} You</span>
-                                    </div>
                                 </div>
 
-                                <div style={aCardStyle}>
-                                    <div style={aHeaderStyle}>GAP ANALYSIS (PRIORITIZED)</div>
-                                    {(d.gaps || r.gaps || []).map((g, i) => (
-                                        <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                                            <span style={{ fontSize: '1rem', flexShrink: 0 }}>{sevIcon(g.priority || g.severity)}</span>
-                                            <div>
-                                                <div style={{ color: sevColor(g.priority || g.severity), fontWeight: 700, fontSize: '0.85rem', fontFamily: 'Oswald, sans-serif' }}>
-                                                    {(g.priority || g.severity || '').toUpperCase()}: {g.action || g.area}
-                                                </div>
-                                                <div style={{ color: 'var(--silver)', fontSize: '0.8rem', marginTop: '2px' }}>
-                                                    {g.detail || (g.unit === '%' ? pctFmt(g.yours) + ' (winners: ' + pctFmt(g.winners) + ')' : numFmt(g.yours) + ' ' + g.unit + ' (winners: ' + numFmt(g.winners) + ')')}
-                                                </div>
+                                {/* ── INSIGHT CARDS ── */}
+                                {insights.length > 0 && (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                                    {insights.map((ins, i) => (
+                                        <div key={i} style={{
+                                            background: 'rgba(26,26,26,0.8)', borderRadius: '10px', padding: '14px 16px',
+                                            borderLeft: '4px solid ' + ins.color,
+                                            border: '1px solid rgba(255,255,255,0.06)',
+                                        }}>
+                                            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: ins.color, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                                {ins.title}
                                             </div>
+                                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.5 }}>{ins.text}</div>
                                         </div>
                                     ))}
-                                    {(d.gaps || r.gaps || []).length === 0 && <div style={{ color: goodColor, fontSize: '0.9rem' }}>{'\u2705'} Your roster matches the winner template closely!</div>}
                                 </div>
+                                )}
                             </React.Fragment>
                             );
                         })()}
@@ -5710,7 +5974,6 @@
                             const rounds = Object.keys(dr.winnerDraftProfile || {}).map(Number).sort((a, b) => a - b);
                             const S = window.S || window.App?.S;
                             const myRid = S?.myRosterId;
-                            // Compute user's draft profile from draftOutcomes
                             const draftOutcomes = (window.App?.LI || {}).draftOutcomes || [];
                             const myDraftProfile = {};
                             rounds.forEach(rd => {
@@ -5721,69 +5984,139 @@
                                 myDraftProfile[rd] = {};
                                 Object.entries(posCounts).forEach(([pos, cnt]) => { myDraftProfile[rd][pos] = +(cnt / myPicks.length).toFixed(2); });
                             });
-                            // Compute a simple draft grade
                             let totalHitDiff = 0;
                             let hitRounds = 0;
+                            let winnerHitAvg = 0, leagueHitAvg = 0;
                             rounds.forEach(rd => {
                                 const hr = dr.winnerHitRate[rd];
                                 if (!hr) return;
                                 totalHitDiff += (hr.winners - hr.league);
+                                winnerHitAvg += hr.winners;
+                                leagueHitAvg += hr.league;
                                 hitRounds++;
                             });
                             const avgHitAdv = hitRounds > 0 ? totalHitDiff / hitRounds : 0;
+                            winnerHitAvg = hitRounds > 0 ? winnerHitAvg / hitRounds : 0;
+                            leagueHitAvg = hitRounds > 0 ? leagueHitAvg / hitRounds : 0;
                             const grades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D'];
                             const gradeIdx = Math.min(grades.length - 1, Math.max(0, Math.round(4 - avgHitAdv * 20)));
+                            const totalMyPicks = draftOutcomes.filter(dp => dp.roster_id === myRid).length;
+                            // Compute top draft position for winners
+                            const winnerTopPos = {};
+                            rounds.forEach(rd => {
+                                Object.entries(dr.winnerDraftProfile[rd] || {}).forEach(([pos, pct]) => {
+                                    winnerTopPos[pos] = (winnerTopPos[pos] || 0) + pct;
+                                });
+                            });
+                            const topDraftTarget = Object.entries(winnerTopPos).sort((a,b) => b[1] - a[1])[0];
+
+                            // KPI card style
+                            const dKpiCardStyle = {
+                                background: 'linear-gradient(135deg, rgba(26,26,26,0.95), rgba(10,10,10,0.98))',
+                                border: '1px solid rgba(212,175,55,0.25)',
+                                borderRadius: '14px',
+                                padding: '20px 18px 14px',
+                                flex: '1 1 0',
+                                minWidth: '140px',
+                            };
+                            const dKpiNum = { fontFamily: 'Bebas Neue, cursive', fontSize: '2.2rem', lineHeight: 1, color: 'var(--white)', marginBottom: '2px' };
+                            const dKpiLabel = { fontFamily: 'Oswald, sans-serif', fontSize: '0.7rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 };
+
+                            // Build bar chart items for hit rate by round
+                            const hitRateBarItems = rounds.filter(rd => dr.winnerHitRate[rd]).map(rd => ({
+                                label: 'R' + rd,
+                                value: Math.round((dr.winnerHitRate[rd].winners || 0) * 100),
+                                color: goodColor,
+                            }));
+                            const hitRateLeagueItems = rounds.filter(rd => dr.winnerHitRate[rd]).map(rd => ({
+                                label: 'R' + rd,
+                                value: Math.round((dr.winnerHitRate[rd].league || 0) * 100),
+                                color: 'rgba(192,192,192,0.6)',
+                            }));
 
                             return (
                             <React.Fragment>
-                                <div style={aCardStyle}>
-                                    <div style={aHeaderStyle}>WINNING DRAFT FORMULA</div>
-                                    {rounds.map(rd => {
-                                        const wProf = dr.winnerDraftProfile[rd] || {};
-                                        const myProf = myDraftProfile[rd] || {};
-                                        const sorted = Object.entries(wProf).sort((a, b) => b[1] - a[1]);
-                                        return (
-                                        <div key={rd} style={{ marginBottom: '10px', ...aValStyle }}>
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'baseline' }}>
-                                                <span style={{ color: 'var(--gold)', fontWeight: 700, minWidth: '70px' }}>Round {rd}:</span>
-                                                <span style={{ color: 'var(--silver)' }}>Winners: {sorted.map(([pos, pct]) => pos + ' ' + pctFmt(pct)).join(' | ')}</span>
-                                            </div>
-                                            {Object.keys(myProf).length > 0 && (
-                                                <div style={{ marginLeft: '70px', color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem' }}>
-                                                    You: {Object.entries(myProf).sort((a, b) => b[1] - a[1]).map(([pos, pct]) => pos + ' ' + pctFmt(pct)).join(' | ')}
-                                                </div>
-                                            )}
+                                {/* ── TOP KPI CARDS ── */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+                                    <div style={dKpiCardStyle}>
+                                        <div style={dKpiLabel}>Draft Grade</div>
+                                        <div style={{ ...dKpiNum, fontSize: '2.8rem', color: gradeIdx <= 2 ? goodColor : gradeIdx <= 5 ? warnColor : badColor }}>{grades[gradeIdx]}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>Based on hit rate advantage</div>
+                                    </div>
+                                    <div style={dKpiCardStyle}>
+                                        <div style={dKpiLabel}>Winner Hit Rate</div>
+                                        <div style={dKpiNum}>{pctFmt(winnerHitAvg)}</div>
+                                        <div style={{ fontSize: '0.72rem', color: goodColor, fontFamily: 'Oswald, sans-serif' }}>
+                                            +{Math.round(avgHitAdv * 100)}% vs league ({pctFmt(leagueHitAvg)})
                                         </div>
-                                        );
-                                    })}
+                                    </div>
+                                    <div style={dKpiCardStyle}>
+                                        <div style={dKpiLabel}>Your Draft Picks</div>
+                                        <div style={dKpiNum}>{totalMyPicks || '\u2014'}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>Across {rounds.length} rounds</div>
+                                    </div>
+                                    <div style={dKpiCardStyle}>
+                                        <div style={dKpiLabel}>Winner #1 Target</div>
+                                        <div style={dKpiNum}>{topDraftTarget ? topDraftTarget[0] : '\u2014'}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--gold)', opacity: 0.7 }}>Most drafted position by champs</div>
+                                    </div>
                                 </div>
 
-                                <div style={aCardStyle}>
-                                    <div style={aHeaderStyle}>HIT RATES (WINNERS vs LEAGUE)</div>
-                                    {rounds.map(rd => {
-                                        const hr = dr.winnerHitRate[rd];
-                                        if (!hr) return null;
-                                        return (
-                                        <div key={rd} style={{ display: 'flex', gap: '12px', marginBottom: '8px', alignItems: 'center', ...aValStyle }}>
-                                            <span style={{ color: 'var(--gold)', fontWeight: 700, minWidth: '60px' }}>R{rd}:</span>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px', fontSize: '0.85rem' }}>
-                                                    <span style={{ color: goodColor }}>Winners {pctFmt(hr.winners)} {'\u2192'} Starter</span>
-                                                    <span style={{ color: 'var(--silver)' }}>League {pctFmt(hr.league)}</span>
-                                                </div>
-                                                <div style={{ position: 'relative', height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
-                                                    <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: pctFmt(hr.winners), background: goodColor, borderRadius: '4px', opacity: 0.7 }} />
-                                                    <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: pctFmt(hr.league), background: 'var(--silver)', borderRadius: '4px', opacity: 0.3 }} />
-                                                </div>
-                                            </div>
+                                {/* ── TWO-COLUMN: Hit Rates + Draft Formula ── */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                                    {/* Hit Rates as BarChart */}
+                                    <div style={aCardStyle}>
+                                        <div style={aHeaderStyle}>HIT RATES BY ROUND</div>
+                                        <div style={{ marginBottom: '10px' }}>
+                                            <div style={{ fontSize: '0.7rem', color: goodColor, fontFamily: 'Oswald, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Winners</div>
+                                            {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: hitRateBarItems, width: 340, height: 18, gap: 4 })}
                                         </div>
-                                        );
-                                    })}
-                                </div>
+                                        <div>
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--silver)', fontFamily: 'Oswald, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>League Avg</div>
+                                            {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: hitRateLeagueItems, width: 340, height: 18, gap: 4 })}
+                                        </div>
+                                    </div>
 
-                                <div style={{ ...aCardStyle, textAlign: 'center', padding: '24px' }}>
-                                    <div style={{ fontFamily: 'Bebas Neue, cursive', color: 'var(--silver)', fontSize: '1rem', marginBottom: '4px' }}>YOUR DRAFT GRADE</div>
-                                    <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '3rem', color: gradeIdx <= 2 ? goodColor : gradeIdx <= 5 ? warnColor : badColor }}>{grades[gradeIdx]}</div>
+                                    {/* Draft Formula */}
+                                    <div style={aCardStyle}>
+                                        <div style={aHeaderStyle}>WINNING DRAFT FORMULA</div>
+                                        {rounds.map(rd => {
+                                            const wProf = dr.winnerDraftProfile[rd] || {};
+                                            const myProf = myDraftProfile[rd] || {};
+                                            const sorted = Object.entries(wProf).sort((a, b) => b[1] - a[1]);
+                                            return (
+                                            <div key={rd} style={{ marginBottom: '10px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                    <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1rem', color: 'var(--gold)', minWidth: '65px' }}>Round {rd}</span>
+                                                    <div style={{ flex: 1, display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                                        {sorted.map(([pos, pct]) => (
+                                                            <span key={pos} style={{
+                                                                fontSize: '0.72rem', fontFamily: 'Oswald, sans-serif', padding: '2px 8px',
+                                                                borderRadius: '10px', background: 'rgba(212,175,55,0.12)', color: 'var(--gold)',
+                                                                border: '1px solid rgba(212,175,55,0.25)',
+                                                            }}>{pos} {pctFmt(pct)}</span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                {Object.keys(myProf).length > 0 && (
+                                                    <div style={{ marginLeft: '65px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                                        {Object.entries(myProf).sort((a, b) => b[1] - a[1]).map(([pos, pct]) => (
+                                                            <span key={pos} style={{
+                                                                fontSize: '0.68rem', fontFamily: 'Oswald, sans-serif', padding: '1px 6px',
+                                                                borderRadius: '8px', background: 'rgba(78,205,196,0.1)', color: '#4ECDC4',
+                                                                border: '1px solid rgba(78,205,196,0.2)',
+                                                            }}>{pos} {pctFmt(pct)}</span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            );
+                                        })}
+                                        <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '0.7rem' }}>
+                                            <span style={{ color: 'var(--gold)' }}>{'\u25A0'} Winners</span>
+                                            <span style={{ color: '#4ECDC4' }}>{'\u25A0'} You</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </React.Fragment>
                             );
@@ -5882,41 +6215,120 @@
                                 const entries = Object.entries(prof.positionsBought || {}).sort((a, b) => b[1] - a[1]);
                                 return entries.slice(0, 3).map(([p]) => p).join(', ') || '\u2014';
                             };
-                            const rows = [
-                                ['Trades/Season', wp.avgTradesPerSeason, lp.avgTradesPerSeason, mp.avgTradesPerSeason],
-                                ['Avg DHQ Gained', (wp.avgValueGained >= 0 ? '+' : '') + wp.avgValueGained, (lp.avgValueGained >= 0 ? '+' : '') + lp.avgValueGained, (mp.avgValueGained >= 0 ? '+' : '') + mp.avgValueGained],
-                                ['Positions Bought', topPosBought(wp), topPosBought(lp), topPosBought(mp)],
-                                ['Partner Pref.', wp.partnerPreference, lp.partnerPreference, mp.partnerPreference],
-                            ];
                             const alerts = [];
-                            if (mp.avgTradesPerSeason < lp.avgTradesPerSeason) alerts.push({ sev: 'medium', msg: 'You trade below league average volume (' + mp.avgTradesPerSeason + ' vs ' + lp.avgTradesPerSeason + ')' });
-                            if (mp.avgValueGained < 0) alerts.push({ sev: 'high', msg: 'You\'re losing value per trade (' + mp.avgValueGained + ' DHQ avg)' });
-                            if (wp.partnerPreference && wp.partnerPreference !== mp.partnerPreference) alerts.push({ sev: 'low', msg: 'Tip: Winners trade WITH ' + wp.partnerPreference + ' types, not ' + mp.partnerPreference + ' types' });
+                            if (mp.avgTradesPerSeason < lp.avgTradesPerSeason) alerts.push({ sev: 'medium', title: 'Low Trade Volume', msg: 'You trade below league average (' + mp.avgTradesPerSeason + ' vs ' + lp.avgTradesPerSeason + ' per season). Winners average ' + wp.avgTradesPerSeason + '.' });
+                            if (mp.avgValueGained < 0) alerts.push({ sev: 'high', title: 'Losing Value', msg: 'You\'re losing ' + Math.abs(mp.avgValueGained) + ' DHQ per trade on average. Winners gain +' + wp.avgValueGained + '.' });
+                            if (wp.partnerPreference && wp.partnerPreference !== mp.partnerPreference) alerts.push({ sev: 'low', title: 'Trade Partner Strategy', msg: 'Winners target ' + wp.partnerPreference + ' teams. You trade with ' + mp.partnerPreference + ' teams.' });
+                            if (mp.avgValueGained >= 0) alerts.push({ sev: 'low', title: 'Positive Value', msg: 'You gain +' + mp.avgValueGained + ' DHQ per trade. Keep extracting surplus in deals.' });
+
+                            // Build position bought bar chart items
+                            const allBoughtPos = [...new Set([...Object.keys(wp.positionsBought || {}), ...Object.keys(mp.positionsBought || {})])].filter(p => p !== 'UNK').sort();
+                            const boughtBarWinner = allBoughtPos.map(pos => ({ label: pos, value: (wp.positionsBought || {})[pos] || 0, color: CHART_COLORS?.gold || '#D4AF37' }));
+                            const boughtBarYou = allBoughtPos.map(pos => ({ label: pos, value: (mp.positionsBought || {})[pos] || 0, color: '#4ECDC4' }));
+
+                            // KPI card style
+                            const tKpiCardStyle = {
+                                background: 'linear-gradient(135deg, rgba(26,26,26,0.95), rgba(10,10,10,0.98))',
+                                border: '1px solid rgba(212,175,55,0.25)',
+                                borderRadius: '14px',
+                                padding: '20px 18px 14px',
+                                flex: '1 1 0',
+                                minWidth: '140px',
+                            };
+                            const tKpiNum = { fontFamily: 'Bebas Neue, cursive', fontSize: '2.2rem', lineHeight: 1, color: 'var(--white)', marginBottom: '2px' };
+                            const tKpiLabel = { fontFamily: 'Oswald, sans-serif', fontSize: '0.7rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 };
+
+                            const valueDeltaColor = mp.avgValueGained >= 0 ? goodColor : badColor;
 
                             return (
                             <React.Fragment>
-                                <div style={aCardStyle}>
-                                    <div style={aHeaderStyle}>WINNER TRADE PROFILE</div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '8px', padding: '6px 0', fontWeight: 700, color: 'var(--gold)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                                        <div>Metric</div><div>Winners</div><div>League</div><div>You</div>
-                                    </div>
-                                    {rows.map(([label, wVal, lVal, mVal], i) => (
-                                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '8px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', color: 'var(--silver)', ...aValStyle }}>
-                                            <div>{label}</div>
-                                            <div style={{ color: 'var(--gold)' }}>{wVal}</div>
-                                            <div>{lVal}</div>
-                                            <div>{mVal}</div>
+                                {/* ── TOP KPI CARDS ── */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+                                    <div style={tKpiCardStyle}>
+                                        <div style={tKpiLabel}>Your Trades/Season</div>
+                                        <div style={tKpiNum}>{mp.avgTradesPerSeason}</div>
+                                        <div style={{ fontSize: '0.72rem', color: mp.avgTradesPerSeason >= lp.avgTradesPerSeason ? goodColor : warnColor, fontFamily: 'Oswald, sans-serif' }}>
+                                            {mp.avgTradesPerSeason >= lp.avgTradesPerSeason ? '\u25B2' : '\u25BC'} League avg: {lp.avgTradesPerSeason}
                                         </div>
-                                    ))}
+                                    </div>
+                                    <div style={tKpiCardStyle}>
+                                        <div style={tKpiLabel}>Avg DHQ Gained</div>
+                                        <div style={{ ...tKpiNum, color: valueDeltaColor }}>{(mp.avgValueGained >= 0 ? '+' : '') + mp.avgValueGained}</div>
+                                        <div style={{ fontSize: '0.72rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif' }}>
+                                            Winners: +{wp.avgValueGained}
+                                        </div>
+                                    </div>
+                                    <div style={tKpiCardStyle}>
+                                        <div style={tKpiLabel}>Winner Volume</div>
+                                        <div style={tKpiNum}>{wp.avgTradesPerSeason}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>trades per season</div>
+                                    </div>
+                                    <div style={tKpiCardStyle}>
+                                        <div style={tKpiLabel}>Top Positions Bought</div>
+                                        <div style={{ ...tKpiNum, fontSize: '1.6rem' }}>{topPosBought(wp)}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--gold)', opacity: 0.7 }}>by champions</div>
+                                    </div>
                                 </div>
 
+                                {/* ── TWO-COLUMN: Position Bought + Trade Profile Table ── */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                                    {/* Positions Bought BarChart */}
+                                    <div style={aCardStyle}>
+                                        <div style={aHeaderStyle}>POSITIONS ACQUIRED VIA TRADE</div>
+                                        {allBoughtPos.length > 0 ? (
+                                        <React.Fragment>
+                                            <div style={{ marginBottom: '10px' }}>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Winners</div>
+                                                {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: boughtBarWinner, width: 340, height: 18, gap: 4 })}
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '0.7rem', color: '#4ECDC4', fontFamily: 'Oswald, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>You</div>
+                                                {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: boughtBarYou, width: 340, height: 18, gap: 4 })}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '16px', marginTop: '10px', fontSize: '0.7rem' }}>
+                                                <span style={{ color: 'var(--gold)' }}>{'\u25A0'} Winners</span>
+                                                <span style={{ color: '#4ECDC4' }}>{'\u25A0'} You</span>
+                                            </div>
+                                        </React.Fragment>
+                                        ) : <div style={{ color: 'var(--silver)', fontSize: '0.85rem', opacity: 0.6 }}>No position data available</div>}
+                                    </div>
+
+                                    {/* Trade Comparison Table */}
+                                    <div style={aCardStyle}>
+                                        <div style={aHeaderStyle}>TRADE COMPARISON</div>
+                                        {/* Header */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '8px', padding: '8px 0', fontWeight: 700, color: 'var(--gold)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '2px solid rgba(212,175,55,0.2)', fontFamily: 'Oswald, sans-serif' }}>
+                                            <div>Metric</div><div>Winners</div><div>League</div><div>You</div>
+                                        </div>
+                                        {[
+                                            ['Trades/Season', wp.avgTradesPerSeason, lp.avgTradesPerSeason, mp.avgTradesPerSeason],
+                                            ['Avg DHQ Gained', (wp.avgValueGained >= 0 ? '+' : '') + wp.avgValueGained, (lp.avgValueGained >= 0 ? '+' : '') + lp.avgValueGained, (mp.avgValueGained >= 0 ? '+' : '') + mp.avgValueGained],
+                                            ['Top Bought', topPosBought(wp), topPosBought(lp), topPosBought(mp)],
+                                            ['Partner Pref.', wp.partnerPreference || '\u2014', lp.partnerPreference || '\u2014', mp.partnerPreference || '\u2014'],
+                                        ].map(([label, wVal, lVal, mVal], i) => (
+                                            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '8px', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontFamily: 'Oswald, sans-serif', fontSize: '0.85rem' }}>
+                                                <div style={{ color: 'var(--silver)' }}>{label}</div>
+                                                <div style={{ color: 'var(--gold)' }}>{wVal}</div>
+                                                <div style={{ color: 'var(--silver)', opacity: 0.7 }}>{lVal}</div>
+                                                <div style={{ color: 'var(--white)' }}>{mVal}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* ── INSIGHT CARDS ROW ── */}
                                 {alerts.length > 0 && (
-                                <div style={aCardStyle}>
-                                    <div style={aHeaderStyle}>TRADE INSIGHTS</div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                                     {alerts.map((a, i) => (
-                                        <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                                            <span style={{ fontSize: '1rem', flexShrink: 0 }}>{sevIcon(a.sev)}</span>
-                                            <span style={{ color: sevColor(a.sev), fontSize: '0.85rem', fontFamily: 'Oswald, sans-serif' }}>{a.msg}</span>
+                                        <div key={i} style={{
+                                            background: 'rgba(26,26,26,0.8)', borderRadius: '10px', padding: '14px 16px',
+                                            borderLeft: '4px solid ' + sevColor(a.sev),
+                                            border: '1px solid rgba(255,255,255,0.06)',
+                                        }}>
+                                            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: sevColor(a.sev), marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                                {a.title}
+                                            </div>
+                                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.5 }}>{a.msg}</div>
                                         </div>
                                     ))}
                                 </div>
