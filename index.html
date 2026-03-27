@@ -1875,7 +1875,7 @@
         }
 
         // ── State ──
-        const [tcTab, setTcTab] = useState('audit');
+        const [tcTab, setTcTab] = useState('dna');
         const [ownerDna, setOwnerDna] = useState({});
         const [grudges, setGrudges] = useState([]);
         const [sortMode, setSortMode] = useState('health');
@@ -2767,9 +2767,9 @@
         // ── Main render ──
         return (
             <div style={{ padding: '16px' }}>
-                <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.6rem', color: 'var(--gold)', marginBottom: '4px' }}>TRADE CALCULATOR</div>
+                <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.6rem', color: 'var(--gold)', marginBottom: '4px' }}>LEAGUE INTELLIGENCE</div>
                 <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
-                    {['audit','dna','analyzer','finder','inbox'].map(tab => (
+                    {['dna','finder','analyzer','audit','inbox'].map(tab => (
                         <button key={tab} onClick={() => setTcTab(tab)} style={{
                             padding: '6px 14px', fontSize: '0.78rem', fontFamily: 'Oswald',
                             textTransform: 'uppercase', letterSpacing: '0.04em',
@@ -2777,7 +2777,7 @@
                             color: tcTab === tab ? 'var(--black)' : 'var(--silver)',
                             border: '1px solid ' + (tcTab === tab ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
                             borderRadius: '4px', cursor: 'pointer'
-                        }}>{({dna:'Owner DNA',analyzer:'Trade Analyzer',finder:'Trade Finder',inbox:'Trade Inbox'})[tab] || 'Roster Audit'}</button>
+                        }}>{({dna:'Owner Profiles',finder:'Trade Finder',analyzer:'Deal Analyzer',inbox:'Trade History',audit:'Roster Audit'})[tab]}</button>
                     ))}
                 </div>
                 {tcTab === 'audit' && renderAudit()}
@@ -3160,7 +3160,7 @@
         const [currentLeague, setCurrentLeague] = useState(league);
         const [activeYear, setActiveYear] = useState(league.season);
         const [trending, setTrending] = useState({ adds: [], drops: [] });
-        const [activeTab, setActiveTab] = useState('dashboard');
+        const [activeTab, setActiveTab] = useState('analytics');
         const [analyticsData, setAnalyticsData] = useState(null);
         const [analyticsTab, setAnalyticsTab] = useState('roster');
         const [rosterFilter, setRosterFilter] = useState('All');
@@ -5320,14 +5320,11 @@
 
                     {/* Nav items */}
                     {[
-                        {label: 'Home', tab: 'dashboard'},
-                        {label: 'My Team', tab: 'myteam'},
-                        {label: 'Matchup', tab: 'matchup'},
-                        {label: 'League', tab: 'league'},
-                        {label: 'Analytics', tab: 'analytics'},
-                        {label: 'Trades', tab: 'trades'},
-                        {label: 'Free Agency', tab: 'fa'},
+                        {label: 'Dashboard', tab: 'analytics'},
+                        {label: 'My Roster', tab: 'myteam'},
+                        {label: 'Intelligence', tab: 'trades'},
                         {label: 'Draft', tab: 'draft'},
+                        {label: 'League', tab: 'league'},
                         {label: 'Settings', action: () => onOpenSettings && onOpenSettings()},
                     ].map((item, i) => {
                         const isActive = item.tab && activeTab === item.tab;
@@ -7148,17 +7145,20 @@
                 {showOnboarding && (
                     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.85)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'24px' }}>
                         <div style={{ background:'linear-gradient(135deg, var(--off-black), var(--charcoal))', border:'2px solid var(--gold)', borderRadius:'16px', padding:'32px', maxWidth:'500px', width:'100%', textAlign:'center' }}>
-                            <div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'2rem', color:'var(--gold)', letterSpacing:'0.08em', marginBottom:'8px' }}>WELCOME TO WAR ROOM</div>
-                            <div style={{ fontFamily:'Oswald,sans-serif', fontSize:'0.85rem', color:'var(--silver)', lineHeight:1.6, marginBottom:'20px' }}>
-                                Your dynasty football command center. Select a league below to enter your War Room with full analytics, trade tools, and AI-powered insights.
+                            <div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'2rem', color:'var(--gold)', letterSpacing:'0.08em', marginBottom:'4px' }}>WAR ROOM</div>
+                            <div style={{ fontFamily:'Oswald,sans-serif', fontSize:'0.95rem', color:'var(--white)', lineHeight:1.6, marginBottom:'6px' }}>
+                                The desktop command center for dynasty strategy.
+                            </div>
+                            <div style={{ fontFamily:'Oswald,sans-serif', fontSize:'0.78rem', color:'var(--silver)', lineHeight:1.5, marginBottom:'20px' }}>
+                                Map your leaguemates. Plan trades they'll accept. Build a franchise that wins for years.
                             </div>
                             <div style={{ textAlign:'left', marginBottom:'24px' }}>
                                 {[
-                                    ['Home', 'Live dashboard with power rankings, transactions, and league narratives'],
-                                    ['My Team', 'Football Manager-style roster table with 22+ columns'],
-                                    ['Matchup', 'Weekly head-to-head breakdown by position'],
-                                    ['Analytics', 'Winner patterns, draft ROI, projections, and league timeline'],
-                                    ['Trades', 'DHQ-powered trade calculator with owner psychology and trade finder'],
+                                    ['Dashboard', 'League-wide analytics, power rankings, and winner pattern analysis'],
+                                    ['My Roster', 'Football Manager-style roster table with dynasty context'],
+                                    ['Intelligence', 'Owner DNA profiles, psychological trade mapping, and deal finder'],
+                                    ['Draft', 'Prospect board with fit scores and pick value analysis'],
+                                    ['League', 'Team comparison, history, and franchise timelines'],
                                 ].map(([title, desc], i) => (
                                     <div key={i} style={{ display:'flex', gap:'10px', padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
                                         <span style={{ fontFamily:'Oswald,sans-serif', fontSize:'0.75rem', color:'var(--gold)', fontWeight:700, minWidth:'80px' }}>{title}</span>
