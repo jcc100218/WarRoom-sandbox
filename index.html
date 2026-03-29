@@ -6428,8 +6428,30 @@
 
                             const gapsList = d.gaps || r.gaps || [];
 
+                            // ── Roster Diagnosis Summary ──
+                            const ageDiffDiag = m.avgAge - w.avgAge;
+                            const eliteDiffDiag = mElite - wElite;
+                            const dhqGap = m.avgTotalDHQ - w.avgTotalDHQ;
+                            const benchGap = m.avgBenchQuality - w.avgBenchQuality;
+                            const rosterStrategy = ageDiffDiag > 1.5 && dhqGap < 0 ? 'sell aging veterans and acquire young elites'
+                                : eliteDiffDiag < -1 ? 'buy young elite players to close the talent gap'
+                                : dhqGap >= 0 && ageDiffDiag <= 0.5 ? 'hold course — your roster matches the winner template'
+                                : 'target strategic upgrades at your weakest positions';
+
                             return (
                             <React.Fragment>
+                                {/* ── ROSTER DIAGNOSIS SUMMARY ── */}
+                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
+                                    <div style={aHeaderStyle}>ROSTER DIAGNOSIS</div>
+                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
+                                        {'Your roster is ' + Math.abs(ageDiffDiag).toFixed(1) + ' years ' + (ageDiffDiag > 0 ? 'older' : 'younger') + ' than champions (avg ' + w.avgAge.toFixed(1) + ' yrs). You have ' + (eliteDiffDiag >= 0 ? eliteDiffDiag.toFixed(1) + ' more' : Math.abs(eliteDiffDiag).toFixed(1) + ' fewer') + ' elite assets than winners. Total DHQ is ' + (dhqGap >= 0 ? '+' : '') + Math.round(dhqGap).toLocaleString() + ' vs champion avg. Bench quality: ' + numFmt(m.avgBenchQuality) + ' vs winner ' + numFmt(w.avgBenchQuality) + '. Strategy: ' + rosterStrategy + '.'}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        <button onClick={() => setActiveTab('trades')} style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>Find Trade Targets</button>
+                                        <button onClick={() => setActiveTab('fa')} style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>View Free Agents</button>
+                                    </div>
+                                </div>
+
                                 {/* ── TOP KPI CARDS ── */}
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '20px' }}>
                                     {/* Total DHQ */}
@@ -6675,8 +6697,32 @@
                                 color: 'rgba(192,192,192,0.6)',
                             }));
 
+                            // ── Draft Strategy Summary ──
+                            const myHitRates = {};
+                            rounds.forEach(rd => {
+                                const myPicks = draftOutcomes.filter(dp => dp.round === rd && dp.roster_id === myRid);
+                                if (!myPicks.length) return;
+                                const hits = myPicks.filter(dp => dp.isHit).length;
+                                myHitRates[rd] = myPicks.length > 0 ? hits / myPicks.length : 0;
+                            });
+                            const myR1Hit = myHitRates[1] || 0;
+                            const winnerR1Hit = (dr.winnerHitRate[1] || {}).winners || 0;
+                            const topDraftPos = topDraftTarget ? topDraftTarget[0] : 'RB/WR';
+                            const draftGradeLetter = grades[gradeIdx];
+
                             return (
                             <React.Fragment>
+                                {/* ── DRAFT STRATEGY SUMMARY ── */}
+                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
+                                    <div style={aHeaderStyle}>DRAFT STRATEGY</div>
+                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
+                                        {'Your draft grade: ' + draftGradeLetter + ' — ' + (gradeIdx <= 2 ? 'elite drafter, a real advantage' : gradeIdx <= 5 ? 'average, not a competitive edge' : 'below average, costing you roster value') + '. Winners hit ' + Math.round(winnerR1Hit * 100) + '% in R1 vs your ' + Math.round(myR1Hit * 100) + '%. Recommendation: prioritize ' + topDraftPos + ' in R1-R2 based on the winner template. ' + (totalMyPicks < 10 ? 'You have limited draft history — accumulate picks to build through the draft.' : 'Focus on hit rate over volume.')}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        <button onClick={() => setActiveTab('draft')} style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>Open Draft Board</button>
+                                    </div>
+                                </div>
+
                                 {/* ── TOP KPI CARDS ── */}
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '20px' }}>
                                     <div style={dKpiCardStyle}>
@@ -6781,8 +6827,31 @@
                                 late: ((myTiming.late || 0) / myTimingTotal).toFixed(2),
                             };
 
+                            // ── Waiver Strategy Summary ──
+                            const winnerFaab = wv.winnerFaabProfile || {};
+                            const leagueFaab = wv.leagueFaabProfile || {};
+                            const underSpendPos = positions.filter(pos => {
+                                const wAvg = (winnerFaab[pos] || {}).avg || 0;
+                                const lAvg = (leagueFaab[pos] || {}).avg || 0;
+                                return wAvg > lAvg * 1.2;
+                            });
+                            const topUnderSpend = underSpendPos.length > 0 ? underSpendPos.join(', ') : 'all positions';
+                            const winnerEarlyPct = Math.round((wv.winnerTiming?.early || 0) * 100);
+                            const myEarlyPct = Math.round((parseFloat(myTimingPcts.early) || 0) * 100);
+
                             return (
                             <React.Fragment>
+                                {/* ── WAIVER STRATEGY SUMMARY ── */}
+                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
+                                    <div style={aHeaderStyle}>WAIVER STRATEGY</div>
+                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
+                                        {'Winners spend aggressively on ' + topUnderSpend + ' early in the season. They deploy ' + winnerEarlyPct + '% of FAAB early vs your ' + myEarlyPct + '%. ' + (myEarlyPct < winnerEarlyPct - 10 ? 'You are under-spending early — front-load your FAAB to capture impact players before your competition.' : 'Your spending timing aligns well with winners.') + ' Focus waiver claims on high-upside ' + (underSpendPos[0] || 'RB/WR') + ' to maximize roster value.'}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        <button onClick={() => setActiveTab('fa')} style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>View Waiver Targets</button>
+                                    </div>
+                                </div>
+
                                 <div style={aCardStyle}>
                                     <div style={aHeaderStyle}>WINNER FAAB PROFILE</div>
                                     <div style={{ ...tableRowStyle(0) }}>
@@ -6881,8 +6950,24 @@
 
                             const valueDeltaColor = mp.avgValueGained >= 0 ? goodColor : badColor;
 
+                            // ── Trade Strategy Summary ──
+                            const tradeVolDiff = mp.avgTradesPerSeason - wp.avgTradesPerSeason;
+                            const tradeEfficiency = mp.avgValueGained >= 0 ? 'trading efficiently' : 'over-paying in trades';
+                            const tradeActivity = tradeVolDiff < -1 ? 'under-trading' : tradeVolDiff > 1 ? 'over-trading' : 'trading at the right frequency';
+
                             return (
                             <React.Fragment>
+                                {/* ── TRADE STRATEGY SUMMARY ── */}
+                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
+                                    <div style={aHeaderStyle}>TRADE STRATEGY</div>
+                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
+                                        {'You average ' + mp.avgTradesPerSeason + ' trades/season vs winners\u2019 ' + wp.avgTradesPerSeason + '. You ' + (mp.avgValueGained >= 0 ? 'gain +' : 'lose ') + Math.abs(mp.avgValueGained) + ' DHQ per trade (winners: +' + wp.avgValueGained + '). You are ' + tradeActivity + ' and ' + tradeEfficiency + '. ' + (mp.avgValueGained < 0 ? 'Focus on extracting value — target aging stars from contenders or sell depreciating assets.' : 'Keep leveraging your trade edge to consolidate elite talent.')}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        <button onClick={() => setActiveTab('trades')} style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>Open Trade Finder</button>
+                                    </div>
+                                </div>
+
                                 {/* ── TOP KPI CARDS ── */}
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '20px' }}>
                                     <div style={tKpiCardStyle}>
@@ -7012,8 +7097,28 @@
                             const atRiskPct = totalDHQ > 0 ? Math.round(atRiskDHQ / totalDHQ * 100) : 0;
                             atRiskPlayers.sort((a, b) => b.dhq - a.dhq);
 
+                            // ── Future Outlook Summary ──
+                            const projTrend = proj.length >= 2 ? proj[proj.length - 1].projectedDHQ - proj[0].projectedDHQ : 0;
+                            const currentTier = proj[0]?.tier || 'Unknown';
+                            const windowYears = win?.years || 0;
+                            const outlook = projTrend > 500 ? 'building momentum' : projTrend < -500 ? 'in decline' : currentTier === 'Contender' ? 'peaking now' : 'stable but not gaining ground';
+                            const projStrategy = windowYears >= 3 ? 'maximize now — push all-in for a championship'
+                                : windowYears >= 1 ? 'begin transition — sell aging assets while competitive'
+                                : 'commit to rebuild — trade veterans for young talent and picks';
+
                             return (
                             <React.Fragment>
+                                {/* ── FUTURE OUTLOOK SUMMARY ── */}
+                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
+                                    <div style={aHeaderStyle}>FUTURE OUTLOOK</div>
+                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
+                                        {'Your roster is ' + outlook + '. Competitive window: ' + (windowYears > 0 ? windowYears + ' year' + (windowYears > 1 ? 's' : '') : 'closed') + '. ' + atRiskPct + '% of your DHQ is past peak in 2 years' + (atRiskPlayers.length > 0 ? ' (' + atRiskPlayers.slice(0, 3).map(p => p.name).join(', ') + ')' : '') + '. Strategy: ' + projStrategy + '.'}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        <button onClick={() => setActiveTab('trades')} style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>Find Trade Candidates</button>
+                                    </div>
+                                </div>
+
                                 <div style={aCardStyle}>
                                     <div style={aHeaderStyle}>YOUR 5-YEAR OUTLOOK</div>
                                     {proj.map((p, i) => (
@@ -7074,9 +7179,12 @@
                                         <div>
                                             <div style={{ color: 'var(--silver)', fontSize: '0.8rem', marginBottom: '6px', fontWeight: 700 }}>Players at risk:</div>
                                             {atRiskPlayers.slice(0, 5).map((p, i) => (
-                                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.85rem', fontFamily: 'Oswald, sans-serif' }}>
+                                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.85rem', fontFamily: 'Oswald, sans-serif' }}>
                                                     <span style={{ color: 'var(--silver)' }}>{p.name} ({p.age})</span>
-                                                    <span style={{ color: badColor }}>{p.dhq.toLocaleString()} DHQ</span>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span style={{ color: badColor }}>{p.dhq.toLocaleString()} DHQ</span>
+                                                        <span style={{ padding: '2px 8px', background: 'rgba(231,76,60,0.15)', color: badColor, borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em' }}>TRADE NOW</span>
+                                                    </span>
                                                 </div>
                                             ))}
                                         </div>
@@ -7108,8 +7216,39 @@
                             const championships = window.App?.LI?.championships || {};
                             const seasons = Object.entries(championships).sort(([a],[b]) => b.localeCompare(a));
                             if (!seasons.length) return <div style={{ ...aCardStyle, color: 'var(--silver)', textAlign: 'center', padding: '40px' }}>No championship history available yet.</div>;
+
+                            // ── Playoff Profile Summary ──
+                            const myRidP = myRoster?.roster_id;
+                            let myChampionships = 0, myRunnerUps = 0;
+                            seasons.forEach(([season, data]) => {
+                                if (data.champion === myRidP) myChampionships++;
+                                if (data.runnerUp === myRidP) myRunnerUps++;
+                            });
+                            const myPlayoffAppearances = myChampionships + myRunnerUps;
+                            const playoffDiag = myChampionships > 0
+                                ? 'You have ' + myChampionships + ' championship' + (myChampionships > 1 ? 's' : '') + ' in ' + seasons.length + ' seasons.'
+                                : myRunnerUps > 0
+                                ? 'You have reached ' + myRunnerUps + ' final' + (myRunnerUps > 1 ? 's' : '') + ' but no championships in ' + seasons.length + ' seasons.'
+                                : 'You haven\'t reached the finals recently.';
+                            const playoffInsight = myRunnerUps > myChampionships && myRunnerUps > 0
+                                ? ' You struggle to close out championship matchups — consider roster upgrades at key playoff positions.'
+                                : myPlayoffAppearances === 0
+                                ? ' Focus on building a contender before worrying about playoff optimization.'
+                                : ' Your playoff track record is solid. Maintain your competitive edge.';
+
                             return (
                             <React.Fragment>
+                                {/* ── PLAYOFF PROFILE SUMMARY ── */}
+                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
+                                    <div style={aHeaderStyle}>PLAYOFF PROFILE</div>
+                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
+                                        {playoffDiag + playoffInsight}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        <button style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>Analyze Matchups</button>
+                                    </div>
+                                </div>
+
                                 <div style={aCardStyle}>
                                     <div style={aHeaderStyle}>PLAYOFF HISTORY</div>
                                     {seasons.map(([season, data]) => {
@@ -7191,7 +7330,45 @@
 
                             if (!events.length) return <div style={{ color:'var(--silver)', textAlign:'center', padding:'40px' }}>No timeline events. DHQ engine needs to load trade history and championship data.</div>;
 
+                            // ── League Narrative Summary ──
+                            const champCounts = {};
+                            Object.values(championships).forEach(data => {
+                                if (data.champion) champCounts[data.champion] = (champCounts[data.champion] || 0) + 1;
+                            });
+                            const champEntries = Object.entries(champCounts).sort((a, b) => b[1] - a[1]);
+                            const dominantTeam = champEntries.length > 0 ? getOwner(champEntries[0][0]) : 'N/A';
+                            const dominantTitles = champEntries.length > 0 ? champEntries[0][1] : 0;
+                            const repeatWinners = champEntries.filter(([, cnt]) => cnt > 1).map(([rid]) => getOwner(rid));
+                            const myRidTL = myRoster?.roster_id;
+                            const myChampsTL = champCounts[myRidTL] || 0;
+                            // Trajectory from projection data
+                            const projTL = d.projection || [];
+                            const tlTrend = projTL.length >= 2 ? projTL[projTL.length - 1].projectedDHQ - projTL[0].projectedDHQ : 0;
+                            const myTrajectory = tlTrend > 500 ? 'rising' : tlTrend < -500 ? 'declining' : 'stable';
+                            // Next champion candidates: teams with highest health scores
+                            const allRostersTL = (window.S || window.App?.S)?.rosters || [];
+                            const teamHealthList = [];
+                            allRostersTL.forEach(ros => {
+                                try {
+                                    if (window.assessTeamFromGlobal) {
+                                        const a = window.assessTeamFromGlobal(ros.roster_id);
+                                        if (a) teamHealthList.push({ rid: ros.roster_id, name: getOwner(ros.roster_id), health: a.healthScore || 0 });
+                                    }
+                                } catch(e) {}
+                            });
+                            teamHealthList.sort((a, b) => b.health - a.health);
+                            const nextChampCandidates = teamHealthList.slice(0, 3).map(t => t.name).join(', ') || 'insufficient data';
+
                             return (
+                                <React.Fragment>
+                                {/* ── LEAGUE NARRATIVE SUMMARY ── */}
+                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
+                                    <div style={aHeaderStyle}>LEAGUE NARRATIVE</div>
+                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
+                                        {'League dominated by ' + dominantTeam + ' with ' + dominantTitles + ' title' + (dominantTitles > 1 ? 's' : '') + '.' + (repeatWinners.length > 0 ? ' Repeat winners: ' + repeatWinners.join(', ') + '.' : ' No repeat champions yet — wide-open league.') + ' Your trajectory: ' + myTrajectory + (myChampsTL > 0 ? ' (' + myChampsTL + ' title' + (myChampsTL > 1 ? 's' : '') + ')' : '') + '. Next likely champion candidates: ' + nextChampCandidates + '.'}
+                                    </div>
+                                </div>
+
                                 <div style={{ background:'var(--black)', border:'2px solid rgba(212,175,55,0.3)', borderRadius:'12px', padding:'24px' }}>
                                     <div style={{ fontFamily:'Bebas Neue,cursive', fontSize:'1.3rem', color:'var(--gold)', letterSpacing:'0.08em', marginBottom:'20px' }}>LEAGUE TIMELINE</div>
                                     {years.map(year => {
@@ -7216,6 +7393,7 @@
                                         );
                                     })}
                                 </div>
+                                </React.Fragment>
                             );
                         })()}
 
