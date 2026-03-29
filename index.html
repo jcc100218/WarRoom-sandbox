@@ -3327,6 +3327,60 @@
         const [activeYear, setActiveYear] = useState(league.season);
         const [trending, setTrending] = useState({ adds: [], drops: [] });
         const [activeTab, setActiveTab] = useState('analytics');
+
+        // ── TIME CONTEXT — the temporal lens of the entire app ──
+        const currentSeason = parseInt(league.season) || new Date().getFullYear();
+        const [timeYear, setTimeYear] = useState(() => {
+            try { const saved = localStorage.getItem('wr_time_year'); return saved ? parseInt(saved) : currentSeason; } catch(e) { return currentSeason; }
+        });
+        const timeMode = timeYear > currentSeason ? 'future' : timeYear < currentSeason ? 'historical' : 'current';
+        const timeModeLabel = timeMode === 'future' ? 'Projection View' : timeMode === 'historical' ? 'Historical View' : 'Current Season';
+        const timeModeColor = timeMode === 'future' ? '#3498DB' : timeMode === 'historical' ? '#F0A500' : '#2ECC71';
+        const [timeLoading, setTimeLoading] = useState(false);
+        const timeYears = [];
+        for (let y = Math.max(2020, currentSeason - 5); y <= currentSeason + 2; y++) timeYears.push(y);
+
+        // Persist time year
+        useEffect(() => { try { localStorage.setItem('wr_time_year', String(timeYear)); } catch(e) {} }, [timeYear]);
+
+        // When time year changes, refetch stats and update engine
+        function handleTimeYearChange(year) {
+            if (year === timeYear) return;
+            setTimeYear(year);
+            setTimeLoading(true);
+            setAnalyticsData(null); // force analytics recompute
+
+            (async () => {
+                try {
+                    const newStats = await fetchSeasonStats(String(year)).catch(() => ({}));
+                    setStatsData(newStats);
+                    // Update window.S for DHQ engine
+                    if (window.S) {
+                        window.S.season = String(year);
+                        // Re-bridge stats
+                        window.S.playerStats = {};
+                        Object.entries(newStats).forEach(([pid, s]) => {
+                            if (!window.S.playerStats[pid]) window.S.playerStats[pid] = {};
+                            const pts = typeof calcRawPts === 'function' ? calcRawPts(s) : (s.pts_half_ppr || 0);
+                            const gp = s.gp || 0;
+                            window.S.playerStats[pid].prevTotal = pts ? Math.round(pts * 10) / 10 : 0;
+                            window.S.playerStats[pid].prevAvg = gp > 0 ? Math.round(pts / gp * 10) / 10 : 0;
+                            window.S.playerStats[pid].prevRawStats = s;
+                        });
+                    }
+                    // For future years, apply age progression to player data
+                    if (year > currentSeason && playersData) {
+                        const delta = year - currentSeason;
+                        const projected = { ...playersData };
+                        Object.entries(projected).forEach(([pid, p]) => {
+                            if (p.age) projected[pid] = { ...p, age: p.age + delta, _projected: true };
+                        });
+                        setPlayersData(projected);
+                    }
+                } catch(e) { console.warn('Time context data load error:', e); }
+                setTimeLoading(false);
+            })();
+        }
         const [analyticsData, setAnalyticsData] = useState(null);
         const [analyticsTab, setAnalyticsTab] = useState('roster');
         const [rosterFilter, setRosterFilter] = useState('All');
@@ -5617,6 +5671,43 @@
                         {loadStage}
                     </div>
                 )}
+
+                {/* ── GLOBAL TIME CONTEXT BAR ── */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 24px',
+                    background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(212,175,55,0.12)',
+                    position: 'sticky', top: 0, zIndex: 50
+                }}>
+                    {/* Year pills */}
+                    <div style={{ display: 'flex', gap: '3px' }}>
+                        {timeYears.map(yr =>
+                            <button key={yr} onClick={() => handleTimeYearChange(yr)} style={{
+                                padding: '4px 10px', fontSize: '0.76rem', fontFamily: 'Oswald',
+                                fontWeight: timeYear === yr ? 700 : 400,
+                                background: timeYear === yr ? 'var(--gold)' : 'rgba(255,255,255,0.03)',
+                                color: timeYear === yr ? 'var(--black)' : 'var(--silver)',
+                                border: timeYear === yr ? '1px solid var(--gold)' : '1px solid rgba(255,255,255,0.06)',
+                                borderRadius: '4px', cursor: 'pointer', transition: 'all 0.15s'
+                            }}>{yr}</button>
+                        )}
+                    </div>
+                    {/* League context */}
+                    <span style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.5 }}>
+                        {currentLeague.name ? currentLeague.name.substring(0, 20) : ''} {'\u00B7'} {currentLeague.rosters?.length || '?'} Teams
+                    </span>
+                    {/* Time mode badge */}
+                    <span style={{
+                        fontSize: '0.72rem', fontWeight: 700, color: timeModeColor,
+                        background: timeModeColor + '15', border: '1px solid ' + timeModeColor + '30',
+                        padding: '2px 10px', borderRadius: '12px', marginLeft: 'auto',
+                        fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.06em'
+                    }}>{timeModeLabel}</span>
+                    {/* Loading indicator */}
+                    {timeLoading && <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: '10px', height: '10px', border: '2px solid rgba(212,175,55,0.3)', borderTopColor: 'var(--gold)', borderRadius: '50%', animation: 'dhqSpin 0.8s linear infinite' }} />
+                        <span style={{ fontSize: '0.72rem', color: 'var(--gold)' }}>Recomputing...</span>
+                    </div>}
+                </div>
 
                 {/* KPI Cards — 5 customizable slots (dashboard only) */}
                 {activeTab === 'dashboard' && <React.Fragment><div style={{
