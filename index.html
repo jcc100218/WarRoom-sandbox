@@ -1188,7 +1188,60 @@
         const pName=pid=>playersData[pid]?.full_name||pid;
         const pPos=pid=>playersData[pid]?.position||'?';
 
+        // Time Context awareness
+        const currentSeason = parseInt(window.S?.season) || new Date().getFullYear();
+        const baseSeason = parseInt(window.App?.LI?._baseScoresBackup ? Object.keys(window.App.LI._baseScoresBackup).length > 0 ? currentSeason : currentSeason : currentSeason);
+        const isProjected = !!window.App?.LI?._projectedYear;
+        const evalYear = window.App?.LI?._projectedYear || currentSeason;
+
+        // Multi-year value calculator
+        function getMultiYearDelta(tradeObj) {
+            if (!window.App?.LI?._baseScoresBackup) return null;
+            const baseScores = window.App.LI._baseScoresBackup;
+            const results = [];
+            for (let delta = 0; delta <= 2; delta++) {
+                const yr = currentSeason + delta;
+                let giveVal = 0, getVal = 0;
+                tradeObj.give.forEach(p => {
+                    const base = baseScores[p.pid] || p.val;
+                    const proj = typeof projectPlayerValue === 'function' ? projectPlayerValue(p.pid, base, playersData[p.pid]?.age, playersData[p.pid]?.position || '', delta) : base;
+                    giveVal += proj;
+                });
+                tradeObj.receive.forEach(p => {
+                    const base = baseScores[p.pid] || p.val;
+                    const proj = typeof projectPlayerValue === 'function' ? projectPlayerValue(p.pid, base, playersData[p.pid]?.age, playersData[p.pid]?.position || '', delta) : base;
+                    getVal += proj;
+                });
+                results.push({ year: yr, diff: getVal - giveVal });
+            }
+            return results;
+        }
+
+        // Window impact
+        function getWindowImpact(tradeObj) {
+            const givePeakTotal = tradeObj.give.reduce((s, p) => {
+                const age = playersData[p.pid]?.age || 25;
+                const pos = playersData[p.pid]?.position || '';
+                const pk = (window.App?.peakWindows || {})[pos] || [24, 29];
+                return s + Math.max(0, pk[1] - age);
+            }, 0);
+            const getPeakTotal = tradeObj.receive.reduce((s, p) => {
+                const age = playersData[p.pid]?.age || 25;
+                const pos = playersData[p.pid]?.position || '';
+                const pk = (window.App?.peakWindows || {})[pos] || [24, 29];
+                return s + Math.max(0, pk[1] - age);
+            }, 0);
+            const peakDelta = getPeakTotal - givePeakTotal;
+            if (peakDelta >= 3) return { label: 'Extends window', icon: '\u2191', col: '#2ECC71' };
+            if (peakDelta <= -3) return { label: 'Shortens window', icon: '\u2193', col: '#E74C3C' };
+            return { label: 'Window neutral', icon: '\u2192', col: 'var(--silver)' };
+        }
+
         return React.createElement('div', null,
+            // Time context banner
+            isProjected ? React.createElement('div', { style:{fontSize:'0.76rem',color:'#3498DB',background:'rgba(52,152,219,0.08)',border:'1px solid rgba(52,152,219,0.2)',borderRadius:'6px',padding:'6px 12px',marginBottom:'10px',display:'flex',alignItems:'center',gap:'6px'} },
+                React.createElement('span', null, 'Evaluated in '+evalYear+' (Projected Values)'),
+            ) : null,
             React.createElement('div', {style:{fontSize:'0.78rem',color:'var(--silver)',opacity:0.65,marginBottom:'0.75rem',lineHeight:1.5}}, 'Select any player to generate trade proposals. Shows offers within 20% value variance ranked by acceptance likelihood. ', React.createElement(Tip, null, 'Builds 1-for-1, 2-for-1, and player+pick combos. Acceptance % uses DNA type, psychological taxes, and trade posture.')),
             React.createElement('div', {style:{display:'flex',gap:'0.5rem',marginBottom:'1rem'}},
                 React.createElement('button', {onClick:()=>{setFinderMode('my');setFinderAsset(null);setFinderResults(null);},style:{padding:'7px 16px',fontSize:'0.78rem',fontFamily:'Oswald',textTransform:'uppercase',background:finderMode==='my'?'var(--gold)':'rgba(255,255,255,0.04)',color:finderMode==='my'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='my'?'var(--gold)':'rgba(255,255,255,0.08)'),borderRadius:'4px',cursor:'pointer'}}, 'Trade My Player'),
@@ -1232,7 +1285,25 @@
                                     ...t.receive.map(p=>React.createElement('div', {key:p.pid,style:{fontSize:'0.78rem',color:'var(--white)',fontWeight:600}}, pName(p.pid), React.createElement('span', {style:{color:'var(--silver)',fontSize:'0.72rem',marginLeft:'4px'}}, pPos(p.pid)+' '+p.val.toLocaleString()))),
                                     ...t.receivePicks.map((pk,i)=>React.createElement('div', {key:'rp'+i,style:{fontSize:'0.78rem',color:'var(--gold)',fontWeight:600}}, (pk.year||pk.season)+' R'+pk.round))
                                 )
-                            )
+                            ),
+                            // Multi-year delta + window impact
+                            (() => {
+                                const multiYear = getMultiYearDelta(t);
+                                const winImpact = getWindowImpact(t);
+                                if (!multiYear) return null;
+                                return React.createElement('div', {style:{display:'flex',gap:'10px',alignItems:'center',marginTop:'8px',paddingTop:'8px',borderTop:'1px solid rgba(255,255,255,0.04)',flexWrap:'wrap'}},
+                                    // Multi-year trend
+                                    ...multiYear.map((yr,yi) => React.createElement('span', {key:yi, style:{fontSize:'0.72rem',color:yr.diff>=0?'#2ECC71':'#E74C3C',fontWeight:600}},
+                                        (yr.diff>=0?'+':'')+Math.round(yr.diff).toLocaleString()+' ('+yr.year+')'
+                                    )),
+                                    // Trend arrow
+                                    React.createElement('span', {style:{fontSize:'0.72rem',color:multiYear[2].diff>multiYear[0].diff?'#2ECC71':multiYear[2].diff<multiYear[0].diff?'#E74C3C':'var(--silver)'}},
+                                        multiYear[2].diff>multiYear[0].diff?'\uD83D\uDCC8 improving':multiYear[2].diff<multiYear[0].diff?'\uD83D\uDCC9 declining':'\u27A1 neutral'
+                                    ),
+                                    // Window impact
+                                    React.createElement('span', {style:{fontSize:'0.72rem',color:winImpact.col,marginLeft:'auto',fontWeight:600}}, winImpact.icon+' '+winImpact.label)
+                                );
+                            })()
                         );
                     })
                 )
