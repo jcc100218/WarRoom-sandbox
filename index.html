@@ -1472,7 +1472,7 @@
     // ══════════════════════════════════════════════════════════════════════════
     // TRADE CALCULATOR TAB — migrated from trade-calculator.html
     // ══════════════════════════════════════════════════════════════════════════
-    function TradeCalcTab({ playersData, statsData, myRoster, standings, currentLeague, sleeperUserId, timeRecomputeTs }) {
+    function TradeCalcTab({ playersData, statsData, myRoster, standings, currentLeague, sleeperUserId, timeRecomputeTs, viewMode }) {
         // ── Constants ──
         const STATS_YEAR_TC = (() => { const d = new Date(); return String(d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1); })();
         let WEEKLY_TARGET = 243;
@@ -2765,6 +2765,53 @@
         }
 
         // ── Main render ──
+        // ── Command mode: concise intelligence briefing ──
+        if (viewMode === 'command') {
+            const topTargets = assessments.filter(a => a.rosterId !== myRosterId).sort((a,b) => {
+                const ca = calcComplementarity(myAssessment, a);
+                const cb = calcComplementarity(myAssessment, b);
+                return cb - ca;
+            }).slice(0, 3);
+
+            return (
+                <div style={{ padding: '20px 24px', maxWidth: '1000px', margin: '0 auto' }} className="wr-fade-in">
+                    <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.8rem', color: 'var(--gold)', letterSpacing: '0.05em', marginBottom: '4px' }}>INTELLIGENCE BRIEFING</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '24px' }}>Top trade opportunities based on owner psychology and roster fit</div>
+
+                    {/* Top 3 trade partners with reasoning */}
+                    {topTargets.map((target, i) => {
+                        const dk = ownerDna[target.ownerId] || 'NONE';
+                        const dna = DNA_TYPES[dk] || DNA_TYPES.NONE;
+                        const posture = calcOwnerPosture(target, dk);
+                        const compat = myAssessment ? calcComplementarity(myAssessment, target) : 0;
+                        const theirNeeds = target.needs?.slice(0, 2).map(n => n.pos).join(', ') || 'none';
+                        const yourSurplus = myAssessment?.strengths?.filter(s => target.needs?.some(n => n.pos === s)) || [];
+
+                        return <div key={i} style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.25)', borderLeft: '4px solid ' + (dna.color || 'var(--gold)'), borderRadius: '10px', padding: '16px 20px', marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                                <span style={{ fontFamily: 'Bebas Neue', fontSize: '1.3rem', color: 'var(--white)' }}>{target.ownerName}</span>
+                                <span style={{ fontSize: '0.74rem', fontWeight: 700, color: dna.color, background: dna.color + '15', padding: '2px 8px', borderRadius: '4px' }}>{dna.label}</span>
+                                <span style={{ fontSize: '0.74rem', color: posture.color }}>{posture.label}</span>
+                                <span style={{ marginLeft: 'auto', fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: compat >= 50 ? '#2ECC71' : compat >= 30 ? '#F0A500' : 'var(--silver)' }}>{compat}% fit</span>
+                            </div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '8px' }}>
+                                Needs <strong style={{ color: '#E74C3C' }}>{theirNeeds}</strong>
+                                {yourSurplus.length > 0 && <span> \u2014 you have surplus at <strong style={{ color: '#2ECC71' }}>{yourSurplus.join(', ')}</strong></span>}
+                                . {dna.strategy ? <em style={{ color: dna.color, opacity: 0.8 }}>{dna.strategy.split('.')[0]}.</em> : ''}
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                                <span style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.5 }}>{target.healthScore} health \u00B7 {target.wins}-{target.losses} \u00B7 {target.tier}</span>
+                            </div>
+                        </div>;
+                    })}
+
+                    {topTargets.length === 0 && <div style={{ color: 'var(--silver)', textAlign: 'center', padding: '2rem' }}>Loading team assessments...</div>}
+                    <div style={{ textAlign: 'center', padding: '16px', fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.4 }}>Switch to Analyst view for full owner profiles, trade calculator, and history</div>
+                </div>
+            );
+        }
+
+        // ── Analyst mode: full intelligence terminal ──
         return (
             <div style={{ padding: '16px' }}>
                 <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.6rem', color: 'var(--gold)', marginBottom: '4px' }}>LEAGUE INTELLIGENCE</div>
@@ -2796,7 +2843,7 @@
     // ══════════════════════════════════════════════════════════════════════════
     // FREE AGENCY TAB — migrated from free-agency.html
     // ══════════════════════════════════════════════════════════════════════════
-    function FreeAgencyTab({ playersData, statsData, myRoster, currentLeague, sleeperUserId, timeRecomputeTs }) {
+    function FreeAgencyTab({ playersData, statsData, myRoster, currentLeague, sleeperUserId, timeRecomputeTs, viewMode }) {
         const [faTargets, setFaTargets] = useState([]);
         const [faFilter, setFaFilter] = useState('');
         const [faBudget, setFaBudget] = useState({ total: 0, spent: 0 });
@@ -3021,8 +3068,8 @@
                     </div>
                 </div>}
 
-                {/* ── POSITION FILTER + FULL LIST ── */}
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {/* ── POSITION FILTER + FULL LIST (Analyst only, or always if no recs) ── */}
+                {(viewMode !== 'command' || recommendations.length === 0) && <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <span style={{ fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginRight: '8px' }}>ALL FREE AGENTS</span>
                     {['', 'QB', 'RB', 'WR', 'TE', 'K', 'DL', 'LB', 'DB'].map(pos =>
                         <button key={pos} onClick={() => setFaFilter(pos)} style={{ padding: '5px 12px', fontSize: '0.76rem', fontFamily: 'Oswald', textTransform: 'uppercase', background: faFilter === pos ? 'var(--gold)' : 'rgba(255,255,255,0.04)', color: faFilter === pos ? 'var(--black)' : 'var(--silver)', border: '1px solid ' + (faFilter === pos ? 'var(--gold)' : 'rgba(255,255,255,0.08)'), borderRadius: '4px', cursor: 'pointer' }}>{pos || 'All'}</button>
@@ -3069,7 +3116,10 @@
                             </div>;
                         })}
                     </div>
-                </div>
+                </div>}
+
+                {/* Command mode hint */}
+                {viewMode === 'command' && recommendations.length > 0 && <div style={{ textAlign: 'center', padding: '12px', fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.4 }}>Switch to Analyst view for the full free agent list</div>}
 
                 {/* ── RIGHT: PLAYER DETAIL PANEL ── */}
                 {faSelectedPid && selPlayer && <div style={{ position: 'fixed', right: 0, top: 0, bottom: 0, width: '380px', background: 'linear-gradient(135deg, var(--off-black), var(--charcoal))', borderLeft: '2px solid var(--gold)', zIndex: 200, overflowY: 'auto', padding: '20px', boxShadow: '-8px 0 32px rgba(0,0,0,0.5)' }}>
@@ -3335,8 +3385,16 @@
             try { const saved = localStorage.getItem('wr_time_year'); return saved ? parseInt(saved) : currentSeason; } catch(e) { return currentSeason; }
         });
         const [timeLoading, setTimeLoading] = useState(false);
-        const [timeRecomputeTs, setTimeRecomputeTs] = useState(Date.now()); // tick counter to force re-renders
-        const [basePlayersData, setBasePlayersData] = useState(null); // original player data before age projection
+        const [timeRecomputeTs, setTimeRecomputeTs] = useState(Date.now());
+        const [basePlayersData, setBasePlayersData] = useState(null);
+
+        // ── VIEW MODE — Command (decisions) vs Analyst (deep data) ──
+        const [viewMode, setViewMode] = useState(() => {
+            try { return localStorage.getItem('wr_view_mode') || 'command'; } catch(e) { return 'command'; }
+        });
+        const isCommand = viewMode === 'command';
+        const isAnalyst = viewMode === 'analyst';
+        useEffect(() => { try { localStorage.setItem('wr_view_mode', viewMode); } catch(e) {} }, [viewMode]);
 
         // Derived selectors — modules use these, never compute their own
         const isCurrentYear = timeYear === currentSeason;
@@ -5832,11 +5890,24 @@
                     <span style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.5 }}>
                         {currentLeague.name ? currentLeague.name.substring(0, 20) : ''} {'\u00B7'} {currentLeague.rosters?.length || '?'} Teams
                     </span>
+                    {/* View mode toggle */}
+                    <div style={{ display: 'flex', marginLeft: 'auto', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', overflow: 'hidden' }}>
+                        {['command', 'analyst'].map(m =>
+                            <button key={m} onClick={() => setViewMode(m)} title={m === 'command' ? 'Decisions and priorities' : 'Full data and analysis'} style={{
+                                padding: '4px 14px', fontSize: '0.74rem', fontFamily: 'Oswald',
+                                textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'pointer',
+                                background: viewMode === m ? 'var(--gold)' : 'transparent',
+                                color: viewMode === m ? 'var(--black)' : 'var(--silver)',
+                                border: 'none', fontWeight: viewMode === m ? 700 : 400,
+                                transition: 'all 0.15s'
+                            }}>{m}</button>
+                        )}
+                    </div>
                     {/* Time mode badge */}
                     <span style={{
                         fontSize: '0.72rem', fontWeight: 700, color: timeModeColor,
                         background: timeModeColor + '15', border: '1px solid ' + timeModeColor + '30',
-                        padding: '2px 10px', borderRadius: '12px', marginLeft: 'auto',
+                        padding: '2px 10px', borderRadius: '12px',
                         fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.06em'
                     }}>{timeModeLabel}</span>
                     {/* Loading indicator */}
@@ -5988,6 +6059,7 @@
                         currentLeague={currentLeague}
                         sleeperUserId={sleeperUserId}
                         timeRecomputeTs={timeRecomputeTs}
+                        viewMode={viewMode}
                     />
                 ) : activeTab === 'myteam' ? renderMyTeamTab() : activeTab === 'league' ? renderLeagueTab() : activeTab === 'analytics' ? (() => {
                     const aCardStyle = { background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '16px', marginBottom: '16px' };
@@ -6000,6 +6072,88 @@
                     const sevColor = (sev) => sev === 'high' || sev === 'critical' ? badColor : sev === 'medium' ? warnColor : goodColor;
                     const pctFmt = (v) => Math.round((v || 0) * 100) + '%';
                     const numFmt = (v) => v != null ? (typeof v === 'number' ? v.toLocaleString() : v) : '\u2014';
+                    // ── COMMAND VIEW: decision briefing ──
+                    if (isCommand) {
+                        const d = analyticsData;
+                        const scores = window.App?.LI?.playerScores || {};
+                        const myPids = myRoster?.players || [];
+                        const totalDhq = myPids.reduce((s, pid) => s + (scores[pid] || 0), 0);
+                        const elites = myPids.filter(pid => (scores[pid] || 0) >= 7000).length;
+                        const myAssess = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null;
+                        const hs = myAssess?.healthScore || 0;
+                        const gaps = (d?.gaps || d?.roster?.gaps || []).filter(g => g.severity === 'high' || g.severity === 'critical').slice(0, 3);
+                        const strengths = myAssess?.strengths || [];
+                        const needs = myAssess?.needs?.slice(0, 3) || [];
+                        const projWin = d?.window;
+
+                        return (
+                            <div style={{ padding: '24px 32px', maxWidth: '1000px', margin: '0 auto' }} className="wr-fade-in">
+                                <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.8rem', color: 'var(--gold)', letterSpacing: '0.05em', marginBottom: '4px' }}>LEAGUE COMMAND</div>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '24px' }}>What you need to know right now</div>
+
+                                {/* KPI summary band */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+                                    {[
+                                        { val: totalDhq.toLocaleString(), label: 'TOTAL DHQ', col: 'var(--gold)' },
+                                        { val: hs || '\u2014', label: 'HEALTH', col: hs >= 80 ? goodColor : hs >= 60 ? warnColor : badColor },
+                                        { val: elites, label: 'ELITE PLAYERS', col: elites >= 3 ? goodColor : elites >= 1 ? warnColor : badColor },
+                                        { val: projWin?.years > 0 ? projWin.years + 'yr' : 'Now', label: 'COMPETE WINDOW', col: projWin?.years >= 3 ? goodColor : projWin?.years >= 1 ? warnColor : badColor },
+                                    ].map((kpi, i) => (
+                                        <div key={i} style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.25)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+                                            <div style={{ fontFamily: 'Bebas Neue', fontSize: '2rem', color: kpi.col, letterSpacing: '-0.02em' }}>{kpi.val}</div>
+                                            <div style={{ fontSize: '0.74rem', color: 'var(--silver)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{kpi.label}</div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Top priorities */}
+                                {(needs.length > 0 || gaps.length > 0) && <div style={{ ...aCardStyle, borderLeft: '4px solid ' + badColor }}>
+                                    <div style={aHeaderStyle}>PRIORITIES</div>
+                                    {needs.map((n, i) => (
+                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                            <span style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: n.urgency === 'deficit' ? badColor : warnColor, minWidth: '40px' }}>{n.pos}</span>
+                                            <span style={{ fontSize: '0.82rem', color: 'var(--silver)' }}>{n.urgency === 'deficit' ? 'Critical need \u2014 must address' : 'Running thin \u2014 add depth'}</span>
+                                            <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--gold)', cursor: 'pointer' }} onClick={() => { setActiveTab('fa'); }}>Find targets \u2192</span>
+                                        </div>
+                                    ))}
+                                    {gaps.slice(0, 2).map((g, i) => (
+                                        <div key={'g'+i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                            <span style={{ fontSize: '0.82rem', color: sevColor(g.severity || g.priority), fontWeight: 700 }}>{g.action || g.area}</span>
+                                            <span style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>{g.detail || ''}</span>
+                                        </div>
+                                    ))}
+                                </div>}
+
+                                {/* Strengths / trade currency */}
+                                {strengths.length > 0 && <div style={{ ...aCardStyle, borderLeft: '4px solid ' + goodColor }}>
+                                    <div style={aHeaderStyle}>TRADE CURRENCY</div>
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--silver)', lineHeight: 1.6 }}>
+                                        Surplus depth at <strong style={{ color: goodColor }}>{strengths.join(', ')}</strong>. These positions give you chips to fill {needs.length ? needs.map(n => n.pos).join('/') : 'gaps'} via trade.
+                                    </div>
+                                    <button onClick={() => { setActiveTab('trades'); }} style={{ marginTop: '10px', padding: '8px 20px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.95rem', letterSpacing: '0.05em', cursor: 'pointer' }}>OPEN TRADE FINDER</button>
+                                </div>}
+
+                                {/* Power position */}
+                                {rankedTeams.length > 0 && (() => {
+                                    const myRank = rankedTeams.findIndex(t => t.userId === sleeperUserId) + 1;
+                                    return <div style={{ ...aCardStyle }}>
+                                        <div style={aHeaderStyle}>YOUR POSITION</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                            <div style={{ fontFamily: 'Bebas Neue', fontSize: '3rem', color: myRank <= 3 ? goodColor : myRank <= 6 ? warnColor : badColor }}>#{myRank}</div>
+                                            <div>
+                                                <div style={{ fontSize: '0.85rem', color: 'var(--white)', fontWeight: 600 }}>of {rankedTeams.length} teams</div>
+                                                <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>{totalDhq.toLocaleString()} total DHQ · {hs} health</div>
+                                            </div>
+                                        </div>
+                                    </div>;
+                                })()}
+
+                                <div style={{ textAlign: 'center', padding: '16px', fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.4 }}>Switch to Analyst view for full charts, tables, and breakdowns</div>
+                            </div>
+                        );
+                    }
+
+                    // ── ANALYST VIEW: full analytics terminal ──
                     const subTabs = [
                         { key: 'roster', label: 'Roster' },
                         { key: 'draft', label: 'Draft' },
@@ -7128,7 +7282,8 @@
                         myRoster: myRoster,
                         currentLeague: currentLeague,
                         sleeperUserId: sleeperUserId,
-                        timeRecomputeTs: timeRecomputeTs
+                        timeRecomputeTs: timeRecomputeTs,
+                        viewMode: viewMode
                     })
                 ) : activeTab === 'draft' ? (
                     React.createElement(DraftTab, {
