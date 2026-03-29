@@ -1312,7 +1312,7 @@
     }
 
     // ===== DEV MODE =====
-    const DEV_MODE = new URLSearchParams(window.location.search).has('dev') || window.location.hostname.includes('sandbox');
+    const DEV_MODE = new URLSearchParams(window.location.search).get('dev') === 'true';
     if (DEV_MODE) {
         console.log('%c[DEV MODE] All features unlocked, auth bypassed','color:#D4AF37;font-weight:bold;font-size:14px');
         const b = document.createElement('div');
@@ -3097,7 +3097,7 @@
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
                         <span style={{ fontFamily: 'Bebas Neue', fontSize: '1.2rem', color: 'var(--white)' }}>{t.ownerName}</span>
                         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: t.labelCol, background: t.labelCol + '15', padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>{t.label}</span>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: t.dna.color, background: t.dna.color + '15', padding: '2px 8px', borderRadius: '4px' }}>{t.dna.label}</span>
+                        {t.dk !== 'NONE' && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: t.dna.color, background: t.dna.color + '15', padding: '2px 8px', borderRadius: '4px' }}>{t.dna.label}</span>}
                         <span style={{ fontSize: '0.72rem', color: t.posture.color }}>{t.posture.label}</span>
                         <span style={{ marginLeft: 'auto', fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: t.compat >= 50 ? '#2ECC71' : t.compat >= 30 ? '#F0A500' : 'var(--silver)' }}>{t.compat}%</span>
                     </div>
@@ -3107,9 +3107,9 @@
                         . <em style={{ color: t.dna.color, opacity: 0.8 }}>{t.dna.strategy ? t.dna.strategy.split('.')[0] + '.' : ''}</em>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.5 }}>{t.healthScore} health \u00B7 {t.wins}-{t.losses} \u00B7 {t.tier}</span>
+                        <span style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.5 }}>{t.healthScore} health {'\u00B7'} {t.wins}-{t.losses} {'\u00B7'} {t.tier}</span>
                         {showCTA && <React.Fragment>
-                            <button onClick={() => { setTcTab('finder'); setViewMode('analyst'); }} style={{ marginLeft: 'auto', padding: '5px 12px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '4px', fontFamily: 'Oswald', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 700 }}>GENERATE TRADES</button>
+                            <button onClick={() => { setTcTab('finder'); }} style={{ marginLeft: 'auto', padding: '5px 12px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '4px', fontFamily: 'Oswald', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 700 }}>GENERATE TRADES</button>
                         </React.Fragment>}
                     </div>
                 </div>
@@ -3141,7 +3141,7 @@
                         <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: 'var(--silver)', letterSpacing: '0.06em', marginBottom: '8px', opacity: 0.6 }}>LOW PROBABILITY</div>
                         {avoid.map((t, i) => <div key={'avoid-'+i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', marginBottom: '4px', opacity: 0.5 }}>
                             <span style={{ fontSize: '0.82rem', color: 'var(--silver)' }}>{t.ownerName}</span>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{t.compat}% fit \u00B7 {t.dna.label}</span>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{t.compat}% fit {'\u00B7'} {t.dna.label}</span>
                             <span style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.4 }}>Low roster overlap</span>
                         </div>)}
                     </div>}
@@ -3209,7 +3209,7 @@
     // ══════════════════════════════════════════════════════════════════════════
     // FREE AGENCY TAB — migrated from free-agency.html
     // ══════════════════════════════════════════════════════════════════════════
-    function FreeAgencyTab({ playersData, statsData, myRoster, currentLeague, sleeperUserId, timeRecomputeTs, viewMode }) {
+    function FreeAgencyTab({ playersData, statsData, prevStatsData, myRoster, currentLeague, sleeperUserId, timeRecomputeTs, viewMode }) {
         const [faTargets, setFaTargets] = useState([]);
         const [faFilter, setFaFilter] = useState('');
         const [faBudget, setFaBudget] = useState({ total: 0, spent: 0 });
@@ -3472,7 +3472,7 @@
                                 </div>
                                 <div>
                                     <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.3rem', color: 'var(--white)' }}>{selPlayer.full_name}</div>
-                                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{selPos} \u00B7 {selPlayer.team || 'FA'} \u00B7 Age {selPlayer.age || '?'}</div>
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{selPos} {'\u00B7'} {selPlayer.team || 'FA'} {'\u00B7'} Age {selPlayer.age || '?'}</div>
                                 </div>
                                 <button onClick={() => setFaSelectedPid(null)} style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--silver)', width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer', fontSize: '12px' }}>&times;</button>
                             </div>
@@ -3600,7 +3600,8 @@
                         {sortedPlayers.map(({ pid, p, dhq }) => {
                             const pos = normPos(p.position) || p.position;
                             const st = statsData[pid] || {};
-                            const ppg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : 0;
+                            const prevSt = (prevStatsData || {})[pid] || {};
+                            const ppg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : (prevSt.gp > 0 ? +(calcRawPts(prevSt) / prevSt.gp).toFixed(1) : 0);
                             const dhqCol = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#3498DB' : dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.25)';
                             const faab = faabSuggest(dhq, pos);
                             const meta = window.App?.LI?.playerMeta?.[pid];
@@ -3609,7 +3610,9 @@
                             const peakLabel = peakYrs >= 4 ? 'Rising' : peakYrs >= 1 ? 'Prime' : 'Post';
                             const peakCol = peakYrs >= 4 ? '#2ECC71' : peakYrs >= 1 ? 'var(--gold)' : '#E74C3C';
                             return <div key={pid} onClick={() => setFaSelectedPid(pid)} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 40px 34px 58px 44px 50px 44px', background: faSelectedPid===pid?'rgba(212,175,55,0.08)':'transparent', gap: '4px', padding: '7px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', alignItems: 'center', transition: 'background 0.1s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.05)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                <img src={'https://sleepercdn.com/content/nfl/players/' + pid + '.jpg'} style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} onError={e => { e.target.style.display='none'; e.target.parentElement.style.background='rgba(212,175,55,0.15)'; e.target.parentElement.style.display='flex'; e.target.parentElement.style.alignItems='center'; e.target.parentElement.style.justifyContent='center'; e.target.insertAdjacentHTML('afterend','<span style="font-size:10px;font-weight:700;color:var(--gold)">'+((e.target.alt||'??').substring(0,2))+'</span>'); }} />
+                                <div style={{ width: '26px', height: '26px', borderRadius: '50%', overflow: 'hidden', background: 'rgba(212,175,55,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    <img src={'https://sleepercdn.com/content/nfl/players/' + pid + '.jpg'} alt={(p.full_name || '??').substring(0, 2)} style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} onError={e => { e.target.style.display='none'; e.target.insertAdjacentHTML('afterend','<span style="font-size:10px;font-weight:700;color:var(--gold)">' + ((p.full_name || '??').substring(0, 2)) + '</span>'); }} />
+                                </div>
                                 <div style={{ overflow: 'hidden' }}>
                                     <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.full_name || 'Unknown'}</div>
                                     <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 }}>{p.team || 'FA'}{p.injury_status ? ' · ' : ''}{p.injury_status ? <span style={{ color: '#E74C3C' }}>{p.injury_status}</span> : ''}</div>
@@ -3617,7 +3620,7 @@
                                 <span style={{ fontSize: '0.76rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' }}>{pos}</span>
                                 <span style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{p.age || '\u2014'}</span>
                                 <span style={{ fontSize: '0.82rem', fontWeight: 700, fontFamily: 'Oswald', color: dhqCol }}>{dhq > 0 ? dhq.toLocaleString() : '\u2014'}</span>
-                                <span style={{ fontSize: '0.78rem', color: ppg >= 10 ? '#2ECC71' : ppg >= 5 ? 'var(--silver)' : 'rgba(255,255,255,0.3)' }}>{ppg || '\u2014'}</span>
+                                <span style={{ fontSize: '0.78rem', color: ppg >= 10 ? '#2ECC71' : ppg >= 5 ? 'var(--silver)' : 'rgba(255,255,255,0.3)' }}>{ppg > 0 ? ppg : '\u2014'}</span>
                                 <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--gold)' }}>{faab ? '$' + faab.lo + '-' + faab.hi : '\u2014'}</span>
                                 <span style={{ fontSize: '0.74rem', color: peakCol, fontWeight: 600 }}>{peakLabel}</span>
                             </div>;
@@ -3842,15 +3845,16 @@
 
         // Best recommendations for next pick
         const recommendations = useMemo(() => {
+            const targetPos = (strategyRec?.type === 'target' && strategyRec?.label) ? strategyRec.label.replace('Target ', '') : null;
             return topProspects
                 .filter(r => !draftedPids.has(r.pid))
                 .sort((a, b) => {
-                    const aComposite = a.dhq * 0.6 + a.fit.score * 80;
-                    const bComposite = b.dhq * 0.6 + b.fit.score * 80;
+                    const aComposite = a.dhq * 0.6 + a.fit.score * 80 + (targetPos && a.pos === targetPos ? 2000 : 0);
+                    const bComposite = b.dhq * 0.6 + b.fit.score * 80 + (targetPos && b.pos === targetPos ? 2000 : 0);
                     return bComposite - aComposite;
                 })
                 .slice(0, 3);
-        }, [topProspects, draftedPids]);
+        }, [topProspects, draftedPids, strategyRec]);
 
         // Strategy recommendation
         const strategyRec = useMemo(() => {
@@ -5548,8 +5552,7 @@
                       {(() => {
                         const rPlayers = roster?.players || [];
                         const scored = rPlayers.map(pid => ({ pid, dhq: window.App?.LI?.playerScores?.[pid] || 0, meta: window.App?.LI?.playerMeta?.[pid] }));
-                        const allScoresLg = Object.values(window.App?.LI?.playerScores || {}).filter(v => v > 0).sort((a2,b2) => b2 - a2);
-                        const eliteThr = allScoresLg.length > 20 ? allScoresLg[Math.floor(allScoresLg.length * 0.05)] : 5000;
+                        const eliteThr = 7000;
                         const eliteCount = scored.filter(x => x.dhq >= eliteThr).length;
                         const ages = scored.map(x => x.meta?.age).filter(a2 => a2 && a2 > 18 && a2 < 45);
                         const avgAge = ages.length > 0 ? (ages.reduce((s,a2) => s + a2, 0) / ages.length).toFixed(1) : '\u2014';
@@ -5963,7 +5966,7 @@
             if (key === 'action') { const ord = {BUY:3,HOLD:2,SELL:1}; return ((ord[b.rec]||0) - (ord[a.rec]||0)) * dir; }
             if (key === 'yrsExp') return ((b.p.years_exp||0) - (a.p.years_exp||0)) * dir;
             if (key === 'college') { const ca = (a.p.college||'').toLowerCase(), cb = (b.p.college||'').toLowerCase(); return (ca < cb ? -1 : ca > cb ? 1 : 0) * dir; }
-            if (key === 'nflDraft') return ((a.p.draft_pick||999) - (b.p.draft_pick||999)) * dir;
+            if (key === 'nflDraft') return (((a.p.draft_round || (a.p.draft_pick ? Math.ceil(a.p.draft_pick/32) : 99)) - (b.p.draft_round || (b.p.draft_pick ? Math.ceil(b.p.draft_pick/32) : 99))) * dir);
             if (key === 'posRankLg') return (a.dhq - b.dhq) * dir; // proxy: higher dhq = better rank
             if (key === 'posRankNfl') return ((a.meta?.fcRank||999) - (b.meta?.fcRank||999)) * dir;
             if (key === 'starterSzn') return ((b.meta?.starterSeasons||0) - (a.meta?.starterSeasons||0)) * dir;
@@ -6044,6 +6047,10 @@
             const prevGP = prev.gp || 0;
             const prevPPG = prevGP > 0 ? +(prevPts / prevGP).toFixed(1) : 0;
 
+            // Effective PPG: use current season if available, else fallback to previous season
+            const effectivePPG = curPPG > 0 ? curPPG : prevPPG;
+            const effectiveGP = curGP > 0 ? curGP : prevGP;
+
             const trend = meta?.trend || (prevPPG && curPPG ? Math.round((curPPG - prevPPG) / prevPPG * 100) : 0);
 
             const age = p.age || (p.birth_date ? Math.floor((Date.now() - new Date(p.birth_date).getTime()) / 31557600000) : null);
@@ -6054,13 +6061,14 @@
 
             const peaks = {QB:[27,33],RB:[22,26],WR:[24,29],TE:[25,30],DL:[24,29],LB:[23,28],DB:[24,29]};
             const [pLo, pHi] = peaks[pos] || [24,29];
-            const peakPct = age ? Math.max(0, Math.min(100, ((age - (pLo-4)) / ((pHi+4) - (pLo-4))) * 100)) : 50;
+            const peakRangeHi = Math.max(pHi + 4, age ? age + 1 : pHi + 4);
+            const peakPct = age ? Math.max(0, Math.min(100, ((age - (pLo-4)) / (peakRangeHi - (pLo-4))) * 100)) : 50;
             const peakPhase = !age ? '\u2014' : age < pLo ? 'PRE' : age <= pHi ? 'PRIME' : 'POST';
             const peakYrsLeft = age ? Math.max(0, pHi - age) : 0;
 
             const rec = peakYrsLeft <= 0 && trend <= -10 ? 'SELL NOW' : peakYrsLeft <= 0 ? 'SELL' : peakYrsLeft <= 2 && trend >= 15 ? 'SELL HIGH' : peakYrsLeft <= 2 ? 'SELL' : dhq >= 7000 && peakYrsLeft >= 3 ? 'HOLD CORE' : peakYrsLeft >= 4 && dhq < 4000 ? 'BUY LOW' : dhq >= 5000 ? 'HOLD' : 'BUY';
 
-            return { pid, p, pos, dhq, age, curPPG, prevPPG, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, rec, curGP, meta, injury: p.injury_status };
+            return { pid, p, pos, dhq, age, curPPG, prevPPG, effectivePPG, effectiveGP, prevGP, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, rec, curGP, meta, injury: p.injury_status };
           }).filter(Boolean);
 
           // Position-level PPG percentiles for color coding
@@ -6097,8 +6105,8 @@
               case 'pos': return <div key={colKey} style={{...base}}><span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '1px 4px', borderRadius: '2px', background: (posColors[r.pos]||'#666')+'22', color: posColors[r.pos]||'var(--silver)' }}>{r.pos}</span></div>;
               case 'age': return <div key={colKey} style={{...base, background: ageBg(r.age)}}><span style={{ color: ageCol(r.age), fontWeight: 600 }}>{r.age||'\u2014'}</span></div>;
               case 'dhq': return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}}><span style={{ color: dhqCol(r.dhq), fontWeight: 700, fontFamily: 'Oswald', fontSize: '0.72rem' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span></div>;
-              case 'ppg': return <div key={colKey} style={{...base, background: ppgBg(r.curPPG, r.pos)}}><span style={{ color: r.curPPG >= (posP75[r.pos]||10) ? '#2ECC71' : 'var(--silver)' }}>{r.curPPG||'\u2014'}</span></div>;
-              case 'prev': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', opacity: 0.6 }}>{r.prevPPG||'\u2014'}</span></div>;
+              case 'ppg': return <div key={colKey} style={{...base, background: ppgBg(r.effectivePPG, r.pos)}}><span style={{ color: r.effectivePPG >= (posP75[r.pos]||10) ? '#2ECC71' : 'var(--silver)' }}>{r.effectivePPG > 0 ? r.effectivePPG : '\u2014'}{r.curPPG === 0 && r.prevPPG > 0 ? '*' : ''}</span></div>;
+              case 'prev': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', opacity: 0.6 }}>{r.prevPPG > 0 ? r.prevPPG : '\u2014'}</span></div>;
               case 'trend': return <div key={colKey} style={{...base, background: trendBg(r.trend)}}><span style={{ color: r.trend>=15?'#2ECC71':r.trend<=-15?'#E74C3C':'var(--silver)', fontWeight: 600, fontSize: '0.74rem' }}>{r.trend>0?'+'+r.trend+'%':r.trend<0?r.trend+'%':'\u2014'}</span></div>;
               case 'peak': return <div key={colKey} style={{...base, flexDirection: 'column', gap: '1px'}}>
                 <span style={{ fontSize: '0.76rem', fontWeight: 700, color: r.peakPhase==='PRIME'?'#2ECC71':r.peakPhase==='PRE'?'#3498DB':'#E74C3C' }}>{r.peakPhase}</span>
@@ -6116,11 +6124,11 @@
                   {ann && <div style={{fontSize:'0.6rem',color:ann.color,fontWeight:600,textAlign:'center',lineHeight:1.2,maxWidth:'70px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ann.text.split('\u2014')[0]}</div>}
                 </div>;
               }
-              case 'gp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem' }}>{r.curGP||'\u2014'}</span></div>;
-              case 'durability': return <div key={colKey} style={{...base}}><div style={{ width:'24px',height:'4px',borderRadius:'2px',background:'rgba(255,255,255,0.06)',overflow:'hidden' }}><div style={{ width:Math.min(100,(r.curGP/17)*100)+'%',height:'100%',background:r.curGP>=15?'#2ECC71':r.curGP>=10?'#F0A500':'#E74C3C',borderRadius:'2px' }}></div></div></div>;
+              case 'gp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem' }}>{r.effectiveGP > 0 ? r.effectiveGP : '\u2014'}{r.curGP === 0 && r.prevGP > 0 ? '*' : ''}</span></div>;
+              case 'durability': { const gpForDur = r.effectiveGP || 0; return <div key={colKey} style={{...base}}><div style={{ width:'24px',height:'4px',borderRadius:'2px',background:'rgba(255,255,255,0.06)',overflow:'hidden' }}><div style={{ width:Math.min(100,(gpForDur/17)*100)+'%',height:'100%',background:gpForDur>=15?'#2ECC71':gpForDur>=10?'#F0A500':'#E74C3C',borderRadius:'2px' }}></div></div></div>; }
               case 'yrsExp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)' }}>{r.p.years_exp ?? '\u2014'}</span></div>;
               case 'college': return <div key={colKey} style={{...base, justifyContent: 'flex-start'}}><span style={{ color: 'var(--silver)', fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.p.college || '\u2014'}</span></div>;
-              case 'nflDraft': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem' }}>{r.p.draft_pick ? 'Rd ' + Math.ceil(r.p.draft_pick / 32) : '\u2014'}</span></div>;
+              case 'nflDraft': { const dRound = r.p.draft_round || (r.p.draft_pick ? Math.ceil(r.p.draft_pick / 32) : null); return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem' }}>{dRound ? 'Rd ' + dRound : (r.p.undrafted === true || (r.p.years_exp > 0 && !r.p.draft_pick && !r.p.draft_round) ? 'UDFA' : '\u2014')}</span></div>; }
               case 'posRankLg': {
                 const allAtPos = (currentLeague.rosters||[]).flatMap(ros => (ros.players||[]).filter(pid => {
                   const pp = playersData[pid];
@@ -6139,7 +6147,7 @@
                 return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.72rem' }}>{h ? Math.floor(h/12)+"'"+h%12+'"' : '\u2014'}</span></div>;
               }
               case 'weight': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.72rem' }}>{r.p.weight || '\u2014'}</span></div>;
-              case 'depthChart': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.72rem' }}>{r.p.depth_chart_order ? '#'+r.p.depth_chart_order : '\u2014'}</span></div>;
+              case 'depthChart': return <div key={colKey} style={{...base}}><span style={{ color: r.p.depth_chart_order ? 'var(--silver)' : 'rgba(255,255,255,0.3)', fontSize: '0.72rem' }}>{r.p.depth_chart_order ? '#'+r.p.depth_chart_order : (r.section === 'ir' ? 'IR' : (!r.p.team || r.p.team === 'FA') ? 'FA' : 'N/A')}</span></div>;
               case 'slot': return <div key={colKey} style={{...base}}><span style={{ fontSize:'0.76rem',color:'var(--silver)',opacity:0.65,textTransform:'uppercase' }}>{r.section==='starter'?'STR':r.section==='ir'?'IR':r.section==='taxi'?'TAX':'BN'}</span></div>;
               case 'acquired': {
                 const acq = getAcquisitionInfo(r.pid, myRoster?.roster_id);
@@ -6740,7 +6748,7 @@
                 <header className="header" style={{ position: 'relative', marginBottom: '0', paddingBottom: '0.75rem' }}>
                     <div className="header-title">{currentLeague.name}</div>
                     <div style={{ textAlign: 'center', color: 'var(--gold)', fontSize: '1.1rem', fontFamily: 'Oswald, sans-serif', marginTop: '0.25rem' }}>
-                        {activeYear} SEASON
+                        {timeYear} SEASON
                     </div>
                 </header>
 
@@ -7066,7 +7074,7 @@
                                         <div style={{ fontFamily: 'Bebas Neue', fontSize: '2.8rem', color: myRank <= 3 ? goodColor : myRank <= 6 ? warnColor : badColor, lineHeight: 1 }}>#{myRank || '?'}</div>
                                         <div>
                                             <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.3rem', color: 'var(--white)', letterSpacing: '0.03em' }}>{tier}</div>
-                                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{totalDhq.toLocaleString()} DHQ \u00B7 {hs} health \u00B7 {elites} elite{elites !== 1 ? 's' : ''}</div>
+                                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{totalDhq.toLocaleString()} DHQ {'\u00B7'} {hs} health {'\u00B7'} {elites} elite{elites !== 1 ? 's' : ''}</div>
                                         </div>
                                     </div>
                                     <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7 }}>{diagParts.join(' ')}</div>
@@ -7196,9 +7204,8 @@
                             const w = r.winnerProfile;
                             const l = r.leagueProfile;
                             const m = r.myProfile;
-                            // Dynamic elite threshold: top 5% of all valued players, or 5000 if league max < 8000
-                            const allScores = Object.values(window.App?.LI?.playerScores || {}).filter(v => v > 0).sort((a,b) => b - a);
-                            const eliteThreshold = allScores.length > 20 ? allScores[Math.floor(allScores.length * 0.05)] : 5000;
+                            // Fixed elite threshold: 7000+ DHQ = league-winning asset
+                            const eliteThreshold = 7000;
                             const playerScores = window.App?.LI?.playerScores || {};
                             const SS = window.S || window.App?.S;
                             const allRosters = SS?.rosters || [];
@@ -7516,8 +7523,8 @@
                                         <div>#</div><div>Team</div><div>Record</div><div>Health</div><div>Total DHQ</div><div>Tier</div>
                                     </div>
                                     {teamRankings.map((team, i) => {
-                                        const tierBadgeColors = { 'Contender': goodColor, 'Playoff Team': warnColor, 'Rebuilding': badColor, 'Deep Rebuild': badColor };
-                                        const tierBg = tierBadgeColors[team.tier] || 'var(--silver)';
+                                        const tierUpper = (team.tier || '').toUpperCase();
+                                        const tierBg = tierUpper === 'ELITE' ? '#D4AF37' : tierUpper === 'CONTENDER' ? goodColor : tierUpper === 'CROSSROADS' ? warnColor : tierUpper === 'REBUILDING' ? badColor : 'var(--silver)';
                                         return (
                                         <div key={team.rosterId} style={{
                                             display: 'grid', gridTemplateColumns: '36px 1.4fr 0.7fr 80px 0.9fr 0.7fr', gap: '8px', padding: '8px 0',
@@ -7789,7 +7796,9 @@
                                 <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
                                     <div style={aHeaderStyle}>WAIVER STRATEGY</div>
                                     <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
-                                        {'Winners spend aggressively on ' + topUnderSpend + ' early in the season. They deploy ' + winnerEarlyPct + '% of FAAB early vs your ' + myEarlyPct + '%. ' + (myEarlyPct < winnerEarlyPct - 10 ? 'You are under-spending early — front-load your FAAB to capture impact players before your competition.' : 'Your spending timing aligns well with winners.') + ' Focus waiver claims on high-upside ' + (underSpendPos[0] || 'RB/WR') + ' to maximize roster value.'}
+                                        {winnerEarlyPct === 0 && myEarlyPct === 0
+                                            ? 'No significant FAAB activity yet this season. Monitor early-season pickups closely \u2014 winners typically front-load spending on high-upside ' + (underSpendPos[0] || 'RB/WR') + ' to build early advantages.'
+                                            : (winnerEarlyPct >= 20 ? 'Winners spend aggressively on ' + topUnderSpend + ' early in the season. ' : 'Winners invest in ' + topUnderSpend + ' early in the season. ') + 'They deploy ' + winnerEarlyPct + '% of FAAB early vs your ' + myEarlyPct + '%. ' + (myEarlyPct < winnerEarlyPct - 10 ? 'You are under-spending early \u2014 front-load your FAAB to capture impact players before your competition.' : 'Your spending timing aligns well with winners.') + ' Focus waiver claims on high-upside ' + (underSpendPos[0] || 'RB/WR') + ' to maximize roster value.'}
                                     </div>
                                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                         <button onClick={() => setActiveTab('fa')} style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>View Waiver Targets</button>
@@ -7799,17 +7808,18 @@
                                 <div style={aCardStyle}>
                                     <div style={aHeaderStyle}>WINNER FAAB PROFILE</div>
                                     <div style={{ ...tableRowStyle(0) }}>
-                                        <div>Position</div><div>Winner Avg</div><div>League Avg</div><div>Eff.</div>
+                                        <div>Position</div><div>Winner Avg</div><div>League Avg</div><div>W vs L</div>
                                     </div>
                                     {positions.map((pos, i) => {
                                         const wAvg = (wv.winnerFaabProfile[pos] || {}).avg || 0;
                                         const lAvg = (wv.leagueFaabProfile[pos] || {}).avg || 0;
+                                        const diff = lAvg > 0 ? ((wAvg - lAvg) / lAvg * 100).toFixed(0) : (wAvg > 0 ? '+\u221E' : '\u2014');
                                         return (
                                         <div key={pos} style={{ ...tableRowStyle(1), ...aValStyle }}>
                                             <div style={{ color: 'var(--silver)' }}>{pos}</div>
                                             <div style={{ color: 'var(--gold)' }}>${wAvg.toFixed(0)}</div>
                                             <div>${lAvg.toFixed(0)}</div>
-                                            <div style={{ color: wAvg > lAvg ? goodColor : 'var(--silver)' }}>{wAvg > lAvg ? '+' + ((wAvg - lAvg) / Math.max(lAvg, 1) * 100).toFixed(0) + '%' : '\u2014'}</div>
+                                            <div style={{ color: wAvg > lAvg ? goodColor : wAvg < lAvg ? badColor : 'var(--silver)' }}>{typeof diff === 'string' ? diff : (diff > 0 ? '+' + diff + '%' : diff + '%')}</div>
                                         </div>
                                         );
                                     })}
@@ -7896,8 +7906,13 @@
 
                             // ── Trade Strategy Summary ──
                             const tradeVolDiff = mp.avgTradesPerSeason - wp.avgTradesPerSeason;
-                            const tradeEfficiency = mp.avgValueGained >= 0 ? 'trading efficiently' : 'over-paying in trades';
-                            const tradeActivity = tradeVolDiff < -1 ? 'under-trading' : tradeVolDiff > 1 ? 'over-trading' : 'trading at the right frequency';
+                            const hasTraded = mp.avgTradesPerSeason > 0;
+                            const tradeEfficiency = !hasTraded ? '' : mp.avgValueGained >= 0 ? 'trading efficiently' : 'over-paying in trades';
+                            const tradeActivity = !hasTraded ? '' : tradeVolDiff < -1 ? 'under-trading' : tradeVolDiff > 1 ? 'over-trading' : 'trading at the right frequency';
+
+                            const tradeSummaryText = !hasTraded
+                                ? 'You haven\u2019t made any trades yet. Active trading is a key trait of winning teams \u2014 winners average ' + wp.avgTradesPerSeason + ' trades/season and gain +' + wp.avgValueGained + ' DHQ per trade. Consider using the trade finder to identify value opportunities.'
+                                : 'You average ' + mp.avgTradesPerSeason + ' trades/season vs winners\u2019 ' + wp.avgTradesPerSeason + '. You ' + (mp.avgValueGained >= 0 ? 'gain +' : 'lose ') + Math.abs(mp.avgValueGained) + ' DHQ per trade (winners: +' + wp.avgValueGained + '). You are ' + tradeActivity + ' and ' + tradeEfficiency + '. ' + (mp.avgValueGained < 0 ? 'Focus on extracting value \u2014 target aging stars from contenders or sell depreciating assets.' : 'Keep leveraging your trade edge to consolidate elite talent.');
 
                             return (
                             <React.Fragment>
@@ -7905,7 +7920,7 @@
                                 <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
                                     <div style={aHeaderStyle}>TRADE STRATEGY</div>
                                     <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
-                                        {'You average ' + mp.avgTradesPerSeason + ' trades/season vs winners\u2019 ' + wp.avgTradesPerSeason + '. You ' + (mp.avgValueGained >= 0 ? 'gain +' : 'lose ') + Math.abs(mp.avgValueGained) + ' DHQ per trade (winners: +' + wp.avgValueGained + '). You are ' + tradeActivity + ' and ' + tradeEfficiency + '. ' + (mp.avgValueGained < 0 ? 'Focus on extracting value — target aging stars from contenders or sell depreciating assets.' : 'Keep leveraging your trade edge to consolidate elite talent.')}
+                                        {tradeSummaryText}
                                     </div>
                                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                         <button onClick={() => setActiveTab('trades')} style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>Open Trade Finder</button>
@@ -8247,7 +8262,7 @@
                         {analyticsTab === 'timeline' && (() => {
                             const championships = window.App?.LI?.championships || {};
                             const tradeHistory = window.App?.LI?.tradeHistory || [];
-                            const getOwner = rid => { const r = (currentLeague.rosters||[]).find(x => x.roster_id === rid); const u = (currentLeague.users||[]).find(x => x.user_id === r?.owner_id); return u?.display_name || 'Team '+rid; };
+                            const getOwner = rid => { const numRid = typeof rid === 'string' ? parseInt(rid) : rid; const r = (currentLeague.rosters||[]).find(x => x.roster_id === numRid || String(x.roster_id) === String(rid)); const u = (currentLeague.users||[]).find(x => x.user_id === r?.owner_id); return u?.display_name || u?.username || 'Team '+rid; };
                             const events = [];
 
                             Object.entries(championships).forEach(([season, data]) => {
@@ -8455,6 +8470,7 @@
                     React.createElement(FreeAgencyTab, {
                         playersData: playersData,
                         statsData: statsData,
+                        prevStatsData: stats2025Data,
                         myRoster: myRoster,
                         currentLeague: currentLeague,
                         sleeperUserId: sleeperUserId,
