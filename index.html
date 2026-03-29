@@ -876,6 +876,97 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <script type="text/babel">
+    // ===== PRODUCT TIER SYSTEM =====
+    // Tiers: 'scout' (free), 'reconai' ($4.99), 'warroom' ($9.99)
+    function getUserTier() {
+        try {
+            const p = JSON.parse(localStorage.getItem('od_profile_v1') || '{}');
+            if (p.tier === 'warroom' || p.tier === 'commissioner' || p.tier === 'power' || p.tier === 'pro') return 'warroom';
+            if (p.tier === 'reconai') return 'reconai';
+        } catch(e) {}
+        // Check if dev mode
+        if (new URLSearchParams(window.location.search).has('dev') || window.location.hostname.includes('sandbox')) return 'warroom';
+        return 'scout';
+    }
+
+    const TIER_FEATURES = {
+        // Scout (free) gets these
+        scout: new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings']),
+        // ReconAI adds these
+        reconai: new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings',
+            'ai-unlimited', 'player-cards-full', 'team-diagnosis-full', 'waiver-targets', 'trade-quick-check']),
+        // War Room gets everything
+        warroom: new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings',
+            'ai-unlimited', 'player-cards-full', 'team-diagnosis-full', 'waiver-targets', 'trade-quick-check',
+            'trade-finder', 'deal-analyzer', 'owner-dna', 'league-map', 'command-view', 'projections',
+            'fa-decision-engine', 'big-board', 'draft-simulation', 'analytics-full', 'intelligence-full']),
+    };
+
+    function canAccess(feature) {
+        const tier = getUserTier();
+        return TIER_FEATURES[tier]?.has(feature) || TIER_FEATURES.warroom.has(feature) && tier === 'warroom';
+    }
+
+    // One-time taste tracking
+    function useTaste() {
+        const key = 'wr_taste_used';
+        const used = localStorage.getItem(key);
+        if (used) return false;
+        localStorage.setItem(key, '1');
+        return true; // first time = allow
+    }
+    function hasTasteLeft() { return !localStorage.getItem('wr_taste_used'); }
+
+    // AI daily limit for scout tier
+    function canUseAI() {
+        const tier = getUserTier();
+        if (tier !== 'scout') return true;
+        const key = 'wr_ai_daily_' + new Date().toISOString().split('T')[0];
+        const count = parseInt(localStorage.getItem(key) || '0');
+        return count < 1;
+    }
+    function trackAIUse() {
+        const key = 'wr_ai_daily_' + new Date().toISOString().split('T')[0];
+        const count = parseInt(localStorage.getItem(key) || '0');
+        localStorage.setItem(key, String(count + 1));
+    }
+
+    // Upgrade Modal Component
+    function UpgradeGate({ feature, title, description, targetTier, children, onClose }) {
+        const tier = getUserTier();
+        const hasAccess = canAccess(feature);
+
+        if (hasAccess) return children || null;
+
+        // Check one-time taste
+        const [tasteUsed, setTasteUsed] = React.useState(false);
+        if (children && hasTasteLeft() && !tasteUsed) {
+            return React.createElement(React.Fragment, null,
+                children,
+                React.createElement('div', { style: { textAlign:'center', padding:'12px', background:'rgba(212,175,55,0.06)', border:'1px solid rgba(212,175,55,0.2)', borderRadius:'8px', marginTop:'12px' } },
+                    React.createElement('div', { style: { fontSize:'0.82rem', color:'var(--gold)', fontWeight:700, marginBottom:'4px' } }, 'Free preview — upgrade to keep using this feature'),
+                    React.createElement('button', { onClick: () => setTasteUsed(true), style: { padding:'6px 16px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'6px', fontFamily:'Bebas Neue', fontSize:'0.9rem', cursor:'pointer' } }, 'Got it')
+                )
+            );
+        }
+
+        const tierLabel = targetTier === 'reconai' ? 'ReconAI' : 'War Room';
+        const tierPrice = targetTier === 'reconai' ? '$4.99/mo' : '$9.99/mo';
+
+        return React.createElement('div', { style: { background:'linear-gradient(135deg, var(--off-black), var(--charcoal))', border:'2px solid rgba(212,175,55,0.3)', borderRadius:'12px', padding:'28px 24px', textAlign:'center', maxWidth:'480px', margin:'20px auto' } },
+            React.createElement('div', { style: { fontFamily:'Bebas Neue', fontSize:'1.6rem', color:'var(--gold)', letterSpacing:'0.06em', marginBottom:'8px' } }, title || 'UPGRADE TO UNLOCK'),
+            React.createElement('div', { style: { fontSize:'0.88rem', color:'var(--silver)', lineHeight:1.7, marginBottom:'16px' } }, description || 'This feature requires a paid subscription.'),
+            React.createElement('div', { style: { display:'flex', gap:'10px', justifyContent:'center', marginBottom:'12px' } },
+                React.createElement('button', { onClick: () => { window.location.href = 'landing.html'; }, style: { padding:'10px 24px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'8px', fontFamily:'Bebas Neue', fontSize:'1.1rem', letterSpacing:'0.05em', cursor:'pointer' } }, 'Unlock ' + tierLabel + ' — ' + tierPrice),
+            ),
+            React.createElement('div', { style: { fontSize:'0.76rem', color:'var(--silver)', opacity:0.5 } }, 'Currently on Scout (free) plan'),
+            onClose ? React.createElement('button', { onClick: onClose, style: { marginTop:'10px', background:'none', border:'none', color:'var(--silver)', cursor:'pointer', fontSize:'0.78rem' } }, 'Maybe later') : null
+        );
+    }
+    window.UpgradeGate = UpgradeGate;
+    window.canAccess = canAccess;
+    window.getUserTier = getUserTier;
+
     // ===== GLOBAL UI COMPONENTS =====
     function Tip({ children }) {
         const [open, setOpen] = React.useState(false);
@@ -2797,6 +2888,15 @@
         // ── Main render ──
         // ── Command mode: concise intelligence briefing ──
         if (viewMode === 'command') {
+            // Gate: Intelligence requires warroom tier
+            if (!canAccess('intelligence-full')) {
+                return React.createElement(UpgradeGate, {
+                    feature: 'intelligence-full',
+                    title: 'UNLOCK LEAGUE INTELLIGENCE',
+                    description: 'See trades your leaguemates are actually likely to accept. Owner DNA profiles every manager\'s trading psychology — Fleecer, Dominator, Stalwart, Acceptor, or Desperate — then calculates acceptance likelihood.',
+                    targetTier: 'warroom'
+                });
+            }
             // Rank all teams by trade fit
             const allTargets = assessments.filter(a => a.rosterId !== myRosterId).map(a => {
                 const dk = ownerDna[a.ownerId] || 'NONE';
@@ -2922,9 +3022,9 @@
                     ))}
                 </div>
                 {tcTab === 'audit' && renderAudit()}
-                {tcTab === 'dna' && renderOwnerDna()}
+                {tcTab === 'dna' && (canAccess('owner-dna') ? renderOwnerDna() : React.createElement(UpgradeGate, { feature:'owner-dna', title:'UNLOCK OWNER DNA', description:'Profile every manager\'s trading psychology. Know who\'s a Fleecer, who\'s Desperate, and exactly how to approach each trade conversation.', targetTier:'warroom' }))}
                 {tcTab === 'analyzer' && renderTradeAnalyzer()}
-                {tcTab === 'finder' && React.createElement(TradeFinderTab, { allRosters, myRosterId, assessments, ownerDna, playersData, picksByOwner, getPlayerValue, getPickValue, calcOwnerPosture, calcPsychTaxes, calcAcceptanceLikelihood: window.App?.calcAcceptanceLikelihood || function(){return 50;}, DNA_TYPES })}
+                {tcTab === 'finder' && (canAccess('trade-finder') ? React.createElement(TradeFinderTab, { allRosters, myRosterId, assessments, ownerDna, playersData, picksByOwner, getPlayerValue, getPickValue, calcOwnerPosture, calcPsychTaxes, calcAcceptanceLikelihood: window.App?.calcAcceptanceLikelihood || function(){return 50;}, DNA_TYPES }) : React.createElement(UpgradeGate, { feature:'trade-finder', title:'UNLOCK TRADE FINDER', description:'Auto-generate trade proposals with every team. See acceptance likelihood based on owner psychology. Find deals they\'ll actually accept.', targetTier:'warroom' }))}
                 {tcTab === 'inbox' && renderTradeInbox()}
             </div>
         );
@@ -3098,6 +3198,14 @@
 
         // ── COMMAND VIEW: FAAB decision engine ──
         if (viewMode === 'command') {
+            if (!canAccess('fa-decision-engine')) {
+                return React.createElement(UpgradeGate, {
+                    feature: 'fa-decision-engine',
+                    title: 'UNLOCK WAIVER INTELLIGENCE',
+                    description: 'Get FAAB bid recommendations with confidence levels, tiered targets ranked by roster impact, and market pressure analysis. Know exactly who to bid on and how much.',
+                    targetTier: 'warroom'
+                });
+            }
             // Categorize recommendations into tiers
             const mustAdd = recommendations.filter(r => r.need?.urgency === 'deficit' && r.dhq >= 800).slice(0, 3);
             const strongBuys = recommendations.filter(r => r.need && !mustAdd.find(m => m.pid === r.pid) && r.dhq >= 500).slice(0, 4);
@@ -6778,8 +6886,15 @@
                                     <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7 }}>{diagParts.join(' ')}</div>
                                 </div>
 
+                                {/* Gate: Action Plan requires warroom tier */}
+                                {!canAccess('command-view') && <div style={{ background:'linear-gradient(135deg, var(--off-black), var(--charcoal))', border:'2px solid rgba(212,175,55,0.3)', borderRadius:'12px', padding:'24px', textAlign:'center', marginBottom:'20px' }}>
+                                    <div style={{ fontFamily:'Bebas Neue', fontSize:'1.3rem', color:'var(--gold)', marginBottom:'8px' }}>UNLOCK FULL ACTION PLAN</div>
+                                    <div style={{ fontSize:'0.85rem', color:'var(--silver)', lineHeight:1.6, marginBottom:'14px' }}>See prioritized moves, trade currency analysis, position investment insights, and power ranking narratives.</div>
+                                    <button onClick={() => { window.location.href = 'landing.html'; }} style={{ padding:'10px 24px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'8px', fontFamily:'Bebas Neue', fontSize:'1rem', cursor:'pointer' }}>Unlock War Room — $9.99/mo</button>
+                                </div>}
+
                                 {/* Prioritized Actions */}
-                                {priorities.length > 0 && <div style={{ ...aCardStyle, borderLeft: '4px solid ' + badColor, marginBottom: '20px' }}>
+                                {canAccess('command-view') && priorities.length > 0 && <div style={{ ...aCardStyle, borderLeft: '4px solid ' + badColor, marginBottom: '20px' }}>
                                     <div style={aHeaderStyle}>ACTION PLAN</div>
                                     {priorities.map((p, i) => (
                                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: i < priorities.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
