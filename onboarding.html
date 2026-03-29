@@ -486,7 +486,21 @@
       <h1 class="step-heading">Choose Your<br><span style="color:var(--gold)">Arsenal</span></h1>
       <p class="step-sub">Pick the plan that fits how you play. Upgrade anytime from settings. No contract required.</p>
 
-      <div class="plan-grid" style="grid-template-columns: 1fr 1fr;">
+      <div class="plan-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+
+        <!-- Scout (Free) -->
+        <div class="plan-card" id="plan-scout" onclick="selectPlan('scout')" style="border-color:rgba(255,255,255,0.12)">
+          <div class="plan-icon">&#128269;</div>
+          <div class="plan-name">Scout</div>
+          <div class="plan-price">Free</div>
+          <ul class="plan-features">
+            <li><span class="pf-check">&#10003;</span> Your roster with DHQ dynasty values</li>
+            <li><span class="pf-check">&#10003;</span> Basic player cards and age curves</li>
+            <li><span class="pf-check">&#10003;</span> Team diagnosis — strengths &amp; weaknesses</li>
+            <li><span class="pf-check">&#10003;</span> Draft rankings (read-only)</li>
+            <li><span class="pf-check">&#10003;</span> 1 AI query per day</li>
+          </ul>
+        </div>
 
         <!-- Standard -->
         <div class="plan-card" id="plan-standard" onclick="selectPlan('standard')">
@@ -922,7 +936,9 @@
       selectedPlan = plan;
       document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
       document.getElementById('plan-' + plan).classList.add('selected');
-      document.getElementById('step1Btn').disabled = false;
+      const btn = document.getElementById('step1Btn');
+      btn.disabled = false;
+      btn.textContent = plan === 'scout' ? 'Start Free →' : 'Continue →';
 
       // Show/hide product sub-picker for Standard
       const picker = document.getElementById('standardProductPicker');
@@ -938,9 +954,14 @@
 
     function goStep2() {
       if (!selectedPlan) return;
-      const profileData = { tier: selectedPlan };
+      const profileData = { tier: selectedPlan === 'scout' ? 'free' : selectedPlan };
       if (selectedPlan === 'standard') profileData.product = selectedStandardProduct;
       patchProfile(profileData);
+      if (selectedPlan === 'scout') {
+        // Free tier — skip payment, go to account setup (step 3)
+        showStep(3);
+        return;
+      }
       showStep(2);
     }
 
