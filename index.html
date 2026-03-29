@@ -8536,48 +8536,50 @@
                 )}
                 </div>{/* end marginLeft wrapper */}
 
-            {/* ReconAI Panel — slides in from right */}
-            <div style={{
-              position: 'fixed', top: 0, right: reconPanelOpen ? 0 : '-340px',
-              width: '340px', height: '100vh',
-              background: '#0a0b0d', borderLeft: '2px solid rgba(124,107,248,0.3)',
-              transition: 'right 0.3s ease',
-              zIndex: 200, display: 'flex', flexDirection: 'column',
-              boxShadow: reconPanelOpen ? '-8px 0 32px rgba(0,0,0,0.5)' : 'none'
+            {/* ReconAI Chat Bubble — bottom right */}
+            {reconPanelOpen && <div style={{
+              position: 'fixed', bottom: '80px', right: '24px',
+              width: '380px', maxHeight: '520px',
+              background: '#0a0b0d', border: '2px solid rgba(124,107,248,0.3)',
+              borderRadius: '16px', zIndex: 200,
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,107,248,0.1)',
+              animation: 'wrFadeIn 0.2s ease'
             }}>
               {/* Header */}
               <div style={{
-                padding: '14px 16px', borderBottom: '1px solid rgba(124,107,248,0.2)',
+                padding: '12px 16px', borderBottom: '1px solid rgba(124,107,248,0.2)',
                 display: 'flex', alignItems: 'center', gap: '8px',
-                background: 'rgba(124,107,248,0.06)'
+                background: 'rgba(124,107,248,0.06)', borderRadius: '14px 14px 0 0'
               }}>
                 <div style={{
-                  width: '28px', height: '28px', borderRadius: '8px',
+                  width: '24px', height: '24px', borderRadius: '6px',
                   background: 'linear-gradient(135deg, #7c6bf8, #5b4cc4)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>
-                  <svg viewBox="0 0 32 32" width="16" height="16" fill="none">
+                  <svg viewBox="0 0 32 32" width="12" height="12" fill="none">
                     <circle cx="16" cy="16" r="6" stroke="#e0d4ff" strokeWidth="1.5"/>
                     <circle cx="16" cy="16" r="2" fill="#e0d4ff"/>
                   </svg>
                 </div>
-                <span style={{ fontWeight: 700, fontSize: '0.85rem', color: '#f0f0f3', letterSpacing: '-0.02em' }}>
+                <span style={{ fontWeight: 700, fontSize: '0.82rem', color: '#f0f0f3' }}>
                   Recon<span style={{ color: '#7c6bf8' }}>AI</span>
                 </span>
+                <span style={{ fontSize: '0.68rem', color: '#7d8291' }}>Cmd+K</span>
                 <span style={{ flex: 1 }}></span>
                 <button onClick={() => setReconPanelOpen(false)} style={{
                   background: 'none', border: 'none', color: '#7d8291', cursor: 'pointer',
-                  fontSize: '1.2rem', padding: '4px'
+                  fontSize: '1rem', padding: '2px'
                 }}>&#10005;</button>
               </div>
 
               {/* Context chips */}
-              <div style={{ padding: '8px 12px', display: 'flex', gap: '6px', flexWrap: 'wrap', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ padding: '6px 12px', display: 'flex', gap: '4px', flexWrap: 'wrap', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 {getReconChips().map((chip, i) => (
                   <button key={i} onClick={() => sendReconMessage(chip.prompt)}
                     style={{
-                      padding: '4px 10px', fontSize: '0.76rem', borderRadius: '20px',
-                      border: '1px solid rgba(124,107,248,0.3)', background: 'rgba(124,107,248,0.06)',
+                      padding: '3px 8px', fontSize: '0.72rem', borderRadius: '14px',
+                      border: '1px solid rgba(124,107,248,0.25)', background: 'rgba(124,107,248,0.06)',
                       color: '#a78bfa', cursor: 'pointer', fontFamily: 'inherit'
                     }}>
                     {chip.label}
@@ -8587,8 +8589,9 @@
 
               {/* Messages */}
               <div style={{
-                flex: 1, overflow: 'auto', padding: '12px',
-                display: 'flex', flexDirection: 'column', gap: '8px'
+                flex: 1, overflow: 'auto', padding: '10px 12px',
+                display: 'flex', flexDirection: 'column', gap: '6px',
+                maxHeight: '320px'
               }}>
                 {reconMessages.map((msg, i) => (
                   <div key={i} style={{
@@ -8605,7 +8608,7 @@
               {/* Input */}
               <div style={{
                 padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.07)',
-                display: 'flex', gap: '8px', background: '#111318'
+                display: 'flex', gap: '8px', background: '#111318', borderRadius: '0 0 14px 14px'
               }}>
                 <input
                   value={reconInput}
@@ -8627,20 +8630,27 @@
                   </svg>
                 </button>
               </div>
-            </div>
+            </div>}
 
-            {/* ReconAI Toggle button — always visible */}
+            {/* ReconAI Bubble Button — bottom right corner */}
             <button onClick={() => setReconPanelOpen(!reconPanelOpen)} style={{
-              position: 'fixed', right: reconPanelOpen ? '340px' : '0',
-              top: '50%', transform: 'translateY(-50%)',
-              width: '32px', height: '64px', borderRadius: '8px 0 0 8px',
-              background: 'linear-gradient(135deg, #7c6bf8, #5b4cc4)',
-              border: 'none', cursor: 'pointer', zIndex: 201,
+              position: 'fixed', bottom: '24px', right: '24px',
+              width: '52px', height: '52px', borderRadius: '50%',
+              background: reconPanelOpen ? 'rgba(124,107,248,0.15)' : 'linear-gradient(135deg, #7c6bf8, #5b4cc4)',
+              border: reconPanelOpen ? '2px solid rgba(124,107,248,0.3)' : '2px solid rgba(124,107,248,0.4)',
+              cursor: 'pointer', zIndex: 201,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'right 0.3s ease',
-              boxShadow: '-4px 0 16px rgba(124,107,248,0.3)'
+              boxShadow: '0 4px 20px rgba(124,107,248,0.3)',
+              transition: 'all 0.2s'
             }}>
-              <span style={{ color: 'white', fontSize: '0.85rem' }}>{reconPanelOpen ? '\u203A' : '\u2039'}</span>
+              {reconPanelOpen
+                ? <span style={{ color: '#a78bfa', fontSize: '1.2rem' }}>&#10005;</span>
+                : <svg viewBox="0 0 32 32" width="22" height="22" fill="none">
+                    <circle cx="16" cy="16" r="6" stroke="#e0d4ff" strokeWidth="1.5"/>
+                    <circle cx="16" cy="16" r="2" fill="#e0d4ff"/>
+                    <circle cx="16" cy="16" r="12" stroke="#e0d4ff" strokeWidth="0.5" opacity="0.3"/>
+                  </svg>
+              }
             </button>
 
             </div>
