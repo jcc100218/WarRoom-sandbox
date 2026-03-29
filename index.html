@@ -5144,7 +5144,8 @@
 
           return (
             <div style={{ padding: '16px' }}>
-              <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.6rem', color: 'var(--gold)', marginBottom: '8px' }}>LEAGUE ROSTERS</div>
+              <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.6rem', color: 'var(--gold)', marginBottom: '2px' }}>LEAGUE MAP</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' }}>Every team, asset, and competitive position in your league</div>
               <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
                 <button onClick={() => setLeagueSubView('teams')} style={sortBtnStyle(leagueSubView === 'teams')}>Teams</button>
                 <button onClick={() => setLeagueSubView('players')} style={sortBtnStyle(leagueSubView === 'players')}>All Players</button>
@@ -5229,14 +5230,27 @@
                             if (pct < 0.10) posNeeds.push(pos2);
                           });
                         }
+                        // Status tag from assessment
+                        const teamAssess = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(roster?.roster_id) : null;
+                        const tier2 = (teamAssess?.tier || '').toUpperCase();
+                        const tierCol2 = tier2 === 'ELITE' ? '#D4AF37' : tier2 === 'CONTENDER' ? '#2ECC71' : tier2 === 'CROSSROADS' ? '#F0A500' : tier2 === 'REBUILDING' ? '#E74C3C' : 'var(--silver)';
+                        const hs2 = teamAssess?.healthScore || 0;
+
                         return (
                           <div style={{ fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.6 }}>
+                            {/* Status tag + health */}
+                            <div style={{ display: 'flex', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                              {tier2 && <span style={{ fontSize: '0.7rem', fontWeight: 700, color: tierCol2, background: tierCol2 + '15', padding: '1px 8px', borderRadius: '4px', textTransform: 'uppercase', fontFamily: 'Oswald' }}>{tier2}</span>}
+                              {hs2 > 0 && <span style={{ fontSize: '0.72rem', color: hs2 >= 75 ? '#2ECC71' : hs2 >= 55 ? '#F0A500' : '#E74C3C', fontWeight: 600 }}>{hs2} health</span>}
+                            </div>
                             <div style={{ display: 'flex', gap: '8px', marginBottom: '4px', opacity: 0.7 }}>
                               <span>{rPlayers.length} players</span>
                               <span>{'\u00B7'} Avg {avgAge}yr</span>
                               <span>{'\u00B7'} {eliteCount} elite</span>
                             </div>
-                            {posNeeds.length > 0 && <div style={{ fontSize: '0.56rem', color: '#F0A500', marginBottom: '4px' }}>Needs: {posNeeds.join(', ')}</div>}
+                            {posNeeds.length > 0 && <div style={{ display: 'flex', gap: '4px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                              {posNeeds.map(pos2 => <span key={pos2} style={{ fontSize: '0.68rem', color: '#E74C3C', background: 'rgba(231,76,60,0.1)', padding: '1px 6px', borderRadius: '3px', fontWeight: 600 }}>Need {pos2}</span>)}
+                            </div>}
                             {scored.sort((a2,b2) => b2.dhq - a2.dhq).slice(0, 3).map(x => (
                               <div key={x.pid} style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <span>{playersData[x.pid]?.full_name || '?'}</span>
@@ -5435,8 +5449,35 @@
                     const h = ownerHist[team.roster?.roster_id];
                     if (!h) return <div style={{ color: 'var(--silver)', padding: '16px' }}>History not available — DHQ engine loading</div>;
 
+                    // Franchise narrative
+                    const narrativeParts = [];
+                    if (h.championships > 0) narrativeParts.push(h.championships + 'x champion (' + h.champSeasons.join(', ') + ').');
+                    else narrativeParts.push('No championships yet.');
+                    if (h.playoffWins > h.playoffLosses) narrativeParts.push('Strong playoff performer (' + h.playoffRecord + ').');
+                    else if (h.playoffAppearances > 0) narrativeParts.push('Playoff presence but struggles to close (' + h.playoffRecord + ').');
+                    else narrativeParts.push('Has not reached playoffs.');
+                    if (h.draftHitRate >= 50) narrativeParts.push('Excellent drafter (' + h.draftHitRate + '% hit rate).');
+                    else if (h.draftHitRate >= 30) narrativeParts.push('Average drafter (' + h.draftHitRate + '%).');
+                    else if (h.draftTotal > 0) narrativeParts.push('Poor draft results (' + h.draftHitRate + '% hit rate).');
+                    if (h.avgValueDiff > 100) narrativeParts.push('Wins trades consistently (+' + h.avgValueDiff + ' avg DHQ).');
+                    else if (h.avgValueDiff < -100) narrativeParts.push('Loses value in trades (' + h.avgValueDiff + ' avg DHQ).');
+
+                    // Best/worst assets
+                    const rosterScored = (roster?.players || []).map(pid => ({ pid, dhq: window.App?.LI?.playerScores?.[pid] || 0 })).sort((a,b) => b.dhq - a.dhq);
+                    const bestAsset = rosterScored[0];
+
+                    // Rivalries
+                    const rivalries = typeof detectRivalries === 'function' ? detectRivalries(team.roster?.roster_id) : [];
+
                     return (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            {/* Franchise narrative */}
+                            <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.25)', borderLeft: '4px solid var(--gold)', borderRadius: '8px', padding: '14px 18px' }}>
+                                <div style={{ fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '6px' }}>FRANCHISE SCOUTING REPORT</div>
+                                <div style={{ fontSize: '0.85rem', color: 'var(--silver)', lineHeight: 1.7 }}>{narrativeParts.join(' ')}</div>
+                                {bestAsset && bestAsset.dhq > 0 && <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginTop: '6px' }}>Crown jewel: <strong style={{ color: '#2ECC71' }}>{playersData[bestAsset.pid]?.full_name || '?'}</strong> ({bestAsset.dhq.toLocaleString()} DHQ)</div>}
+                            </div>
+
                             {/* Header stats */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
                                 {[
