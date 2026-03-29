@@ -2767,46 +2767,110 @@
         // ── Main render ──
         // ── Command mode: concise intelligence briefing ──
         if (viewMode === 'command') {
-            const topTargets = assessments.filter(a => a.rosterId !== myRosterId).sort((a,b) => {
-                const ca = calcComplementarity(myAssessment, a);
-                const cb = calcComplementarity(myAssessment, b);
-                return cb - ca;
-            }).slice(0, 3);
+            // Rank all teams by trade fit
+            const allTargets = assessments.filter(a => a.rosterId !== myRosterId).map(a => {
+                const dk = ownerDna[a.ownerId] || 'NONE';
+                const dna = DNA_TYPES[dk] || DNA_TYPES.NONE;
+                const posture = calcOwnerPosture(a, dk);
+                const compat = myAssessment ? calcComplementarity(myAssessment, a) : 0;
+                const theirNeeds = a.needs?.slice(0, 3) || [];
+                const yourSurplus = myAssessment?.strengths?.filter(s => theirNeeds.some(n => n.pos === s)) || [];
+                const desperation = a.panic || 0;
+                const label = compat >= 50 ? 'TARGET' : compat >= 25 ? 'POSSIBLE' : desperation >= 3 ? 'DESPERATE' : 'LOW PROB';
+                const labelCol = label === 'TARGET' ? '#2ECC71' : label === 'POSSIBLE' ? '#F0A500' : label === 'DESPERATE' ? '#BB8FCE' : 'var(--silver)';
+                return { ...a, dk, dna, posture, compat, theirNeeds, yourSurplus, desperation, label, labelCol };
+            }).sort((a, b) => b.compat - a.compat);
+
+            const topTargets = allTargets.filter(t => t.label === 'TARGET' || t.label === 'POSSIBLE').slice(0, 5);
+            const desperate = allTargets.filter(t => t.desperation >= 3 && t.label !== 'TARGET').slice(0, 2);
+            const avoid = allTargets.filter(t => t.compat < 15).slice(0, 2);
+
+            // Strategy summary
+            const myNeeds = myAssessment?.needs?.slice(0, 3) || [];
+            const myStrengths = myAssessment?.strengths || [];
+            const stratText = myNeeds.length ? 'Target teams needing ' + myStrengths.slice(0, 2).join('/') + '. Offer surplus depth for ' + myNeeds.map(n => n.pos).join('/') + ' upgrades.' : 'Your roster is balanced. Look for value asymmetry trades.';
+
+            const renderTarget = (t, i, showCTA) => (
+                <div key={i} style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.2)', borderLeft: '4px solid ' + (t.dna.color || 'var(--gold)'), borderRadius: '10px', padding: '16px 20px', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'Bebas Neue', fontSize: '1.2rem', color: 'var(--white)' }}>{t.ownerName}</span>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: t.labelCol, background: t.labelCol + '15', padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>{t.label}</span>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: t.dna.color, background: t.dna.color + '15', padding: '2px 8px', borderRadius: '4px' }}>{t.dna.label}</span>
+                        <span style={{ fontSize: '0.72rem', color: t.posture.color }}>{t.posture.label}</span>
+                        <span style={{ marginLeft: 'auto', fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: t.compat >= 50 ? '#2ECC71' : t.compat >= 30 ? '#F0A500' : 'var(--silver)' }}>{t.compat}%</span>
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '8px' }}>
+                        Needs <strong style={{ color: '#E74C3C' }}>{t.theirNeeds.map(n => n.pos).join(', ') || 'unknown'}</strong>
+                        {t.yourSurplus.length > 0 && <span>. You have <strong style={{ color: '#2ECC71' }}>{t.yourSurplus.join(', ')}</strong> to offer</span>}
+                        . <em style={{ color: t.dna.color, opacity: 0.8 }}>{t.dna.strategy ? t.dna.strategy.split('.')[0] + '.' : ''}</em>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.5 }}>{t.healthScore} health \u00B7 {t.wins}-{t.losses} \u00B7 {t.tier}</span>
+                        {showCTA && <React.Fragment>
+                            <button onClick={() => { setTcTab('finder'); setViewMode('analyst'); }} style={{ marginLeft: 'auto', padding: '5px 12px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '4px', fontFamily: 'Oswald', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 700 }}>GENERATE TRADES</button>
+                        </React.Fragment>}
+                    </div>
+                </div>
+            );
 
             return (
                 <div style={{ padding: '20px 24px', maxWidth: '1000px', margin: '0 auto' }} className="wr-fade-in">
                     <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.8rem', color: 'var(--gold)', letterSpacing: '0.05em', marginBottom: '4px' }}>INTELLIGENCE BRIEFING</div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '24px' }}>Top trade opportunities based on owner psychology and roster fit</div>
 
-                    {/* Top 3 trade partners with reasoning */}
-                    {topTargets.map((target, i) => {
-                        const dk = ownerDna[target.ownerId] || 'NONE';
-                        const dna = DNA_TYPES[dk] || DNA_TYPES.NONE;
-                        const posture = calcOwnerPosture(target, dk);
-                        const compat = myAssessment ? calcComplementarity(myAssessment, target) : 0;
-                        const theirNeeds = target.needs?.slice(0, 2).map(n => n.pos).join(', ') || 'none';
-                        const yourSurplus = myAssessment?.strengths?.filter(s => target.needs?.some(n => n.pos === s)) || [];
+                    {/* Strategy summary */}
+                    <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '10px', padding: '14px 18px', marginBottom: '20px', fontSize: '0.85rem', color: 'var(--silver)', lineHeight: 1.7 }}>
+                        {stratText}
+                    </div>
 
-                        return <div key={i} style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.25)', borderLeft: '4px solid ' + (dna.color || 'var(--gold)'), borderRadius: '10px', padding: '16px 20px', marginBottom: '12px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                                <span style={{ fontFamily: 'Bebas Neue', fontSize: '1.3rem', color: 'var(--white)' }}>{target.ownerName}</span>
-                                <span style={{ fontSize: '0.74rem', fontWeight: 700, color: dna.color, background: dna.color + '15', padding: '2px 8px', borderRadius: '4px' }}>{dna.label}</span>
-                                <span style={{ fontSize: '0.74rem', color: posture.color }}>{posture.label}</span>
-                                <span style={{ marginLeft: 'auto', fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: compat >= 50 ? '#2ECC71' : compat >= 30 ? '#F0A500' : 'var(--silver)' }}>{compat}% fit</span>
-                            </div>
-                            <div style={{ fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '8px' }}>
-                                Needs <strong style={{ color: '#E74C3C' }}>{theirNeeds}</strong>
-                                {yourSurplus.length > 0 && <span> \u2014 you have surplus at <strong style={{ color: '#2ECC71' }}>{yourSurplus.join(', ')}</strong></span>}
-                                . {dna.strategy ? <em style={{ color: dna.color, opacity: 0.8 }}>{dna.strategy.split('.')[0]}.</em> : ''}
-                            </div>
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                                <span style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.5 }}>{target.healthScore} health \u00B7 {target.wins}-{target.losses} \u00B7 {target.tier}</span>
+                    {/* Best trade partners */}
+                    {topTargets.length > 0 && <div style={{ marginBottom: '20px' }}>
+                        <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: '#2ECC71', letterSpacing: '0.06em', marginBottom: '8px' }}>BEST TRADE PARTNERS</div>
+                        {topTargets.map((t, i) => renderTarget(t, i, true))}
+                    </div>}
+
+                    {/* Desperate teams */}
+                    {desperate.length > 0 && <div style={{ marginBottom: '20px' }}>
+                        <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: '#BB8FCE', letterSpacing: '0.06em', marginBottom: '8px' }}>DESPERATE TEAMS (EXPLOIT)</div>
+                        {desperate.map((t, i) => renderTarget(t, 'desp-' + i, true))}
+                    </div>}
+
+                    {/* Avoid / low probability */}
+                    {avoid.length > 0 && <div style={{ marginBottom: '20px' }}>
+                        <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: 'var(--silver)', letterSpacing: '0.06em', marginBottom: '8px', opacity: 0.6 }}>LOW PROBABILITY</div>
+                        {avoid.map((t, i) => <div key={'avoid-'+i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', marginBottom: '4px', opacity: 0.5 }}>
+                            <span style={{ fontSize: '0.82rem', color: 'var(--silver)' }}>{t.ownerName}</span>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{t.compat}% fit \u00B7 {t.dna.label}</span>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.4 }}>Low roster overlap</span>
+                        </div>)}
+                    </div>}
+
+                    {/* Target map summary */}
+                    <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+                        <div style={{ fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', marginBottom: '8px' }}>LEAGUE TARGET MAP</div>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            {allTargets.map((t, i) => <span key={i} style={{ fontSize: '0.74rem', padding: '3px 10px', borderRadius: '4px', background: t.labelCol + '12', border: '1px solid ' + t.labelCol + '30', color: t.labelCol, fontWeight: 600 }}>{t.ownerName} {t.compat}%</span>)}
+                        </div>
+                    </div>
+
+                    {/* Trade history insight */}
+                    {(() => {
+                        const tradeHist = window.App?.LI?.tradeHistory || [];
+                        if (!tradeHist.length) return <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+                            <div style={{ fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '4px' }}>LEAGUE TRADE PATTERNS</div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--silver)', opacity: 0.4 }}>No trade history available yet. As trades occur, patterns will emerge here.</div>
+                        </div>;
+                        const activeCounts = {};
+                        tradeHist.forEach(t => (t.roster_ids || []).forEach(rid => { activeCounts[rid] = (activeCounts[rid] || 0) + 1; }));
+                        const mostActive = Object.entries(activeCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+                        return <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+                            <div style={{ fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', marginBottom: '6px' }}>WHAT WORKS IN THIS LEAGUE</div>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.6 }}>
+                                {tradeHist.length} trades completed. Most active: {mostActive.map(([rid, cnt]) => (ownerNameForRosterId(parseInt(rid)) || 'Team ' + rid) + ' (' + cnt + ')').join(', ')}.
                             </div>
                         </div>;
-                    })}
+                    })()}
 
-                    {topTargets.length === 0 && <div style={{ color: 'var(--silver)', textAlign: 'center', padding: '2rem' }}>Loading team assessments...</div>}
-                    <div style={{ textAlign: 'center', padding: '16px', fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.4 }}>Switch to Analyst view for full owner profiles, trade calculator, and history</div>
+                    <div style={{ textAlign: 'center', padding: '12px', fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.4 }}>Switch to Analyst view for full owner profiles, trade calculator, and history</div>
                 </div>
             );
         }
