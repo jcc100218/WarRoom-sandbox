@@ -1206,6 +1206,7 @@
 
     // Settings Modal
     function SettingsModal({ onClose, initDisplayName, onDisplayNameSave, leagueMates }) {
+        const [settingsTab, setSettingsTab] = React.useState('account');
         const [pwMsg, setPwMsg] = React.useState('');
         const [currentPw, setCurrentPw] = React.useState('');
         const [newPw, setNewPw] = React.useState('');
@@ -1324,13 +1325,36 @@
         return (
             <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }} onClick={onClose}>
                 <div style={{ background: 'linear-gradient(135deg, var(--off-black) 0%, var(--charcoal) 100%)', border: '3px solid var(--gold)', borderRadius: '12px', padding: '1.5rem', maxWidth: '440px', width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.8)', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
-                    <h2 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.5rem', color: 'var(--gold)', marginBottom: '1.25rem', textAlign: 'center', letterSpacing: '0.1em' }}>SETTINGS</h2>
+                    <h2 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.5rem', color: 'var(--gold)', marginBottom: '0.75rem', textAlign: 'center', letterSpacing: '0.1em' }}>SETTINGS</h2>
 
-                    <div style={{ fontSize: '0.85rem', color: 'var(--silver)', marginBottom: '1.25rem' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--silver)', marginBottom: '1rem' }}>
                         Logged in as: <strong style={{ color: 'var(--white)' }}>{sleeperUsername}</strong>
                         {isGiftedAccount && <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', color: 'var(--gold)', background: 'rgba(212,175,55,0.15)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>GIFTED — change your password below</span>}
                     </div>
 
+                    {/* Tab bar */}
+                    <div style={{ display: 'flex', gap: '0', marginBottom: '1.25rem', borderBottom: '2px solid rgba(212,175,55,0.2)' }}>
+                        {[
+                            { id: 'account', label: 'Account' },
+                            { id: 'subscription', label: 'Subscription' },
+                            { id: 'data', label: 'Data' },
+                        ].map(tab => (
+                            <button key={tab.id} onClick={() => setSettingsTab(tab.id)} style={{
+                                flex: 1, padding: '0.6rem 0.5rem', border: 'none',
+                                background: settingsTab === tab.id ? 'rgba(212,175,55,0.1)' : 'transparent',
+                                borderBottom: settingsTab === tab.id ? '2px solid var(--gold)' : '2px solid transparent',
+                                marginBottom: '-2px',
+                                color: settingsTab === tab.id ? 'var(--gold)' : 'var(--silver)',
+                                fontFamily: 'Oswald, sans-serif', fontSize: '0.82rem',
+                                fontWeight: settingsTab === tab.id ? 700 : 400,
+                                letterSpacing: '0.05em', textTransform: 'uppercase',
+                                cursor: 'pointer', transition: 'all 0.15s'
+                            }}>{tab.label}</button>
+                        ))}
+                    </div>
+
+                    {/* ══ ACCOUNT TAB ══ */}
+                    {settingsTab === 'account' && (<>
                     {/* ── DISPLAY NAME ── */}
                     <div style={sectionStyle}>
                         <div style={sectionTitle}>DISPLAY NAME</div>
@@ -1402,10 +1426,12 @@
                             </div>
                         </div>
                     )}
+                    </>)}
 
-                    {/* ── SUBSCRIPTION ── */}
+                    {/* ══ SUBSCRIPTION TAB ══ */}
+                    {settingsTab === 'subscription' && (<>
                     <div style={sectionStyle}>
-                        <div style={sectionTitle}>SUBSCRIPTION</div>
+                        <div style={sectionTitle}>CURRENT PLAN</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
                             <span style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>Current plan:</span>
                             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: tierColor[currentTier] || 'var(--silver)', background: tierBg[currentTier] || 'rgba(192,192,192,0.12)', padding: '0.15rem 0.55rem', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -1422,17 +1448,19 @@
                     </div>
 
                     {/* ── AI CONFIGURATION ── */}
-                    <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(212,175,55,0.2)' }}>
-                        <div style={{ fontFamily: 'Oswald', fontSize: '0.82rem', color: 'var(--gold)', textTransform: 'uppercase', marginBottom: '0.75rem' }}>AI Configuration</div>
+                    <div style={sectionStyle}>
+                        <div style={sectionTitle}>AI CONFIGURATION</div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginBottom: '0.5rem' }}>AI features are powered by the ReconAI panel. To configure your AI provider, visit the full ReconAI app:</div>
                         <a href="https://jcc100218.github.io/ReconAI/" target="_blank" style={{ display: 'inline-block', padding: '6px 14px', background: 'linear-gradient(135deg, rgba(124,107,248,0.15), rgba(124,107,248,0.05))', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '6px', color: '#a78bfa', textDecoration: 'none', fontSize: '0.72rem', fontWeight: 600 }}>
                             Open ReconAI Settings
                         </a>
                     </div>
+                    </>)}
 
-                    {/* ── DATA MANAGEMENT ── */}
-                    <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(212,175,55,0.2)' }}>
-                        <div style={{ fontFamily: 'Oswald', fontSize: '0.82rem', color: 'var(--gold)', textTransform: 'uppercase', marginBottom: '0.75rem' }}>Data Management</div>
+                    {/* ══ DATA TAB ══ */}
+                    {settingsTab === 'data' && (<>
+                    <div style={sectionStyle}>
+                        <div style={sectionTitle}>CACHE MANAGEMENT</div>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                             <button onClick={() => {
                                 localStorage.removeItem('dhq_leagueintel_v10');
@@ -1450,11 +1478,13 @@
                     </div>
 
                     {/* ── ABOUT ── */}
-                    <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(212,175,55,0.2)' }}>
+                    <div style={sectionStyle}>
+                        <div style={sectionTitle}>ABOUT</div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.65 }}>
                             Fantasy War Room v2.0 &middot; Powered by DHQ Engine &middot; Part of the Fantasy Wars platform
                         </div>
                     </div>
+                    </>)}
 
                     <div style={{ display: 'flex', gap: '0.75rem', flexDirection: 'column', marginTop: '1.5rem' }}>
                         <button onClick={handleLogout} style={{ padding: '0.75rem', background: 'linear-gradient(135deg, #E74C3C 0%, #C0392B 100%)', border: 'none', borderRadius: '8px', color: 'white', fontFamily: 'Oswald, sans-serif', fontSize: '0.9rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer' }}>
@@ -4839,35 +4869,46 @@
           const base = [
             { label: 'What should I do?', prompt: 'What are the top 3 moves I should make right now?' },
           ];
-          if (activeTab === 'dashboard') return [...base,
+          // Contextual starter prompt based on current tab
+          const starters = {
+            analytics: { label: 'What are my biggest weaknesses?', prompt: 'Analyze my team and tell me what my biggest weaknesses are — positional gaps, age concerns, and depth issues.' },
+            myteam: { label: 'Who should I trade?', prompt: 'Looking at my roster, which players should I be actively trying to trade and what kind of return should I target?' },
+            trades: { label: 'Best trade partner right now?', prompt: 'Which owner in my league is the best trade partner for me right now? Consider roster needs, tendencies, and mutual fit.' },
+            fa: { label: 'Best waiver pickup this week?', prompt: 'Who is the best waiver wire pickup I should target this week based on my roster needs and available players?' },
+            draft: { label: 'Best pick at my spot?', prompt: 'Given my draft position and roster needs, who is the best player I should target with my next pick?' },
+          };
+          const starter = starters[activeTab];
+          const chips = starter ? [starter, ...base] : [...base];
+
+          if (activeTab === 'dashboard') return [...chips,
             { label: 'League recap', prompt: 'Summarize the key storylines in my league right now.' },
             { label: 'Power rankings', prompt: 'Give me your power rankings for this league with one-line analysis per team.' },
           ];
-          if (activeTab === 'myteam') return [...base,
+          if (activeTab === 'myteam') return [...chips,
             { label: 'Roster grade', prompt: 'Grade my roster position by position and identify the biggest weakness.' },
             { label: 'Who to sell?', prompt: 'Which players on my roster should I sell high on right now?' },
           ];
-          if (activeTab === 'league') return [...base,
+          if (activeTab === 'league') return [...chips,
             { label: 'League overview', prompt: 'Give me a quick overview of every team in the league — strengths, weaknesses, and dynasty outlook.' },
             { label: 'Trade partners', prompt: 'Which teams in the league are the best trade partners for me right now and why?' },
           ];
-          if (activeTab === 'analytics') return [...base,
+          if (activeTab === 'analytics') return [...chips,
             { label: 'Explain my gaps', prompt: 'Based on the winner analysis, what are my biggest gaps and how do I close them?' },
             { label: 'Draft strategy', prompt: 'Based on historical draft success in this league, what should my draft strategy be?' },
           ];
-          if (activeTab === 'trades') return [...base,
+          if (activeTab === 'trades') return [...chips,
             { label: 'Best trade targets', prompt: 'Who are my best trade targets right now based on roster needs and trade partner compatibility?' },
             { label: 'Sell high candidates', prompt: 'Which players on my roster should I sell high on in a trade?' },
           ];
-          if (activeTab === 'fa') return [...base,
+          if (activeTab === 'fa') return [...chips,
             { label: 'Best pickup?', prompt: 'Who is the best available free agent I should target right now?' },
             { label: 'FAAB advice', prompt: 'How should I spend my remaining FAAB budget?' },
           ];
-          if (activeTab === 'draft') return [...base,
+          if (activeTab === 'draft') return [...chips,
             { label: 'Who at my pick?', prompt: 'Who should I target with my draft picks this year?' },
             { label: 'Draft strategy', prompt: 'What should my draft strategy be based on my roster needs?' },
           ];
-          return base;
+          return chips;
         }
 
         if (error) {
@@ -6324,21 +6365,32 @@
                         )}
                     </div>
 
-                    {/* Nav items */}
+                    {/* Nav items — grouped */}
                     {[
-                        {label: 'Dashboard', tab: 'analytics'},
-                        {label: 'My Roster', tab: 'myteam'},
-                        {label: 'Intelligence', tab: 'trades'},
-                        {label: 'Free Agency', tab: 'fa'},
-                        {label: 'Draft', tab: 'draft'},
-                        {label: 'League', tab: 'league'},
-                        {label: 'Settings', action: () => onOpenSettings && onOpenSettings()},
+                        { section: 'STRATEGY' },
+                        { label: 'Dashboard', tab: 'analytics' },
+                        { label: 'My Roster', tab: 'myteam' },
+                        { label: 'Intelligence', tab: 'trades' },
+                        { section: 'MARKET' },
+                        { label: 'Free Agency', tab: 'fa' },
+                        { label: 'Draft', tab: 'draft' },
+                        { section: 'LEAGUE' },
+                        { label: 'League Map', tab: 'league' },
+                        { section: 'SYSTEM' },
+                        { label: 'Settings', action: () => onOpenSettings && onOpenSettings() },
                     ].map((item, i) => {
+                        if (item.section) {
+                            return (
+                                <div key={i} style={{ padding: i === 0 ? '4px 16px 4px' : '12px 16px 4px', borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
+                                    <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '0.62rem', color: 'rgba(212,175,55,0.5)', letterSpacing: '0.18em', textTransform: 'uppercase' }}>{item.section}</span>
+                                </div>
+                            );
+                        }
                         const isActive = item.tab && activeTab === item.tab;
                         return (
                         <button key={i} onClick={() => item.tab ? setActiveTab(item.tab) : item.action ? item.action() : window.location.href = item.url}
                             style={{
-                                width: '100%', padding: '10px 16px', border: 'none',
+                                width: '100%', padding: '9px 16px 9px 20px', border: 'none',
                                 background: isActive ? 'rgba(212,175,55,0.12)' : 'transparent',
                                 borderLeft: isActive ? '3px solid var(--gold)' : '3px solid transparent',
                                 cursor: 'pointer', display: 'flex', alignItems: 'center',
@@ -8648,6 +8700,41 @@
                             </div>
 
                             <div className="league-window-scroll">
+                                {/* Command Center Summary */}
+                                {(() => {
+                                    const lastLeagueId = localStorage.getItem('wr_last_league_id');
+                                    const lastLeagueName = localStorage.getItem('wr_last_league_name');
+                                    if (lastLeagueId && lastLeagueName && !loading) {
+                                        const resumeLeague = sleeperLeagues.find(l => l.id === lastLeagueId);
+                                        return (
+                                            <div style={{ margin: '8px', padding: '12px', background: 'linear-gradient(135deg, rgba(212,175,55,0.08), rgba(212,175,55,0.02))', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '8px' }}>
+                                                <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '0.82rem', color: 'var(--gold)', letterSpacing: '0.1em', marginBottom: '8px' }}>COMMAND CENTER</div>
+                                                <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginBottom: '10px' }}>Last session: <strong style={{ color: 'var(--white)' }}>{lastLeagueName}</strong></div>
+                                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                                    {resumeLeague && (
+                                                        <button onClick={() => { setActiveLeagueId(resumeLeague.id); setSelectedLeague(resumeLeague); }}
+                                                            style={{ padding: '5px 12px', fontSize: '0.72rem', fontFamily: 'Oswald, sans-serif', fontWeight: 700, background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '5px', cursor: 'pointer', letterSpacing: '0.03em' }}>
+                                                            Resume League
+                                                        </button>
+                                                    )}
+                                                    {resumeLeague && (
+                                                        <button onClick={() => { setActiveLeagueId(resumeLeague.id); setSelectedLeague(resumeLeague); }}
+                                                            style={{ padding: '5px 12px', fontSize: '0.72rem', fontFamily: 'Oswald, sans-serif', fontWeight: 600, background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: '5px', cursor: 'pointer', letterSpacing: '0.03em' }}>
+                                                            View Alerts
+                                                        </button>
+                                                    )}
+                                                    {resumeLeague && (
+                                                        <button onClick={() => { setActiveLeagueId(resumeLeague.id); setSelectedLeague(resumeLeague); }}
+                                                            style={{ padding: '5px 12px', fontSize: '0.72rem', fontFamily: 'Oswald, sans-serif', fontWeight: 600, background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: '5px', cursor: 'pointer', letterSpacing: '0.03em' }}>
+                                                            Open Draft Room
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
                                 {!sleeperUsername ? (
                                     <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--silver)', fontSize: '0.85rem' }}>
                                         <div style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}></div>
@@ -8674,13 +8761,24 @@
                                             onClick={() => {
                                                 setActiveLeagueId(league.id);
                                                 setSelectedLeague(league);
+                                                localStorage.setItem('wr_last_league_id', league.id);
+                                                localStorage.setItem('wr_last_league_name', league.name);
                                                             }}
                                         >
-                                            <div className="league-item-name">
-                                                {league.name}
-                                            </div>
-                                            <div className="league-item-record">
-                                                {league.wins}-{league.losses}{league.ties > 0 ? `-${league.ties}` : ''}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                                <div className="league-item-name" style={{ flex: 1 }}>
+                                                    {league.name}
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                                                    {league.rosters && (
+                                                        <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6 }}>
+                                                            {league.rosters.length} teams
+                                                        </span>
+                                                    )}
+                                                    <div className="league-item-record" style={{ fontWeight: 700, fontSize: '0.78rem' }}>
+                                                        {league.wins}-{league.losses}{league.ties > 0 ? `-${league.ties}` : ''}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     ))
