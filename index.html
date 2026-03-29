@@ -5868,7 +5868,7 @@
                 )}
 
                 {/* ── GLOBAL TIME CONTEXT BAR ── */}
-                <div style={{
+                <div key={'ctx-'+viewMode+'-'+timeYear} style={{
                     display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 24px',
                     background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(212,175,55,0.12)',
                     position: 'sticky', top: 0, zIndex: 50
@@ -6048,6 +6048,11 @@
                     }}></div>
                 )}
                 </React.Fragment>}
+
+                {/* View Mode Debug Banner */}
+                <div style={{ padding: '4px 24px', background: viewMode === 'command' ? 'rgba(46,204,113,0.08)' : 'rgba(52,152,219,0.08)', borderBottom: '1px solid ' + (viewMode === 'command' ? 'rgba(46,204,113,0.2)' : 'rgba(52,152,219,0.2)'), fontSize: '0.72rem', fontFamily: 'monospace', color: viewMode === 'command' ? '#2ECC71' : '#3498DB' }}>
+                    VIEW: {viewMode.toUpperCase()} {'\u00B7'} tab: {activeTab} {'\u00B7'} isCommand: {String(isCommand)}
+                </div>
 
                 {/* Tab Content Routing */}
                 {activeTab === 'trades' ? (
