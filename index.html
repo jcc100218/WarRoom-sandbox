@@ -967,6 +967,74 @@
     window.canAccess = canAccess;
     window.getUserTier = getUserTier;
 
+    // ===== PLAYER INLINE CARD (bottom-right, non-blocking) =====
+    function PlayerInlineCard({ pid, playersData, statsData, onClose, onFullProfile }) {
+        const p = playersData?.[pid];
+        if (!p) return null;
+        const pos = p.position || '?';
+        const name = p.full_name || ((p.first_name||'') + ' ' + (p.last_name||'')).trim();
+        const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+        const meta = window.App?.LI?.playerMeta?.[pid] || {};
+        const st = statsData?.[pid] || {};
+        const peaks = window.App?.peakWindows || {QB:[27,33],RB:[22,26],WR:[24,29],TE:[25,30],DL:[24,29],LB:[23,28],DB:[24,29]};
+        const nPos = ['DE','DT','NT'].includes(pos)?'DL':['CB','S','SS','FS'].includes(pos)?'DB':['OLB','ILB','MLB'].includes(pos)?'LB':pos;
+        const [pLo, pHi] = peaks[nPos] || [24,29];
+        const age = p.age || 0;
+        const peakYrs = Math.max(0, pHi - age);
+        const peakLabel = age < pLo ? 'Rising' : age <= pHi ? 'Prime' : 'Post-Peak';
+        const peakCol = age < pLo ? '#2ECC71' : age <= pHi ? '#D4AF37' : '#E74C3C';
+        const dhqCol = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#3498DB' : dhq >= 2000 ? '#D0D0D0' : 'rgba(255,255,255,0.3)';
+        const ppg = st.gp > 0 ? +((st.pts_half_ppr || st.pts_ppr || 0) / st.gp).toFixed(1) : (meta.ppg || 0);
+        const trend = meta.trend || 0;
+        const rec = peakYrs <= 0 && trend <= -10 ? 'SELL NOW' : peakYrs <= 0 ? 'SELL' : peakYrs <= 2 && trend >= 15 ? 'SELL HIGH' : peakYrs <= 2 ? 'SELL' : dhq >= 7000 && peakYrs >= 3 ? 'HOLD CORE' : peakYrs >= 4 && dhq < 4000 ? 'BUY LOW' : 'HOLD';
+        const recCol = rec.includes('SELL') ? '#E74C3C' : rec.includes('BUY') ? '#2ECC71' : '#D4AF37';
+        const initials = ((p.first_name||'?')[0] + (p.last_name||'?')[0]).toUpperCase();
+
+        // Check roster context
+        const S = window.S || {};
+        const myRoster = (S.rosters || []).find(r => r.roster_id === S.myRosterId);
+        const isOnMyTeam = myRoster?.players?.includes(pid);
+
+        return React.createElement('div', {
+            style: { position:'fixed', bottom:'80px', right:'24px', width:'360px', background:'#0a0b0d', border:'2px solid rgba(212,175,55,0.4)', borderRadius:'14px', zIndex:250, boxShadow:'0 12px 48px rgba(0,0,0,0.7)', animation:'wrFadeIn 0.2s ease', overflow:'hidden' }
+        },
+            // Header with photo
+            React.createElement('div', { style:{ padding:'14px 16px', background:'linear-gradient(135deg, rgba(212,175,55,0.08), transparent)', borderBottom:'1px solid rgba(212,175,55,0.15)', display:'flex', gap:'12px', alignItems:'center' } },
+                React.createElement('div', { style:{ width:'48px', height:'48px', borderRadius:'10px', overflow:'hidden', background:'rgba(212,175,55,0.1)', border:'1px solid rgba(212,175,55,0.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 } },
+                    React.createElement('img', { src:'https://sleepercdn.com/content/nfl/players/'+pid+'.jpg', style:{width:'48px',height:'48px',objectFit:'cover'}, onError:function(e){ e.target.style.display='none'; e.target.insertAdjacentHTML('afterend','<span style="font-size:16px;font-weight:700;color:#D4AF37">'+initials+'</span>'); } })
+                ),
+                React.createElement('div', { style:{flex:1} },
+                    React.createElement('div', { style:{ fontFamily:'Bebas Neue', fontSize:'1.2rem', color:'#f0f0f3', letterSpacing:'0.02em' } }, name),
+                    React.createElement('div', { style:{ fontSize:'0.78rem', color:'#D0D0D0' } }, nPos+' \u00B7 '+(p.team||'FA')+' \u00B7 Age '+(age||'?')+(p.college ? ' \u00B7 '+p.college : ''))
+                ),
+                React.createElement('button', { onClick:onClose, style:{ background:'none', border:'none', color:'#7d8291', cursor:'pointer', fontSize:'1.1rem', padding:'2px' } }, '\u2715')
+            ),
+            // Stats row
+            React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'4px', padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)' } },
+                ...[
+                    { val:dhq>0?dhq.toLocaleString():'\u2014', lbl:'DHQ', col:dhqCol },
+                    { val:ppg||'\u2014', lbl:'PPG', col:ppg>=10?'#2ECC71':'#D0D0D0' },
+                    { val:peakYrs+'yr', lbl:'PEAK', col:peakCol },
+                    { val:rec, lbl:'ACTION', col:recCol }
+                ].map(function(s,i){ return React.createElement('div', { key:i, style:{textAlign:'center'} },
+                    React.createElement('div', { style:{ fontFamily:'Bebas Neue', fontSize:'1rem', color:s.col } }, s.val),
+                    React.createElement('div', { style:{ fontSize:'0.68rem', color:'#7d8291', textTransform:'uppercase', letterSpacing:'0.06em' } }, s.lbl)
+                ); })
+            ),
+            // Recommendation line
+            React.createElement('div', { style:{ padding:'10px 16px', fontSize:'0.82rem', color:'#D0D0D0', lineHeight:1.6 } },
+                peakYrs >= 4 ? 'Long dynasty window \u2014 cornerstone asset.' : peakYrs >= 1 ? 'In production window.' : 'Past peak \u2014 value declining.',
+                trend >= 20 ? ' Trending up '+trend+'%.' : trend <= -15 ? ' Production down '+Math.abs(trend)+'%.' : '',
+                isOnMyTeam ? ' On your roster.' : ''
+            ),
+            // Action buttons
+            React.createElement('div', { style:{ padding:'10px 16px', display:'flex', gap:'6px', borderTop:'1px solid rgba(255,255,255,0.06)' } },
+                React.createElement('button', { onClick:onFullProfile, style:{ flex:1, padding:'8px', background:'#D4AF37', color:'#0A0A0A', border:'none', borderRadius:'6px', fontFamily:'Bebas Neue', fontSize:'0.9rem', cursor:'pointer' } }, 'FULL PROFILE'),
+                React.createElement('button', { onClick:onClose, style:{ padding:'8px 14px', background:'transparent', border:'1px solid rgba(212,175,55,0.3)', color:'#D4AF37', borderRadius:'6px', fontFamily:'Bebas Neue', fontSize:'0.9rem', cursor:'pointer' } }, 'CLOSE')
+            )
+        );
+    }
+
     // ===== GLOBAL UI COMPONENTS =====
     function Tip({ children }) {
         const [open, setOpen] = React.useState(false);
@@ -3362,7 +3430,7 @@
                                     {selPeakYrs >= 4 ? 'Long dynasty window.' : selPeakYrs >= 1 ? 'In production window.' : 'Past peak — short-term only.'}
                                 </div>;
                             })()}
-                            <button onClick={() => { if (window.openFWPlayerModal) openFWPlayerModal(faSelectedPid, playersData, statsData); }} style={{ width: '100%', padding: '8px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>FULL PLAYER CARD</button>
+                            <button onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(faSelectedPid); }} style={{ width: '100%', padding: '8px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>FULL PLAYER CARD</button>
                         </div>}
                     </div>
                 </div>
@@ -3568,7 +3636,7 @@
                     </div>}
 
                     {/* Action */}
-                    <button onClick={() => { if (window.openFWPlayerModal) openFWPlayerModal(faSelectedPid, playersData, statsData); }} style={{ width: '100%', padding: '10px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', fontFamily: 'Bebas Neue', fontSize: '1rem', letterSpacing: '0.06em', cursor: 'pointer' }}>FULL PLAYER CARD</button>
+                    <button onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(faSelectedPid); }} style={{ width: '100%', padding: '10px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', fontFamily: 'Bebas Neue', fontSize: '1rem', letterSpacing: '0.06em', cursor: 'pointer' }}>FULL PLAYER CARD</button>
                 </div>}
             </div>
         );
@@ -3773,7 +3841,7 @@
                                         const needMatch = assess?.needs?.find(n => n.pos === pos);
                                         const reason = needMatch ? (needMatch.urgency === 'deficit' ? 'Fills critical ' + pos + ' need' : 'Addresses ' + pos + ' depth') : 'Best player available at ' + pos;
                                         return (
-                                            <div key={r.pid} onClick={() => { if (window.openFWPlayerModal) window.openFWPlayerModal(r.pid, playersData, statsData); }}
+                                            <div key={r.pid} onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(r.pid); }}
                                                 style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', marginBottom: '4px', borderRadius: '6px', background: i === 0 ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.02)', border: i === 0 ? '1px solid rgba(212,175,55,0.2)' : '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', transition: 'background 0.1s' }}
                                                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.1)'}
                                                 onMouseLeave={e => e.currentTarget.style.background = i === 0 ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.02)'}>
@@ -3825,7 +3893,7 @@
                                 const pos = normPos(r.p.position) || r.p.position;
                                 const dhqCol = r.dhq >= 7000 ? '#2ECC71' : r.dhq >= 4000 ? '#3498DB' : 'var(--silver)';
                                 return (
-                                    <div key={r.pid} onClick={() => { if (window.openFWPlayerModal) window.openFWPlayerModal(r.pid, playersData, statsData); }}
+                                    <div key={r.pid} onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(r.pid); }}
                                         style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 8px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', transition: 'background 0.1s' }}
                                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.06)'}
                                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -3883,7 +3951,7 @@
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                             <span style={{ fontFamily: 'Oswald', fontSize: '0.74rem', color: 'var(--silver)', width: '22px' }}>{idx + 1}</span>
                                                             <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + r.pid + '.jpg'} alt="" onError={e => e.target.style.display='none'} style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover' }} />
-                                                            <span onClick={() => { if (window.openFWPlayerModal) window.openFWPlayerModal(r.pid, playersData, statsData); }}
+                                                            <span onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(r.pid); }}
                                                                 style={{ fontWeight: 600, fontSize: '0.78rem', color: 'var(--white)', cursor: 'pointer', textDecoration: isDrafted ? 'line-through' : 'none', flex: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                                                                 {pName(r.p)}
                                                             </span>
@@ -3985,7 +4053,7 @@
                                     const dhqCol = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#3498DB' : dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)';
                                     return (
                                         <div key={pid}
-                                            onClick={() => { if (window.openFWPlayerModal) openFWPlayerModal(pid, playersData, statsData); }}
+                                            onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(pid); }}
                                             style={{ display: 'grid', gridTemplateColumns: draftGridCols, gap: '4px', padding: '5px 10px', borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', fontSize: '0.72rem', alignItems: 'center', transition: 'background 0.1s' }}
                                             onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.06)'}
                                             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -4027,6 +4095,7 @@
         const [activeYear, setActiveYear] = useState(league.season);
         const [trending, setTrending] = useState({ adds: [], drops: [] });
         const [activeTab, setActiveTab] = useState('analytics');
+        const [selectedPlayerPid, setSelectedPlayerPid] = useState(null);
 
         // ── TIME CONTEXT — the temporal lens of the entire app ──
         // Single source of truth. All modules read timeYear and derived helpers.
@@ -4045,6 +4114,8 @@
         const isCommand = viewMode === 'command';
         const isAnalyst = viewMode === 'analyst';
         useEffect(() => { try { localStorage.setItem('wr_view_mode', viewMode); } catch(e) {} }, [viewMode]);
+
+        window._wrSelectPlayer = setSelectedPlayerPid;
 
         // Derived selectors — modules use these, never compute their own
         const isCurrentYear = timeYear === currentSeason;
@@ -5175,7 +5246,7 @@
                     {/* Player name + team — opens shared player card */}
                     <a
                         href="#"
-                        onClick={e => { e.preventDefault(); if(window.openFWPlayerModal) openFWPlayerModal(playerId, playersData, statsData); }}
+                        onClick={e => { e.preventDefault(); if (window._wrSelectPlayer) window._wrSelectPlayer(playerId); }}
                         style={{
                             flex: 1,
                             display: 'flex',
@@ -5510,7 +5581,7 @@
                             </div>
                             <div style={{ maxHeight: '600px', overflow: 'auto' }}>
                                 {filtered.slice(0, 100).map((x, idx) => (
-                                    <div key={x.pid} onClick={() => { if (window.openFWPlayerModal) openFWPlayerModal(x.pid, playersData, statsData); }}
+                                    <div key={x.pid} onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(x.pid); }}
                                         style={{ display: 'grid', gridTemplateColumns: '24px 28px 1fr 36px 32px 54px 42px 100px', gap: '4px', padding: '5px 10px', borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', fontSize: '0.72rem', alignItems: 'center', background: x.isMe ? 'rgba(212,175,55,0.04)' : 'transparent', transition: 'background 0.1s' }}
                                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.06)'}
                                         onMouseLeave={e => e.currentTarget.style.background = x.isMe ? 'rgba(212,175,55,0.04)' : 'transparent'}>
@@ -5766,7 +5837,7 @@
                   </div>
                   <div style={{ maxHeight: '600px', overflow: 'auto' }}>
                     {players.map(r => (
-                      <div key={r.pid} onClick={() => { if (window.openFWPlayerModal) openFWPlayerModal(r.pid, playersData, statsData); }}
+                      <div key={r.pid} onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(r.pid); }}
                         style={{ display: 'grid', gridTemplateColumns: '3px 28px 1fr 36px 32px 54px 42px 60px 52px', gap: '4px', padding: '5px 10px', borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', fontSize: '0.72rem', alignItems: 'center', transition: 'background 0.1s' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.06)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -6167,7 +6238,7 @@
                                                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                                                     {/* My player */}
                                                     <div style={{ padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', borderRight: '1px solid rgba(255,255,255,0.04)', background: my && their && my.dhq > their.dhq ? 'rgba(46,204,113,0.04)' : 'transparent', cursor: my ? 'pointer' : 'default' }}
-                                                        onClick={() => { if (my && window.openFWPlayerModal) openFWPlayerModal(my.pid, playersData, statsData); }}>
+                                                        onClick={() => { if (my && window._wrSelectPlayer) window._wrSelectPlayer(my.pid); }}>
                                                         {my ? (<>
                                                             <div style={{ width: '18px', height: '18px', flexShrink: 0 }}><img src={'https://sleepercdn.com/content/nfl/players/thumb/'+my.pid+'.jpg'} onError={e=>e.target.style.display='none'} style={{ width:'18px',height:'18px',borderRadius:'50%',objectFit:'cover' }} /></div>
                                                             <span style={{ flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: 'var(--white)', cursor: 'pointer' }}>{my.p?.full_name || '?'}</span>
@@ -6176,7 +6247,7 @@
                                                     </div>
                                                     {/* Their player */}
                                                     <div style={{ padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', background: their && my && their.dhq > my.dhq ? 'rgba(46,204,113,0.04)' : 'transparent', cursor: their ? 'pointer' : 'default' }}
-                                                        onClick={() => { if (their && window.openFWPlayerModal) openFWPlayerModal(their.pid, playersData, statsData); }}>
+                                                        onClick={() => { if (their && window._wrSelectPlayer) window._wrSelectPlayer(their.pid); }}>
                                                         {their ? (<>
                                                             <div style={{ width: '18px', height: '18px', flexShrink: 0 }}><img src={'https://sleepercdn.com/content/nfl/players/thumb/'+their.pid+'.jpg'} onError={e=>e.target.style.display='none'} style={{ width:'18px',height:'18px',borderRadius:'50%',objectFit:'cover' }} /></div>
                                                             <span style={{ flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', color: 'var(--white)', cursor: 'pointer' }}>{their.p?.full_name || '?'}</span>
@@ -6232,7 +6303,7 @@
                   return <div style={{ marginBottom: '10px' }}>
                     <div style={{ fontSize: '0.76rem', fontWeight: 700, color: color, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'Oswald', marginBottom: '4px' }}>{title}</div>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {players.map(r => <span key={r.pid} onClick={() => { if (window.openFWPlayerModal) openFWPlayerModal(r.pid, playersData, statsData); }} style={{ fontSize: '0.76rem', padding: '3px 10px', background: color + '15', border: '1px solid ' + color + '30', borderRadius: '6px', color: 'var(--silver)', cursor: 'pointer' }}>{r.p.full_name || r.pid} <span style={{ color: color, fontWeight: 700 }}>{r.dhq.toLocaleString()}</span></span>)}
+                      {players.map(r => <span key={r.pid} onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(r.pid); }} style={{ fontSize: '0.76rem', padding: '3px 10px', background: color + '15', border: '1px solid ' + color + '30', borderRadius: '6px', color: 'var(--silver)', cursor: 'pointer' }}>{r.p.full_name || r.pid} <span style={{ color: color, fontWeight: 700 }}>{r.dhq.toLocaleString()}</span></span>)}
                     </div>
                   </div>;
                 };
@@ -6347,7 +6418,7 @@
                   </div>
                   {/* Rows */}
                   {filtered.map(r => (
-                    <div key={r.pid+'f'} onClick={() => openFWPlayerModal(r.pid, playersData, statsData)} style={{
+                    <div key={r.pid+'f'} onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(r.pid); }} style={{
                       height: '34px', display: 'flex', alignItems: 'center', gap: '6px', padding: '0 4px',
                       borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'pointer',
                       borderLeft: '3px solid ' + statusCol(r.section),
@@ -8379,7 +8450,7 @@
                             <div style={{ fontSize: '0.78rem', color: 'var(--white)', paddingLeft: '48px' }}>
                               {Object.keys(txn.adds || {}).map(pid => (
                                 <span key={'a'+pid} style={{ color: '#2ECC71', cursor: 'pointer', marginRight: '6px' }}
-                                  onClick={() => { if (window.openFWPlayerModal) openFWPlayerModal(pid, playersData, statsData); }}>
+                                  onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(pid); }}>
                                   +{getPlayerName(pid)}
                                 </span>
                               ))}
@@ -8535,6 +8606,14 @@
                 </React.Fragment>
                 )}
                 </div>{/* end marginLeft wrapper */}
+
+            {selectedPlayerPid && <PlayerInlineCard
+                pid={selectedPlayerPid}
+                playersData={playersData}
+                statsData={statsData}
+                onClose={() => setSelectedPlayerPid(null)}
+                onFullProfile={() => { if (window.openFWPlayerModal) openFWPlayerModal(selectedPlayerPid, playersData, statsData); }}
+            />}
 
             {/* ReconAI Chat Bubble — bottom right */}
             {reconPanelOpen && <div style={{
