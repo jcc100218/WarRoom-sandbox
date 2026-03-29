@@ -6081,74 +6081,128 @@
                         const elites = myPids.filter(pid => (scores[pid] || 0) >= 7000).length;
                         const myAssess = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null;
                         const hs = myAssess?.healthScore || 0;
-                        const gaps = (d?.gaps || d?.roster?.gaps || []).filter(g => g.severity === 'high' || g.severity === 'critical').slice(0, 3);
+                        const tier = (myAssess?.tier || 'UNKNOWN').toUpperCase();
+                        const gaps = (d?.gaps || d?.roster?.gaps || []).slice(0, 5);
                         const strengths = myAssess?.strengths || [];
-                        const needs = myAssess?.needs?.slice(0, 3) || [];
+                        const needs = myAssess?.needs || [];
                         const projWin = d?.window;
+                        const myRank = rankedTeams.findIndex(t => t.userId === sleeperUserId) + 1;
+
+                        // Position investment comparison
+                        const w = d?.roster?.winnerProfile;
+                        const m = d?.roster?.myProfile;
+                        const posInsights = [];
+                        if (w?.posInvestment && m?.posInvestment) {
+                            Object.keys(w.posInvestment).forEach(pos => {
+                                if (pos === 'UNK') return;
+                                const wPct = (w.posInvestment[pos] || 0) * 100;
+                                const mPct = (m.posInvestment[pos] || 0) * 100;
+                                const diff = mPct - wPct;
+                                if (Math.abs(diff) > 5) posInsights.push({ pos, diff, label: diff > 0 ? 'Overweight' : 'Underweight', col: diff > 0 ? '#3498DB' : warnColor });
+                            });
+                            posInsights.sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+                        }
+
+                        // Team diagnosis
+                        const diagParts = [];
+                        diagParts.push(tier === 'ELITE' ? 'Championship-caliber roster.' : tier === 'CONTENDER' ? 'Legitimate contender.' : tier === 'CROSSROADS' ? 'At a crossroads.' : 'Rebuilding phase.');
+                        if (needs.length) diagParts.push('Biggest weakness: ' + needs[0].pos + ' (' + needs[0].urgency + ').');
+                        if (tier === 'ELITE' || tier === 'CONTENDER') diagParts.push('Strategy: make surgical upgrades, protect core assets.');
+                        else if (tier === 'CROSSROADS') diagParts.push('Strategy: address top gap or commit to a rebuild path.');
+                        else diagParts.push('Strategy: accumulate young assets and draft capital. Sell aging veterans.');
+
+                        // Build prioritized actions
+                        const priorities = [];
+                        needs.slice(0, 2).forEach((n, i) => {
+                            priorities.push({ rank: i + 1, label: n.pos + ' ' + n.urgency, action: n.urgency === 'deficit' ? 'Find ' + n.pos + ' via trade or waivers' : 'Add ' + n.pos + ' depth', cta: n.urgency === 'deficit' ? 'fa' : 'trades', col: n.urgency === 'deficit' ? badColor : warnColor });
+                        });
+                        if (elites < 2) priorities.push({ rank: priorities.length + 1, label: 'Elite deficit (' + elites + ' players 7000+ DHQ)', action: 'Target elite-tier acquisitions', cta: 'trades', col: badColor });
+                        if (projWin && projWin.years <= 1) priorities.push({ rank: priorities.length + 1, label: 'Window closing (' + (projWin.years || 0) + 'yr)', action: 'Sell aging assets or go all-in', cta: 'trades', col: warnColor });
 
                         return (
                             <div style={{ padding: '24px 32px', maxWidth: '1000px', margin: '0 auto' }} className="wr-fade-in">
-                                <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.8rem', color: 'var(--gold)', letterSpacing: '0.05em', marginBottom: '4px' }}>LEAGUE COMMAND</div>
-                                <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '24px' }}>What you need to know right now</div>
+                                <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.8rem', color: 'var(--gold)', letterSpacing: '0.05em', marginBottom: '20px' }}>LEAGUE COMMAND</div>
 
-                                {/* KPI summary band */}
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+                                {/* Team Diagnosis */}
+                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', padding: '20px 24px', marginBottom: '20px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
+                                        <div style={{ fontFamily: 'Bebas Neue', fontSize: '2.8rem', color: myRank <= 3 ? goodColor : myRank <= 6 ? warnColor : badColor, lineHeight: 1 }}>#{myRank || '?'}</div>
+                                        <div>
+                                            <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.3rem', color: 'var(--white)', letterSpacing: '0.03em' }}>{tier}</div>
+                                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{totalDhq.toLocaleString()} DHQ \u00B7 {hs} health \u00B7 {elites} elite{elites !== 1 ? 's' : ''}</div>
+                                        </div>
+                                    </div>
+                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7 }}>{diagParts.join(' ')}</div>
+                                </div>
+
+                                {/* Prioritized Actions */}
+                                {priorities.length > 0 && <div style={{ ...aCardStyle, borderLeft: '4px solid ' + badColor, marginBottom: '20px' }}>
+                                    <div style={aHeaderStyle}>ACTION PLAN</div>
+                                    {priorities.map((p, i) => (
+                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0', borderBottom: i < priorities.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                                            <span style={{ fontFamily: 'Bebas Neue', fontSize: '1.4rem', color: p.col, minWidth: '28px' }}>#{p.rank}</span>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontSize: '0.88rem', color: 'var(--white)', fontWeight: 600 }}>{p.label}</div>
+                                                <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.7 }}>{p.action}</div>
+                                            </div>
+                                            <button onClick={() => setActiveTab(p.cta)} style={{ padding: '6px 14px', background: p.col + '20', border: '1px solid ' + p.col + '50', color: p.col, borderRadius: '6px', fontFamily: 'Oswald', fontSize: '0.76rem', cursor: 'pointer', textTransform: 'uppercase', fontWeight: 700 }}>Fix This</button>
+                                        </div>
+                                    ))}
+                                </div>}
+
+                                {/* KPI Cards - sorted by weakness */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
                                     {[
-                                        { val: totalDhq.toLocaleString(), label: 'TOTAL DHQ', col: 'var(--gold)' },
-                                        { val: hs || '\u2014', label: 'HEALTH', col: hs >= 80 ? goodColor : hs >= 60 ? warnColor : badColor },
-                                        { val: elites, label: 'ELITE PLAYERS', col: elites >= 3 ? goodColor : elites >= 1 ? warnColor : badColor },
-                                        { val: projWin?.years > 0 ? projWin.years + 'yr' : 'Now', label: 'COMPETE WINDOW', col: projWin?.years >= 3 ? goodColor : projWin?.years >= 1 ? warnColor : badColor },
-                                    ].map((kpi, i) => (
-                                        <div key={i} style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.25)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
-                                            <div style={{ fontFamily: 'Bebas Neue', fontSize: '2rem', color: kpi.col, letterSpacing: '-0.02em' }}>{kpi.val}</div>
-                                            <div style={{ fontSize: '0.74rem', color: 'var(--silver)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{kpi.label}</div>
+                                        { val: totalDhq.toLocaleString(), label: 'TOTAL DHQ', col: 'var(--gold)', ok: true },
+                                        { val: hs || '\u2014', label: 'HEALTH', col: hs >= 80 ? goodColor : hs >= 60 ? warnColor : badColor, ok: hs >= 70 },
+                                        { val: elites, label: 'ELITE PLAYERS', col: elites >= 3 ? goodColor : elites >= 1 ? warnColor : badColor, ok: elites >= 2 },
+                                        { val: projWin?.years > 0 ? projWin.years + 'yr' : 'Now', label: 'WINDOW', col: projWin?.years >= 3 ? goodColor : projWin?.years >= 1 ? warnColor : badColor, ok: projWin?.years >= 2 },
+                                    ].sort((a, b) => (a.ok ? 1 : 0) - (b.ok ? 1 : 0)).map((kpi, i) => (
+                                        <div key={i} style={{ background: 'var(--black)', border: '2px solid ' + (kpi.ok ? 'rgba(212,175,55,0.2)' : kpi.col + '50'), borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                                            <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.8rem', color: kpi.col }}>{kpi.val}</div>
+                                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{kpi.label}</div>
                                         </div>
                                     ))}
                                 </div>
 
-                                {/* Top priorities */}
-                                {(needs.length > 0 || gaps.length > 0) && <div style={{ ...aCardStyle, borderLeft: '4px solid ' + badColor }}>
-                                    <div style={aHeaderStyle}>PRIORITIES</div>
-                                    {needs.map((n, i) => (
-                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                            <span style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: n.urgency === 'deficit' ? badColor : warnColor, minWidth: '40px' }}>{n.pos}</span>
-                                            <span style={{ fontSize: '0.82rem', color: 'var(--silver)' }}>{n.urgency === 'deficit' ? 'Critical need \u2014 must address' : 'Running thin \u2014 add depth'}</span>
-                                            <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--gold)', cursor: 'pointer' }} onClick={() => { setActiveTab('fa'); }}>Find targets \u2192</span>
+                                {/* Two-column: Trade Currency + Position Insights */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                                    {/* Trade currency */}
+                                    {strengths.length > 0 ? <div style={{ ...aCardStyle, borderLeft: '4px solid ' + goodColor, marginBottom: 0 }}>
+                                        <div style={aHeaderStyle}>TRADE CURRENCY</div>
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '10px' }}>
+                                            Surplus at <strong style={{ color: goodColor }}>{strengths.join(', ')}</strong>. Use to fill {needs.length ? needs.slice(0, 2).map(n => n.pos).join('/') : 'gaps'}.
                                         </div>
-                                    ))}
-                                    {gaps.slice(0, 2).map((g, i) => (
-                                        <div key={'g'+i} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                            <span style={{ fontSize: '0.82rem', color: sevColor(g.severity || g.priority), fontWeight: 700 }}>{g.action || g.area}</span>
-                                            <span style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>{g.detail || ''}</span>
-                                        </div>
-                                    ))}
-                                </div>}
+                                        <button onClick={() => setActiveTab('trades')} style={{ padding: '8px 18px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>FIND TRADES</button>
+                                    </div> : <div style={{ ...aCardStyle, marginBottom: 0 }}><div style={aHeaderStyle}>TRADE CURRENCY</div><div style={{ fontSize: '0.82rem', color: 'var(--silver)', opacity: 0.5 }}>No surplus positions to leverage.</div></div>}
 
-                                {/* Strengths / trade currency */}
-                                {strengths.length > 0 && <div style={{ ...aCardStyle, borderLeft: '4px solid ' + goodColor }}>
-                                    <div style={aHeaderStyle}>TRADE CURRENCY</div>
-                                    <div style={{ fontSize: '0.85rem', color: 'var(--silver)', lineHeight: 1.6 }}>
-                                        Surplus depth at <strong style={{ color: goodColor }}>{strengths.join(', ')}</strong>. These positions give you chips to fill {needs.length ? needs.map(n => n.pos).join('/') : 'gaps'} via trade.
-                                    </div>
-                                    <button onClick={() => { setActiveTab('trades'); }} style={{ marginTop: '10px', padding: '8px 20px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.95rem', letterSpacing: '0.05em', cursor: 'pointer' }}>OPEN TRADE FINDER</button>
-                                </div>}
-
-                                {/* Power position */}
-                                {rankedTeams.length > 0 && (() => {
-                                    const myRank = rankedTeams.findIndex(t => t.userId === sleeperUserId) + 1;
-                                    return <div style={{ ...aCardStyle }}>
-                                        <div style={aHeaderStyle}>YOUR POSITION</div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                            <div style={{ fontFamily: 'Bebas Neue', fontSize: '3rem', color: myRank <= 3 ? goodColor : myRank <= 6 ? warnColor : badColor }}>#{myRank}</div>
-                                            <div>
-                                                <div style={{ fontSize: '0.85rem', color: 'var(--white)', fontWeight: 600 }}>of {rankedTeams.length} teams</div>
-                                                <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6 }}>{totalDhq.toLocaleString()} total DHQ · {hs} health</div>
+                                    {/* Position investment */}
+                                    <div style={{ ...aCardStyle, marginBottom: 0 }}>
+                                        <div style={aHeaderStyle}>POSITION INVESTMENT vs WINNERS</div>
+                                        {posInsights.length > 0 ? posInsights.slice(0, 4).map((p, i) => (
+                                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
+                                                <span style={{ fontFamily: 'Oswald', fontSize: '0.82rem', color: 'var(--silver)', minWidth: '30px' }}>{p.pos}</span>
+                                                <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                    <div style={{ width: Math.min(100, Math.abs(p.diff) * 3) + '%', height: '100%', background: p.col, borderRadius: '3px', marginLeft: p.diff > 0 ? 0 : 'auto' }} />
+                                                </div>
+                                                <span style={{ fontSize: '0.76rem', color: p.col, fontWeight: 700, minWidth: '80px', textAlign: 'right' }}>{p.label} {Math.abs(Math.round(p.diff))}%</span>
                                             </div>
-                                        </div>
-                                    </div>;
-                                })()}
+                                        )) : <div style={{ fontSize: '0.82rem', color: 'var(--silver)', opacity: 0.5 }}>Analytics loading...</div>}
+                                    </div>
+                                </div>
 
-                                <div style={{ textAlign: 'center', padding: '16px', fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.4 }}>Switch to Analyst view for full charts, tables, and breakdowns</div>
+                                {/* Power ranking summary */}
+                                {myRank > 0 && <div style={{ ...aCardStyle, marginBottom: '20px' }}>
+                                    <div style={aHeaderStyle}>POWER RANKING</div>
+                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7 }}>
+                                        You rank <strong style={{ color: myRank <= 3 ? goodColor : myRank <= 6 ? warnColor : badColor }}>#{myRank} of {rankedTeams.length}</strong>
+                                        {' '}due to {hs >= 75 ? 'strong roster health (' + hs + ')' : hs >= 55 ? 'moderate health (' + hs + ')' : 'low health (' + hs + ')'}
+                                        {elites >= 3 ? ' and elite asset depth.' : elites >= 1 ? ' with ' + elites + ' elite asset' + (elites > 1 ? 's' : '') + '.' : ' and no elite-tier assets.'}
+                                        {myRank > 6 ? ' Focus on rebuilding your core.' : myRank > 3 ? ' You\'re in the mix \u2014 one trade could push you into the top tier.' : ' You\'re a league leader.'}
+                                    </div>
+                                </div>}
+
+                                <div style={{ textAlign: 'center', padding: '12px', fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.4 }}>Switch to Analyst view for full charts, tables, and breakdowns</div>
                             </div>
                         );
                     }
