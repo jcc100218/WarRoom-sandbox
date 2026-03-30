@@ -8473,7 +8473,7 @@
                     return (
                     <div style={{ padding: '16px' }}>
                         <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.8rem', color: 'var(--gold)', letterSpacing: '0.05em', marginBottom: '4px' }}>LEAGUE ANALYTICS</div>
-                        <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '16px' }}>Winners = top 3 by record (championship bracket data not yet available)</div>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '16px' }}>Winners = playoff bracket champions, runner-ups, and semi-finalists when available. Falls back to top 3 by record in the current season.</div>
 
                         {/* Sub-tab navigation */}
                         <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -8616,9 +8616,12 @@
                                 } catch(e) {}
                                 const totalDhq = (ros.players || []).reduce((s, pid) => s + (playerScores[pid] || 0), 0);
                                 const s = ros.settings || {};
+                                const rUser = currentLeague.users?.find(u => u.user_id === ros.owner_id);
                                 teamRankings.push({
                                     rosterId: ros.roster_id,
                                     name: getOwnerName(ros.roster_id),
+                                    teamName: rUser?.metadata?.team_name || '',
+                                    avatar: rUser?.avatar || null,
                                     wins: s.wins || 0,
                                     losses: s.losses || 0,
                                     healthScore: hs,
@@ -8701,7 +8704,7 @@
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '20px' }}>
                                     {/* Total DHQ */}
                                     <div style={kpiCardStyle}>
-                                        <div style={kpiLabelStyle}>Total DHQ</div>
+                                        <div style={kpiLabelStyle}>Total DHQ <span title="Dynasty Health Quotient — the total dynasty value of all players on your roster, measured by scoring, age, position scarcity, and production." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={kpiNumberStyle}>{(m.avgTotalDHQ || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
                                         <div style={kpiDeltaStyle(m.avgTotalDHQ >= w.avgTotalDHQ)}>
                                             {m.avgTotalDHQ >= w.avgTotalDHQ ? '\u25B2' : '\u25BC'} {Math.abs(Math.round((m.avgTotalDHQ - l.avgTotalDHQ) / Math.max(l.avgTotalDHQ, 1) * 100))}% vs lg avg
@@ -8712,7 +8715,7 @@
                                     </div>
                                     {/* Health Score */}
                                     <div style={kpiCardStyle}>
-                                        <div style={kpiLabelStyle}>Health Score</div>
+                                        <div style={kpiLabelStyle}>Health Score <span title="0-100 composite score measuring roster balance, depth, age profile, and elite talent. Higher = more championship-ready." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <div style={kpiNumberStyle}>{healthScore}</div>
                                             <div style={{ marginTop: '4px' }}>
@@ -8725,7 +8728,7 @@
                                     </div>
                                     {/* Elite Count */}
                                     <div style={kpiCardStyle}>
-                                        <div style={kpiLabelStyle}>Elite Players</div>
+                                        <div style={kpiLabelStyle}>Elite Players <span title="Number of players on your roster with 7,000+ DHQ — league-winning caliber assets that anchor championship teams." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={kpiNumberStyle}>{mElite}</div>
                                         <div style={kpiDeltaStyle(mElite >= wElite)}>
                                             {mElite >= wElite ? '= ' : '\u25BC '}{mElite >= wElite ? 'above' : Math.abs(mElite - wElite).toFixed(1) + ' below'} winners ({wElite})
@@ -8734,7 +8737,7 @@
                                     </div>
                                     {/* Compete Window */}
                                     <div style={kpiCardStyle}>
-                                        <div style={kpiLabelStyle}>Compete Window</div>
+                                        <div style={kpiLabelStyle}>Compete Window <span title="Estimated years your roster can remain championship-competitive based on age curves, peak windows, and current DHQ trajectory." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={kpiNumberStyle}>{compYears}<span style={{ fontSize: '1rem', color: 'var(--silver)', marginLeft: '4px' }}>yr</span></div>
                                         <div style={kpiDeltaStyle(compYears >= 3)}>
                                             {compYears >= 3 ? '\u25B2 Strong' : compYears >= 1 ? '\u25AC Narrowing' : '\u25BC Rebuild mode'}
@@ -8748,6 +8751,7 @@
                                     {/* Left: Position Investment BarChart */}
                                     <div style={aCardStyle}>
                                         <div style={aHeaderStyle}>POSITION INVESTMENT</div>
+                                        <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>Position investment shows what % of your total roster DHQ is allocated to each position. For example, "QB: 18%" means 18% of your total dynasty value is in QBs.</div>
                                         <div style={{ marginBottom: '12px' }}>
                                             <div style={{ fontSize: '0.7rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Winners</div>
                                             {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: posBarWinnerItems, width: Math.min(380, 360), height: 18, gap: 4 })}
@@ -8788,7 +8792,9 @@
                                                     </span>
                                                 </div>
                                                 <div style={{ color: 'var(--silver)', fontSize: '0.78rem', marginTop: '4px' }}>
-                                                    {g.detail || (g.unit === '%' ? pctFmt(g.yours) + ' (winners: ' + pctFmt(g.winners) + ')' : numFmt(g.yours) + ' ' + g.unit + ' (winners: ' + numFmt(g.winners) + ')')}
+                                                    {g.detail || (g.yours != null && g.winners != null
+                                                        ? 'You: ' + (g.unit === '%' ? pctFmt(g.yours) : (typeof g.yours === 'number' ? Math.round(g.yours).toLocaleString() : g.yours) + (g.unit ? ' ' + g.unit : ' DHQ')) + ' → Winners: ' + (g.unit === '%' ? pctFmt(g.winners) : (typeof g.winners === 'number' ? Math.round(g.winners).toLocaleString() : g.winners) + (g.unit ? ' ' + g.unit : ' DHQ'))
+                                                        : (g.unit === '%' ? pctFmt(g.yours) + ' (winners: ' + pctFmt(g.winners) + ')' : numFmt(g.yours) + ' ' + g.unit + ' (winners: ' + numFmt(g.winners) + ')'))}
                                                 </div>
                                             </div>
                                             );
@@ -8801,7 +8807,7 @@
                                 <div style={{ ...aCardStyle, display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '20px' }}>
                                     <div>
                                         <div style={aHeaderStyle}>POSITION BALANCE vs WINNERS</div>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '8px' }}>70 = matched to winner allocation. Above = overweight, below = underweight.</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '8px', lineHeight: 1.5 }}>100 = you invest 43% more than champions at that position. 70 = matched to champion allocation. Below 70 = underweight vs champions.</div>
                                     </div>
                                     <div style={{ margin: '0 auto' }}>
                                         {typeof RadarChart !== 'undefined' && React.createElement(RadarChart, { values: radarValues, size: 200, color: '#4ECDC4' })}
@@ -8828,8 +8834,14 @@
                                             paddingLeft: '4px',
                                         }}>
                                             <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.1rem', color: i < 3 ? 'var(--gold)' : 'var(--silver)' }}>{i + 1}</div>
-                                            <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.85rem', color: team.isMe ? 'var(--gold)' : 'var(--white)', fontWeight: team.isMe ? 700 : 400 }}>
-                                                {team.name}{team.isMe ? ' (You)' : ''}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                {team.avatar && <img src={'https://sleepercdn.com/avatars/thumbs/' + team.avatar} style={{ width:'24px', height:'24px', borderRadius:'50%', flexShrink:0 }} onError={e => e.target.style.display='none'} />}
+                                                <div>
+                                                    <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.85rem', color: team.isMe ? 'var(--gold)' : 'var(--white)', fontWeight: team.isMe ? 700 : 400 }}>
+                                                        {team.name}{team.isMe ? ' (You)' : ''}
+                                                    </div>
+                                                    {team.teamName && <div style={{ fontSize: '0.65rem', color: 'var(--silver)', opacity: 0.5 }}>{team.teamName}</div>}
+                                                </div>
                                             </div>
                                             <div style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.82rem', color: 'var(--silver)' }}>{team.wins}-{team.losses}</div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -8958,41 +8970,42 @@
                             return (
                             <React.Fragment>
                                 {/* ── DRAFT STRATEGY SUMMARY ── */}
-                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
-                                    <div style={aHeaderStyle}>DRAFT STRATEGY</div>
-                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
-                                        {totalMyPicks === 0
+                                <div style={{ marginBottom: '16px' }}>
+                                    <GMMessage title="Draft Intelligence">
+                                        {!dr.winnerHitRate || Object.keys(dr.winnerHitRate).length === 0
+                                            ? 'Your upcoming draft picks and league draft intelligence. Target exciting prospects that fit your roster needs.'
+                                            : totalMyPicks === 0
                                             ? 'No draft picks recorded for your team yet. Winners hit ' + Math.round(winnerR1Hit * 100) + '% on R1 picks in this league \u2014 prioritize ' + topDraftPos + ' in early rounds based on the winner template.'
                                             : 'Your draft grade: ' + draftGradeLetter + ' \u2014 ' + (gradeIdx <= 2 ? 'elite drafter, a real advantage' : gradeIdx <= 5 ? 'average, not a competitive edge' : 'below average, costing you roster value') + '. Winners hit ' + Math.round(winnerR1Hit * 100) + '% in R1 vs your ' + Math.round(myR1Hit * 100) + '%. Recommendation: prioritize ' + topDraftPos + ' in R1-R2 based on the winner template. ' + (totalMyPicks < 10 ? 'You have limited draft history \u2014 accumulate picks to build through the draft.' : 'Focus on hit rate over volume.')}
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                        <button onClick={() => setActiveTab('draft')} style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>Open Draft Board</button>
-                                    </div>
+                                        {React.createElement('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' } },
+                                            React.createElement('button', { onClick: () => setActiveTab('draft'), style: { padding: '6px 14px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.84rem', cursor: 'pointer' } }, 'Open Draft Board')
+                                        )}
+                                    </GMMessage>
                                 </div>
 
                                 {/* ── TOP KPI CARDS ── */}
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '20px' }}>
                                     <div style={dKpiCardStyle}>
-                                        <div style={dKpiLabel}>Draft Grade</div>
+                                        <div style={dKpiLabel}>Draft Grade <span title="Letter grade comparing your draft hit rate to the league average. A+ = elite drafter, C = average, D = below average and costing roster value." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={{ ...dKpiNum, fontSize: '2.8rem', color: gradeIdx <= 2 ? goodColor : gradeIdx <= 5 ? warnColor : badColor }}>{grades[gradeIdx]}</div>
                                         <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>Based on hit rate advantage</div>
                                     </div>
                                     <div style={dKpiCardStyle}>
-                                        <div style={dKpiLabel}>Winner Hit Rate</div>
+                                        <div style={dKpiLabel}>Winner Hit Rate <span title="% of draft picks by championship teams that became starter-quality players. Higher = better draft scouting by winners." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={dKpiNum}>{pctFmt(winnerHitAvg)}</div>
                                         <div style={{ fontSize: '0.72rem', color: goodColor, fontFamily: 'Oswald, sans-serif' }}>
                                             +{Math.round(avgHitAdv * 100)}% vs league ({pctFmt(leagueHitAvg)})
                                         </div>
                                     </div>
                                     <div style={dKpiCardStyle}>
-                                        <div style={dKpiLabel}>Your Draft Picks</div>
+                                        <div style={dKpiLabel}>Your Draft Picks <span title="Total number of draft picks your team has made across all recorded drafts in this league." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={dKpiNum}>{totalMyPicks || '\u2014'}</div>
                                         <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>Across {rounds.length} rounds</div>
                                     </div>
                                     <div style={dKpiCardStyle}>
-                                        <div style={dKpiLabel}>Winner #1 Target</div>
+                                        <div style={dKpiLabel}>Champions Draft <span title="The position that championship-winning teams draft most frequently across all rounds." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={dKpiNum}>{topDraftTarget ? topDraftTarget[0] : '\u2014'}</div>
-                                        <div style={{ fontSize: '0.7rem', color: 'var(--gold)', opacity: 0.7 }}>Most drafted position by champs</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--gold)', opacity: 0.7 }}>Most picked position by championship teams</div>
                                     </div>
                                 </div>
 
@@ -9001,6 +9014,7 @@
                                     {/* Hit Rates as BarChart */}
                                     <div style={aCardStyle}>
                                         <div style={aHeaderStyle}>HIT RATES BY ROUND</div>
+                                        <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>Hit rate = % of picks at each round that became starter-quality players (top of their position group). Higher hit rate = better draft scouting.</div>
                                         <div style={{ marginBottom: '10px' }}>
                                             <div style={{ fontSize: '0.7rem', color: goodColor, fontFamily: 'Oswald, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Winners</div>
                                             {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: hitRateBarItems, width: 340, height: 18, gap: 4 })}
@@ -9089,16 +9103,15 @@
                             return (
                             <React.Fragment>
                                 {/* ── WAIVER STRATEGY SUMMARY ── */}
-                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
-                                    <div style={aHeaderStyle}>WAIVER STRATEGY</div>
-                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
+                                <div style={{ marginBottom: '16px' }}>
+                                    <GMMessage title="Waiver Intelligence">
                                         {winnerEarlyPct === 0 && myEarlyPct === 0
                                             ? 'No significant FAAB activity yet this season. Monitor early-season pickups closely \u2014 winners typically front-load spending on high-upside ' + (underSpendPos[0] || 'RB/WR') + ' to build early advantages.'
-                                            : (winnerEarlyPct >= 20 ? 'Winners spend aggressively on ' + topUnderSpend + ' early in the season. ' : 'Winners invest in ' + topUnderSpend + ' early in the season. ') + 'They deploy ' + winnerEarlyPct + '% of FAAB early vs your ' + myEarlyPct + '%. ' + (myEarlyPct < winnerEarlyPct - 10 ? 'You are under-spending early \u2014 front-load your FAAB to capture impact players before your competition.' : 'Your spending timing aligns well with winners.') + ' Focus waiver claims on high-upside ' + (underSpendPos[0] || 'RB/WR') + ' to maximize roster value.'}
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                        <button onClick={() => setActiveTab('fa')} style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>View Waiver Targets</button>
-                                    </div>
+                                            : (winnerEarlyPct >= 20 ? 'Winners spend aggressively on ' + topUnderSpend + ' early in the season. ' : 'Winners invest in ' + topUnderSpend + ' early in the season. ') + 'They spend ' + winnerEarlyPct + '% of FAAB budget spent in weeks 1-6 vs your ' + myEarlyPct + '% of FAAB budget spent in weeks 1-6. ' + (myEarlyPct < winnerEarlyPct - 10 ? 'You are under-spending early \u2014 front-load your FAAB to capture impact players before your competition.' : 'Your spending timing aligns well with winners.') + ' Focus waiver claims on high-upside ' + (underSpendPos[0] || 'RB/WR') + ' to maximize roster value.'}
+                                        {React.createElement('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' } },
+                                            React.createElement('button', { onClick: () => setActiveTab('fa'), style: { padding: '6px 14px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.84rem', cursor: 'pointer' } }, 'View Waiver Targets')
+                                        )}
+                                    </GMMessage>
                                 </div>
 
                                 <div style={aCardStyle}>
@@ -9150,7 +9163,7 @@
                                 {wv.faabEfficiency && (
                                 <div style={aCardStyle}>
                                     <div style={aHeaderStyle}>FAAB EFFICIENCY (DHQ per $)</div>
-                                    <div style={{ display: 'flex', gap: '24px', justifyContent: 'center' }}>
+                                    <div style={{ display: 'flex', gap: '24px', justifyContent: 'center', marginBottom: '16px' }}>
                                         {[{ label: 'Winners', val: wv.faabEfficiency.winners, color: 'var(--gold)' }, { label: 'League', val: wv.faabEfficiency.league, color: 'var(--silver)' }].map(({ label, val, color }) => (
                                             <div key={label} style={{ textAlign: 'center' }}>
                                                 <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '2rem', color }}>{val}</div>
@@ -9158,6 +9171,22 @@
                                             </div>
                                         ))}
                                     </div>
+                                    {wv.faabEffByPos && Object.keys(wv.faabEffByPos).length > 0 && (
+                                    <div>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', borderTop: '1px solid rgba(212,175,55,0.15)', paddingTop: '12px' }}>By Position</div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontWeight: 700, color: 'var(--gold)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'Oswald, sans-serif' }}>
+                                            <div>Position</div><div>Avg Bid</div><div>DHQ Return</div><div>DHQ per $</div>
+                                        </div>
+                                        {Object.entries(wv.faabEffByPos).sort((a,b) => (b[1].dhqPerDollar || 0) - (a[1].dhqPerDollar || 0)).map(([pos, data]) => (
+                                            <div key={pos} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontFamily: 'Oswald, sans-serif', fontSize: '0.85rem' }}>
+                                                <div style={{ color: 'var(--silver)' }}>{pos}</div>
+                                                <div style={{ color: 'var(--white)' }}>${(data.avgBid || 0).toFixed(0)}</div>
+                                                <div style={{ color: 'var(--white)' }}>{(data.dhqReturn || 0).toLocaleString()}</div>
+                                                <div style={{ color: (data.dhqPerDollar || 0) >= (wv.faabEfficiency?.winners || 0) ? goodColor : warnColor, fontWeight: 700 }}>{(data.dhqPerDollar || 0).toFixed(1)}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    )}
                                 </div>
                                 )}
                             </React.Fragment>
@@ -9213,41 +9242,40 @@
                             return (
                             <React.Fragment>
                                 {/* ── TRADE STRATEGY SUMMARY ── */}
-                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
-                                    <div style={aHeaderStyle}>TRADE STRATEGY</div>
-                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
+                                <div style={{ marginBottom: '16px' }}>
+                                    <GMMessage title="Trade Intelligence">
                                         {tradeSummaryText}
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                        <button onClick={() => { setTradeSubTab('finder'); setActiveTab('trades'); }} style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>Open Trade Finder</button>
-                                    </div>
+                                        {React.createElement('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' } },
+                                            React.createElement('button', { onClick: () => { setTradeSubTab('finder'); setActiveTab('trades'); }, style: { padding: '6px 14px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.84rem', cursor: 'pointer' } }, 'Open Trade Finder')
+                                        )}
+                                    </GMMessage>
                                 </div>
 
                                 {/* ── TOP KPI CARDS ── */}
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '20px' }}>
                                     <div style={tKpiCardStyle}>
-                                        <div style={tKpiLabel}>Your Trades/Season</div>
+                                        <div style={tKpiLabel}>Your Trades/Season <span title="Average number of trades you make per season. Includes player-for-player swaps, pick trades, and multi-asset deals." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={tKpiNum}>{mp.avgTradesPerSeason}</div>
                                         <div style={{ fontSize: '0.72rem', color: mp.avgTradesPerSeason >= lp.avgTradesPerSeason ? goodColor : warnColor, fontFamily: 'Oswald, sans-serif' }}>
                                             {mp.avgTradesPerSeason >= lp.avgTradesPerSeason ? '\u25B2' : '\u25BC'} League avg: {lp.avgTradesPerSeason}
                                         </div>
                                     </div>
                                     <div style={tKpiCardStyle}>
-                                        <div style={tKpiLabel}>Avg DHQ Gained</div>
+                                        <div style={tKpiLabel}>Avg DHQ Gained <span title="Average net DHQ value gained or lost per trade. Positive = you extract value. Negative = you overpay in trades." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={{ ...tKpiNum, color: valueDeltaColor }}>{(mp.avgValueGained >= 0 ? '+' : '') + mp.avgValueGained}</div>
                                         <div style={{ fontSize: '0.72rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif' }}>
                                             Winners: +{wp.avgValueGained}
                                         </div>
                                     </div>
                                     <div style={tKpiCardStyle}>
-                                        <div style={tKpiLabel}>Winner Volume</div>
+                                        <div style={tKpiLabel}>Winner Volume <span title="Average number of trades per season made by championship-winning teams in this league." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={tKpiNum}>{wp.avgTradesPerSeason}</div>
                                         <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>trades per season</div>
                                     </div>
                                     <div style={tKpiCardStyle}>
-                                        <div style={tKpiLabel}>Top Positions Bought</div>
+                                        <div style={tKpiLabel}>Top Positions Bought <span title="The positions that championship teams acquire most frequently via trade — shows what winners prioritize in deals." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={{ ...tKpiNum, fontSize: '1.6rem' }}>{topPosBought(wp)}</div>
-                                        <div style={{ fontSize: '0.7rem', color: 'var(--gold)', opacity: 0.7 }}>by champions</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--gold)', opacity: 0.7 }}>Positions champions acquire most via trade</div>
                                     </div>
                                 </div>
 
@@ -9296,6 +9324,33 @@
                                         ))}
                                     </div>
                                 </div>
+
+                                {/* ── YOUR LAST 5 TRADES ── */}
+                                {tr.myLast5 && tr.myLast5.length > 0 && (
+                                <div style={{ marginBottom: '16px' }}>
+                                    <GMMessage title="Your Recent Trade Performance">
+                                        {tr.myLast5.map((trade, i) => {
+                                            const netDhq = trade.netDhq || 0;
+                                            const result = netDhq > 200 ? 'Won' : netDhq < -200 ? 'Lost' : 'Fair';
+                                            const resultColor = result === 'Won' ? goodColor : result === 'Lost' ? badColor : warnColor;
+                                            return (
+                                                <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <span style={{ fontSize: '0.75rem', color: 'var(--gold)', fontFamily: 'Oswald, sans-serif' }}>S{trade.season || '?'} W{trade.week || '?'}</span>
+                                                        <span style={{ fontSize: '0.68rem', fontFamily: 'Oswald, sans-serif', padding: '2px 8px', borderRadius: '10px', background: resultColor + '22', color: resultColor, border: '1px solid ' + resultColor + '44', fontWeight: 700 }}>{result}</span>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.8rem', color: 'var(--silver)', fontFamily: 'Oswald, sans-serif' }}>
+                                                        {(trade.gave || []).join(', ') || 'Unknown'} <span style={{ color: 'var(--gold)', margin: '0 4px' }}>{'\u2192'}</span> {(trade.got || []).join(', ') || 'Unknown'}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.75rem', fontFamily: 'Oswald, sans-serif', color: netDhq >= 0 ? goodColor : badColor, fontWeight: 700 }}>
+                                                        {netDhq >= 0 ? '+' : ''}{netDhq.toLocaleString()} DHQ
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </GMMessage>
+                                </div>
+                                )}
 
                                 {/* ── INSIGHT CARDS ROW ── */}
                                 {alerts.length > 0 && (
@@ -9364,14 +9419,13 @@
                             return (
                             <React.Fragment>
                                 {/* ── FUTURE OUTLOOK SUMMARY ── */}
-                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
-                                    <div style={aHeaderStyle}>FUTURE OUTLOOK</div>
-                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
+                                <div style={{ marginBottom: '16px' }}>
+                                    <GMMessage title="Future Outlook">
                                         {'Your roster is ' + outlook + '. Competitive window: ' + (windowYears > 0 ? windowYears + ' year' + (windowYears > 1 ? 's' : '') : 'closed') + '. ' + atRiskPct + '% of your DHQ is past peak in 2 years' + (atRiskPlayers.length > 0 ? ' (' + atRiskPlayers.slice(0, 3).map(p => p.name).join(', ') + ')' : '') + '. Strategy: ' + projStrategy + '.'}
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                        <button onClick={() => setActiveTab('trades')} style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>Find Trade Candidates</button>
-                                    </div>
+                                        {React.createElement('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' } },
+                                            React.createElement('button', { onClick: () => setActiveTab('trades'), style: { padding: '6px 14px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.84rem', cursor: 'pointer' } }, 'Find Trade Candidates')
+                                        )}
+                                    </GMMessage>
                                 </div>
 
                                 <div style={aCardStyle}>
@@ -9402,6 +9456,7 @@
 
                                 <div style={aCardStyle}>
                                     <div style={aHeaderStyle}>AGING CLIFF ALERT</div>
+                                    <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>Players within 2 years of their position's peak-end age with 2000+ DHQ value. These are your highest-risk assets for dynasty value decline.</div>
                                     <div style={{ display: 'flex', gap: '24px', marginBottom: '12px' }}>
                                         <div style={{ textAlign: 'center' }}>
                                             <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '2rem', color: atRiskPct > 30 ? badColor : atRiskPct > 15 ? warnColor : goodColor }}>{atRiskPct}%</div>
@@ -9447,9 +9502,19 @@
                                 </div>
 
                                 {/* Actionable recommendations */}
-                                {(d.gaps || []).length > 0 && (
+                                {((d.gaps || []).length > 0 || atRiskPlayers.length > 0) && (
                                 <div style={aCardStyle}>
                                     <div style={aHeaderStyle}>TO EXTEND YOUR WINDOW</div>
+                                    {atRiskPlayers.length > 0 && (
+                                        <div style={{ padding: '10px 14px', marginBottom: '12px', background: 'rgba(231,76,60,0.08)', borderLeft: '3px solid ' + badColor, borderRadius: '0 8px 8px 0' }}>
+                                            <div style={{ color: badColor, fontWeight: 700, fontSize: '0.85rem', fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase', marginBottom: '4px' }}>Priority: Trade aging assets while value remains</div>
+                                            {atRiskPlayers.slice(0, 2).map((p, i) => (
+                                                <div key={i} style={{ color: 'var(--silver)', fontSize: '0.82rem', marginTop: '4px' }}>
+                                                    {'Trade ' + p.name + ' (age ' + p.age + ', ' + p.dhq.toLocaleString() + ' DHQ) — sell window closing soon'}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                     {(d.gaps || []).slice(0, 5).map((g, i) => (
                                         <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                                             <span style={{ color: sevColor(g.priority), fontWeight: 700, fontSize: '0.85rem', flexShrink: 0 }}>{i + 1}.</span>
@@ -9494,14 +9559,10 @@
                             return (
                             <React.Fragment>
                                 {/* ── PLAYOFF PROFILE SUMMARY ── */}
-                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
-                                    <div style={aHeaderStyle}>PLAYOFF PROFILE</div>
-                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
+                                <div style={{ marginBottom: '16px' }}>
+                                    <GMMessage title="Playoff Profile">
                                         {playoffDiag + playoffInsight}
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                        <button style={{ padding: '8px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>Analyze Matchups</button>
-                                    </div>
+                                    </GMMessage>
                                 </div>
 
                                 <div style={aCardStyle}>
@@ -9511,14 +9572,20 @@
                                         const runnerName = getOwnerName(data.runnerUp);
                                         const isMyChamp = data.champion === myRoster?.roster_id;
                                         const isMyRunner = data.runnerUp === myRoster?.roster_id;
+                                        const champRoster = currentLeague.rosters?.find(r => r.roster_id === data.champion);
+                                        const champUser = currentLeague.users?.find(u => u.user_id === champRoster?.owner_id);
+                                        const runnerRoster = currentLeague.rosters?.find(r => r.roster_id === data.runnerUp);
+                                        const runnerUser = currentLeague.users?.find(u => u.user_id === runnerRoster?.owner_id);
                                         return (
                                             <div key={season} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                                                 <span style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: 'var(--gold)', minWidth: '40px' }}>{season}</span>
                                                 <div>
-                                                    <div style={{ fontSize: '0.78rem', color: isMyChamp ? 'var(--gold)' : 'var(--white)', fontWeight: isMyChamp ? 700 : 400 }}>
-                                                        Champion: {champName}{isMyChamp ? ' (You!)' : ''}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: isMyChamp ? 'var(--gold)' : 'var(--white)', fontWeight: isMyChamp ? 700 : 400 }}>
+                                                        {champUser?.avatar && <img src={'https://sleepercdn.com/avatars/thumbs/' + champUser.avatar} style={{ width:'20px', height:'20px', borderRadius:'50%' }} onError={e => e.target.style.display='none'} />}
+                                                        Champion: {champName}{champUser?.metadata?.team_name ? ' (' + champUser.metadata.team_name + ')' : ''}{isMyChamp ? ' (You!)' : ''}
                                                     </div>
-                                                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: 'var(--silver)' }}>
+                                                        {runnerUser?.avatar && <img src={'https://sleepercdn.com/avatars/thumbs/' + runnerUser.avatar} style={{ width:'20px', height:'20px', borderRadius:'50%' }} onError={e => e.target.style.display='none'} />}
                                                         Runner-up: {runnerName}{isMyRunner ? ' (You)' : ''}
                                                     </div>
                                                 </div>
@@ -9526,6 +9593,58 @@
                                         );
                                     })}
                                 </div>
+
+                                {/* ── FULL BRACKET DISPLAY ── */}
+                                {(() => {
+                                    const bracketData = window.App?.LI?.bracketData;
+                                    if (!bracketData || !Object.keys(bracketData).length) return null;
+                                    const bracketSeasons = Object.entries(bracketData).sort(([a],[b]) => b.localeCompare(a));
+                                    return (
+                                        <div style={aCardStyle}>
+                                            <div style={aHeaderStyle}>PLAYOFF BRACKETS</div>
+                                            {bracketSeasons.map(([season, sData]) => {
+                                                const brackets = [
+                                                    { key: 'winners', label: 'Winners Bracket', data: sData.winners || sData.w || [] },
+                                                    { key: 'losers', label: 'Losers Bracket', data: sData.losers || sData.l || [] },
+                                                ];
+                                                return (
+                                                    <div key={season} style={{ marginBottom: '20px' }}>
+                                                        <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.1rem', color: 'var(--gold)', marginBottom: '8px' }}>{season} Playoffs</div>
+                                                        {brackets.map(b => {
+                                                            if (!b.data || !b.data.length) return null;
+                                                            return (
+                                                                <div key={b.key} style={{ marginBottom: '12px' }}>
+                                                                    <div style={{ fontSize: '0.75rem', color: 'var(--silver)', fontFamily: 'Oswald, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{b.label}</div>
+                                                                    {b.data.map((matchup, mi) => {
+                                                                        const t1 = matchup.t1 || matchup.team1;
+                                                                        const t2 = matchup.t2 || matchup.team2;
+                                                                        const w = matchup.w || matchup.winner;
+                                                                        const roundLabel = matchup.round === 1 ? 'Championship' : matchup.round === 2 ? 'Semi-finals' : 'Quarter-finals';
+                                                                        const isMyGame = t1 === myRidP || t2 === myRidP;
+                                                                        return (
+                                                                            <div key={mi} style={{
+                                                                                display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', marginBottom: '4px',
+                                                                                background: isMyGame ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)',
+                                                                                borderLeft: isMyGame ? '3px solid var(--gold)' : '3px solid transparent',
+                                                                                borderRadius: '4px', fontSize: '0.8rem', fontFamily: 'Oswald, sans-serif',
+                                                                            }}>
+                                                                                <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6, minWidth: '80px' }}>{roundLabel}</span>
+                                                                                <span style={{ color: w === t1 ? 'var(--gold)' : 'var(--silver)', fontWeight: w === t1 ? 700 : 400 }}>{getOwnerName(t1)}</span>
+                                                                                <span style={{ color: 'var(--silver)', opacity: 0.4, fontSize: '0.7rem' }}>vs</span>
+                                                                                <span style={{ color: w === t2 ? 'var(--gold)' : 'var(--silver)', fontWeight: w === t2 ? 700 : 400 }}>{getOwnerName(t2)}</span>
+                                                                                {w && <span style={{ color: 'var(--gold)', fontSize: '0.7rem', marginLeft: 'auto' }}>{'\u2192'} {getOwnerName(w)}</span>}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* Rivalry Detection */}
                                 {(() => {
@@ -9539,11 +9658,24 @@
                                             {rivals.map((r, i) => {
                                                 const rivalName = getOwnerName(r.rosterId);
                                                 return (
-                                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                                        <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.85rem', color: 'var(--white)', fontWeight: 600, flex: 1 }}>{rivalName}</span>
-                                                        <span style={{ fontSize: '0.78rem', color: r.wins > r.losses ? goodColor : r.wins < r.losses ? badColor : warnColor, fontWeight: 700, fontFamily: 'Oswald' }}>{r.wins}-{r.losses}</span>
-                                                        <span style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>{r.total} meetings</span>
-                                                        <span style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65 }}>{r.seasons.join(', ')}</span>
+                                                    <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <span style={{ fontFamily: 'Oswald, sans-serif', fontSize: '0.85rem', color: 'var(--white)', fontWeight: 600, flex: 1 }}>{rivalName}</span>
+                                                            <span style={{ fontSize: '0.78rem', color: r.wins > r.losses ? goodColor : r.wins < r.losses ? badColor : warnColor, fontWeight: 700, fontFamily: 'Oswald' }}>{r.wins}-{r.losses}</span>
+                                                            <span style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>{r.total} meetings</span>
+                                                        </div>
+                                                        {r.meetings && r.meetings.length > 0 && (
+                                                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                                                                {r.meetings.map((mtg, mi) => (
+                                                                    <span key={mi} style={{ fontSize: '0.68rem', fontFamily: 'Oswald, sans-serif', padding: '1px 6px', borderRadius: '8px', background: mtg.won ? 'rgba(46,204,113,0.1)' : 'rgba(231,76,60,0.1)', color: mtg.won ? goodColor : badColor, border: '1px solid ' + (mtg.won ? goodColor : badColor) + '33' }}>
+                                                                        Met in {mtg.bracket || 'Winners'} R{mtg.round || '?'} ({mtg.season || '?'})
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {(!r.meetings || !r.meetings.length) && (
+                                                            <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65, marginTop: '2px' }}>{r.seasons.join(', ')}</div>
+                                                        )}
                                                     </div>
                                                 );
                                             })}
@@ -9566,18 +9698,44 @@
                                 if (data.runnerUp) events.push({ year: season, type: 'finals', title: getOwner(data.runnerUp) + ' finishes runner-up', color: 'var(--silver)', ts: parseInt(season)*100+98 });
                             });
 
-                            tradeHistory.slice(0, 30).forEach(trade => {
+                            tradeHistory.forEach(trade => {
                                 const rids = trade.roster_ids || [];
                                 const names = rids.map(r => getOwner(r)).join(' and ');
                                 const pids = Object.keys(trade.sides || {}).flatMap(rid => (trade.sides[rid]?.players || []));
                                 const playerNames = pids.slice(0, 3).map(pid => playersData[pid]?.full_name || pid).join(', ');
                                 const totalVal = pids.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0);
+                                if (totalVal < 5000) return; // Only show impactful trades (5000+ DHQ moved)
                                 events.push({
                                     year: trade.season || '?', type: 'trade',
                                     title: names + ' swap assets' + (playerNames ? ': ' + playerNames : ''),
                                     sub: totalVal > 0 ? totalVal.toLocaleString() + ' DHQ moved' : '',
                                     color: '#F0A500', ts: parseInt(trade.season||0)*100 + (trade.week||50)
                                 });
+                            });
+
+                            // Personal highlights per year
+                            const myRidTLx = myRoster?.roster_id;
+                            const playerScoresTL = window.App?.LI?.playerScores || {};
+                            const draftOutcomesTL = (window.App?.LI || {}).draftOutcomes || [];
+                            const allYears = [...new Set([...Object.keys(championships), ...events.map(e => String(e.year))])].sort((a,b) => b - a);
+                            allYears.forEach(yr => {
+                                // Your team's finish
+                                const cData = championships[yr];
+                                if (cData) {
+                                    if (cData.champion === myRidTLx) events.push({ year: yr, type: 'personal', title: 'You won the championship!', color: 'var(--gold)', ts: parseInt(yr)*100+97 });
+                                    else if (cData.runnerUp === myRidTLx) events.push({ year: yr, type: 'personal', title: 'You finished as runner-up', color: 'var(--silver)', ts: parseInt(yr)*100+96 });
+                                    else if ((cData.semiFinalists || []).includes(myRidTLx)) events.push({ year: yr, type: 'personal', title: 'You reached the semi-finals', color: '#4ECDC4', ts: parseInt(yr)*100+95 });
+                                }
+                                // Your best draft pick that year
+                                const myDraftPicks = draftOutcomesTL.filter(dp => dp.roster_id === myRidTLx && String(dp.season || dp.year) === String(yr));
+                                if (myDraftPicks.length > 0) {
+                                    const bestPick = myDraftPicks.reduce((best, dp) => (playerScoresTL[dp.player_id] || 0) > (playerScoresTL[best.player_id] || 0) ? dp : best, myDraftPicks[0]);
+                                    const bestDhq = playerScoresTL[bestPick.player_id] || 0;
+                                    if (bestDhq > 2000) {
+                                        const pName = playersData[bestPick.player_id]?.full_name || bestPick.player_id;
+                                        events.push({ year: yr, type: 'personal', title: 'Best draft pick: ' + pName + ' (R' + (bestPick.round || '?') + ', ' + bestDhq.toLocaleString() + ' DHQ)', color: '#4ECDC4', ts: parseInt(yr)*100+94 });
+                                    }
+                                }
                             });
 
                             events.sort((a, b) => b.ts - a.ts);
@@ -9617,11 +9775,10 @@
                             return (
                                 <React.Fragment>
                                 {/* ── LEAGUE NARRATIVE SUMMARY ── */}
-                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', marginBottom: '16px' }}>
-                                    <div style={aHeaderStyle}>LEAGUE NARRATIVE</div>
-                                    <div style={{ fontSize: '0.88rem', color: 'var(--silver)', lineHeight: 1.7, marginBottom: '12px' }}>
-                                        {'League dominated by ' + dominantTeam + ' with ' + dominantTitles + ' title' + (dominantTitles > 1 ? 's' : '') + '.' + (repeatWinners.length > 0 ? ' Repeat winners: ' + repeatWinners.join(', ') + '.' : ' No repeat champions yet — wide-open league.') + ' Your trajectory: ' + myTrajectory + (myChampsTL > 0 ? ' (' + myChampsTL + ' title' + (myChampsTL > 1 ? 's' : '') + ')' : '') + '. Next likely champion candidates: ' + nextChampCandidates + '.'}
-                                    </div>
+                                <div style={{ marginBottom: '16px' }}>
+                                    <GMMessage title="League Narrative">
+                                        {'League dominated by ' + dominantTeam + ' with ' + dominantTitles + ' title' + (dominantTitles > 1 ? 's' : '') + '.' + (repeatWinners.length > 0 ? ' Repeat winners: ' + repeatWinners.join(', ') + '.' : ' No repeat champions yet \u2014 wide-open league.') + ' Your trajectory: ' + myTrajectory + (myChampsTL > 0 ? ' (' + myChampsTL + ' title' + (myChampsTL > 1 ? 's' : '') + ')' : '') + '. Next likely champion candidates: ' + nextChampCandidates + '.'}
+                                    </GMMessage>
                                 </div>
 
                                 <div style={{ background:'var(--black)', border:'2px solid rgba(212,175,55,0.3)', borderRadius:'12px', padding:'24px' }}>
@@ -9638,7 +9795,7 @@
                                                     {yearEvents.map((ev, i) => (
                                                         <div key={i} style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(212,175,55,0.12)', borderLeft:'3px solid '+ev.color, borderRadius:'6px', padding:'10px 14px', marginBottom:'8px', position:'relative' }}>
                                                             <div style={{ position:'absolute', left:'-14px', top:'12px', width:'8px', height:'8px', background:ev.color, borderRadius:'50%', border:'2px solid var(--black)' }} />
-                                                            <div style={{ fontSize:'0.78rem', color:ev.color, textTransform:'uppercase', fontFamily:'Oswald,sans-serif', letterSpacing:'0.06em', marginBottom:'3px' }}>{ev.type === 'champ' ? 'Championship' : ev.type === 'finals' ? 'Runner-Up' : 'Trade'}</div>
+                                                            <div style={{ fontSize:'0.78rem', color:ev.color, textTransform:'uppercase', fontFamily:'Oswald,sans-serif', letterSpacing:'0.06em', marginBottom:'3px' }}>{ev.type === 'champ' ? 'Championship' : ev.type === 'finals' ? 'Runner-Up' : ev.type === 'personal' ? 'Your Highlight' : 'Trade'}</div>
                                                             <div style={{ fontSize:'0.78rem', color:'var(--white)', fontWeight:600 }}>{ev.title}</div>
                                                             {ev.sub && <div style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.6, marginTop:'2px' }}>{ev.sub}</div>}
                                                         </div>
