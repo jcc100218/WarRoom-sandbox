@@ -3873,6 +3873,8 @@
         const [boardMode, setBoardMode] = useState('dhq'); // 'dhq' | 'my'
         const [myBoardOrder, setMyBoardOrder] = useState([]); // custom ordered pid array
         const [boardPosFilter, setBoardPosFilter] = useState(''); // '' | 'QB' | 'RB' | 'WR' | 'TE' | 'DL' | 'LB' | 'DB'
+        const [boardSort, setBoardSort] = useState({ key: 'dhq', dir: -1 }); // sortable columns
+        const [expandedDraftPid, setExpandedDraftPid] = useState(null);
         const [dragPid, setDragPid] = useState(null); // currently dragging pid
         const [editingRank, setEditingRank] = useState(null); // pid being rank-edited
         const [rankInput, setRankInput] = useState('');
@@ -4155,6 +4157,23 @@
                     // Apply position filter
                     if (boardPosFilter) boardPlayers = boardPlayers.filter(r => normPos(r.p.position) === boardPosFilter);
 
+                    // Apply sorting (only in DHQ mode — My Board uses custom order)
+                    if (boardMode === 'dhq' && boardSort.key) {
+                        boardPlayers.sort((a, b) => {
+                            let va, vb;
+                            const k = boardSort.key;
+                            if (k === 'dhq') { va = a.dhq; vb = b.dhq; }
+                            else if (k === 'name') { va = (a.p.full_name || '').toLowerCase(); vb = (b.p.full_name || '').toLowerCase(); }
+                            else if (k === 'pos') { va = normPos(a.p.position) || ''; vb = normPos(b.p.position) || ''; }
+                            else if (k === 'age') { va = a.p.age || (a.p.birth_date ? Math.floor((Date.now() - new Date(a.p.birth_date).getTime()) / 31557600000) : 99); vb = b.p.age || (b.p.birth_date ? Math.floor((Date.now() - new Date(b.p.birth_date).getTime()) / 31557600000) : 99); }
+                            else if (k === 'fit') { va = computeFitScore(a).score; vb = computeFitScore(b).score; }
+                            else if (k === 'school') { va = (a.p.college || '').toLowerCase(); vb = (b.p.college || '').toLowerCase(); }
+                            else { va = 0; vb = 0; }
+                            if (typeof va === 'string') return va < vb ? -boardSort.dir : va > vb ? boardSort.dir : 0;
+                            return ((va || 0) - (vb || 0)) * boardSort.dir;
+                        });
+                    }
+
                     // Drag handlers
                     const handleDragStart = (pid) => setDragPid(pid);
                     const handleDragOver = (e) => e.preventDefault();
@@ -4219,11 +4238,18 @@
                         <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px', overflow: 'hidden' }}>
                             {/* Header */}
                             <div style={{ display: 'grid', gridTemplateColumns: '30px 28px 2fr 42px 36px 56px 50px 1fr auto 62px', gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', alignItems: 'center' }}>
-                                <span>#</span><span></span><span>Player</span><span>Pos</span><span>Age</span><span style={{textAlign:'right'}}>DHQ</span><span style={{textAlign:'center'}}>Fit</span><span>School</span><span>Tags</span><span></span>
+                                <span>#</span><span></span>
+                                {[{k:'name',l:'Player'},{k:'pos',l:'Pos'},{k:'age',l:'Age'},{k:'dhq',l:'DHQ',align:'right'},{k:'fit',l:'Fit',align:'center'},{k:'school',l:'School'}].map(col => (
+                                    <span key={col.k} onClick={() => boardMode === 'dhq' && setBoardSort(prev => prev.key === col.k ? {...prev, dir: prev.dir * -1} : {key: col.k, dir: -1})}
+                                        style={{ cursor: boardMode === 'dhq' ? 'pointer' : 'default', textAlign: col.align || 'left', userSelect: 'none' }}>
+                                        {col.l}{boardSort.key === col.k && boardMode === 'dhq' ? (boardSort.dir === -1 ? ' \u25BC' : ' \u25B2') : ''}
+                                    </span>
+                                ))}
+                                <span>Tags</span><span></span>
                             </div>
                             {boardPlayers.map((r, idx) => {
                                 const pos = normPos(r.p.position) || r.p.position;
-                                const dhqCol = r.dhq >= 7000 ? '#2ECC71' : r.dhq >= 4000 ? '#3498DB' : r.dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)';
+                                const dhqColVal = r.dhq >= 7000 ? '#2ECC71' : r.dhq >= 4000 ? '#3498DB' : r.dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)';
                                 const fit = computeFitScore(r);
                                 const isDrafted = draftedPids.has(r.pid);
                                 const tag = boardTags[r.pid];
@@ -4231,41 +4257,43 @@
                                 const age = r.p.age || (r.p.birth_date ? Math.floor((Date.now() - new Date(r.p.birth_date).getTime()) / 31557600000) : r.p.years_exp === 0 ? 21 : '\u2014');
                                 const college = r.p.college || r.p.metadata?.college || '';
                                 const isEditing = editingRank === r.pid;
+                                const isExp = expandedDraftPid === r.pid;
+                                const contract = window.NFL_CONTRACTS?.[r.pid];
                                 return (
-                                    <div key={r.pid}
+                                    <React.Fragment key={r.pid}>
+                                    <div
                                         draggable={boardMode === 'my'}
                                         onDragStart={() => handleDragStart(r.pid)}
                                         onDragOver={handleDragOver}
                                         onDrop={() => handleDrop(r.pid)}
-                                        style={{ opacity: isDrafted ? 0.35 : dragPid === r.pid ? 0.5 : 1, borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: boardMode === 'my' ? 'grab' : 'default', transition: 'opacity 0.1s' }}>
+                                        onClick={() => setExpandedDraftPid(prev => prev === r.pid ? null : r.pid)}
+                                        style={{ opacity: isDrafted ? 0.35 : dragPid === r.pid ? 0.5 : 1, borderBottom: isExp ? 'none' : '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', background: isExp ? 'rgba(212,175,55,0.06)' : 'transparent', transition: 'background 0.1s' }}
+                                        onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = 'rgba(212,175,55,0.04)'; }}
+                                        onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = 'transparent'; }}>
                                         <div style={{ display: 'grid', gridTemplateColumns: '30px 28px 2fr 42px 36px 56px 50px 1fr auto 62px', gap: '4px', padding: '7px 10px', alignItems: 'center' }}>
-                                            {/* Rank — clickable to edit */}
                                             {isEditing ? (
                                                 <input autoFocus type="number" min="1" value={rankInput} onChange={e => setRankInput(e.target.value)}
                                                     onKeyDown={e => { if (e.key === 'Enter') handleRankSubmit(r.pid); if (e.key === 'Escape') setEditingRank(null); }}
                                                     onBlur={() => handleRankSubmit(r.pid)}
+                                                    onClick={e => e.stopPropagation()}
                                                     style={{ width: '28px', padding: '1px 2px', fontSize: '0.72rem', background: 'rgba(212,175,55,0.15)', border: '1px solid var(--gold)', borderRadius: '3px', color: 'var(--gold)', textAlign: 'center', outline: 'none' }} />
                                             ) : (
-                                                <span onClick={() => { setEditingRank(r.pid); setRankInput(String(idx + 1)); }}
+                                                <span onClick={e => { e.stopPropagation(); setEditingRank(r.pid); setRankInput(String(idx + 1)); }}
                                                     style={{ fontFamily: 'Oswald', fontSize: '0.76rem', color: idx < 3 ? 'var(--gold)' : 'var(--silver)', cursor: 'pointer', textAlign: 'center' }} title="Click to change rank">{idx + 1}</span>
                                             )}
                                             <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + r.pid + '.jpg'} alt="" onError={e => e.target.style.display='none'} style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
                                             <div style={{ overflow: 'hidden', minWidth: 0 }}>
-                                                <span onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(r.pid); }}
-                                                    style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--white)', cursor: 'pointer', textDecoration: isDrafted ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
-                                                    {pName(r.p)}
-                                                </span>
+                                                <span style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--white)', textDecoration: isDrafted ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{pName(r.p)}</span>
                                                 {note && <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{note}</div>}
                                             </div>
                                             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)', padding: '1px 5px', background: (posColors[pos] || '#666') + '22', borderRadius: '3px', textAlign: 'center' }}>{pos}</span>
                                             <span style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>{age}</span>
-                                            <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: '0.78rem', color: dhqCol, textAlign: 'right' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span>
+                                            <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: '0.78rem', color: dhqColVal, textAlign: 'right' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span>
                                             <span title={fit.score + '/99'} style={{ fontSize: '0.68rem', fontWeight: 700, color: fitColor(fit.score), padding: '1px 5px', background: fitColor(fit.score) + '15', borderRadius: '8px', textAlign: 'center' }}>{fit.label}</span>
                                             <span style={{ fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{college || '\u2014'}</span>
-                                            {/* Tags + YouTube */}
                                             <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
                                                 {Object.entries(tagDefs).map(([tKey, tDef]) => (
-                                                    <button key={tKey} onClick={(e) => { e.stopPropagation(); setBoardTags(prev => ({ ...prev, [r.pid]: prev[r.pid] === tKey ? undefined : tKey })); }}
+                                                    <button key={tKey} onClick={e => { e.stopPropagation(); setBoardTags(prev => ({ ...prev, [r.pid]: prev[r.pid] === tKey ? undefined : tKey })); }}
                                                         title={tDef.label}
                                                         style={{ width: '18px', height: '18px', fontSize: '0.6rem', border: 'none', borderRadius: '3px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                             background: tag === tKey ? tDef.color + '33' : 'rgba(255,255,255,0.04)', color: tag === tKey ? tDef.color : 'rgba(255,255,255,0.2)' }}>
@@ -4278,19 +4306,116 @@
                                                     &#9654;
                                                 </a>
                                             </div>
-                                            {/* Drafted + note */}
                                             <div style={{ display: 'flex', gap: '3px' }}>
-                                                <button onClick={(e) => { e.stopPropagation(); setDraftedPids(prev => { const n = new Set(prev); if (n.has(r.pid)) n.delete(r.pid); else n.add(r.pid); return n; }); }}
+                                                <button onClick={e => { e.stopPropagation(); setDraftedPids(prev => { const n = new Set(prev); if (n.has(r.pid)) n.delete(r.pid); else n.add(r.pid); return n; }); }}
                                                     style={{ fontSize: '0.6rem', padding: '2px 5px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '3px', cursor: 'pointer', background: isDrafted ? 'rgba(231,76,60,0.15)' : 'rgba(255,255,255,0.04)', color: isDrafted ? '#E74C3C' : 'var(--silver)', fontFamily: 'Oswald', textTransform: 'uppercase' }}>
                                                     {isDrafted ? 'Undo' : 'Off'}
                                                 </button>
-                                                <button onClick={(e) => { e.stopPropagation(); const n = prompt('Note for ' + pName(r.p) + ':', note); if (n !== null) setBoardNotes(prev => ({...prev, [r.pid]: n})); }}
+                                                <button onClick={e => { e.stopPropagation(); const n = prompt('Note for ' + pName(r.p) + ':', note); if (n !== null) setBoardNotes(prev => ({...prev, [r.pid]: n})); }}
                                                     title="Add note" style={{ fontSize: '0.6rem', padding: '2px 5px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', cursor: 'pointer', background: note ? 'rgba(212,175,55,0.1)' : 'rgba(255,255,255,0.04)', color: note ? 'var(--gold)' : 'var(--silver)', fontFamily: 'Oswald' }}>
                                                     {note ? '\u270E' : '+'}
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Inline expand card */}
+                                    {isExp && (
+                                        <div style={{ borderBottom: '2px solid rgba(212,175,55,0.25)', background: 'linear-gradient(135deg, rgba(212,175,55,0.04), rgba(0,0,0,0.3))', padding: '16px 20px', animation: 'wrFadeIn 0.2s ease' }}>
+                                          {/* Header */}
+                                          <div style={{ display: 'flex', gap: '16px', marginBottom: '14px' }}>
+                                            <div style={{ flexShrink: 0, position: 'relative' }}>
+                                              <img src={'https://sleepercdn.com/content/nfl/players/'+r.pid+'.jpg'} alt="" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} style={{ width: '80px', height: '80px', borderRadius: '10px', objectFit: 'cover', objectPosition: 'top', border: '2px solid rgba(212,175,55,0.3)' }} />
+                                              <div style={{ display: 'none', width: '80px', height: '80px', borderRadius: '10px', background: 'var(--charcoal)', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', fontWeight: 700, color: 'var(--silver)', border: '2px solid rgba(212,175,55,0.2)' }}>{(r.p.first_name||'?')[0]}{(r.p.last_name||'?')[0]}</div>
+                                              <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7rem', fontWeight: 700, padding: '1px 8px', borderRadius: '8px', background: (posColors[pos]||'#666')+'25', color: posColors[pos]||'var(--silver)', whiteSpace: 'nowrap' }}>{pos}</div>
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                              <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.3rem', color: 'var(--white)', letterSpacing: '0.02em', lineHeight: 1.1 }}>{r.p.full_name || pName(r.p)}</div>
+                                              <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginTop: '2px' }}>
+                                                {pos} {'\u00B7'} {r.p.team || 'TBD'} {'\u00B7'} Age {age} {'\u00B7'} {college || 'Unknown'}
+                                                {r.p.height ? ' \u00B7 ' + Math.floor(r.p.height/12)+"'"+r.p.height%12+'"' : ''}
+                                                {r.p.weight ? ' \u00B7 ' + r.p.weight + 'lbs' : ''}
+                                              </div>
+                                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                                                <span style={{ fontSize: '0.72rem', fontWeight: 700, fontFamily: 'Oswald', padding: '2px 10px', borderRadius: '10px', background: dhqColVal + '20', color: dhqColVal }}>{r.dhq > 0 ? r.dhq.toLocaleString() + ' DHQ' : 'No DHQ'}</span>
+                                                <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 10px', borderRadius: '10px', background: fitColor(fit.score) + '15', color: fitColor(fit.score) }}>{fit.label} Fit</span>
+                                                {r.p.draft_round && <span style={{ fontSize: '0.72rem', padding: '2px 10px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', color: 'var(--silver)' }}>NFL Rd {r.p.draft_round}{r.p.draft_pick ? '.' + r.p.draft_pick : ''}</span>}
+                                                {tag && <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 10px', borderRadius: '10px', background: tagDefs[tag].color + '20', color: tagDefs[tag].color }}>{tagDefs[tag].icon} {tagDefs[tag].label}</span>}
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          {/* Stat boxes */}
+                                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '6px', marginBottom: '14px' }}>
+                                            {[
+                                              { label: 'DHQ', val: r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014', col: dhqColVal },
+                                              { label: 'FIT', val: fit.label, col: fitColor(fit.score) },
+                                              { label: 'AGE', val: age, col: typeof age === 'number' && age <= 22 ? '#2ECC71' : 'var(--silver)' },
+                                              { label: 'EXP', val: (r.p.years_exp || 0) + 'yr', col: 'var(--silver)' },
+                                              { label: 'DRAFT', val: r.p.draft_round ? 'Rd ' + r.p.draft_round : 'UDFA', col: r.p.draft_round <= 2 ? '#2ECC71' : 'var(--silver)' },
+                                              { label: 'DEPTH', val: r.p.depth_chart_order != null ? '#' + (r.p.depth_chart_order + 1) : '\u2014', col: r.p.depth_chart_order <= 1 ? '#2ECC71' : 'var(--silver)' },
+                                            ].map((s, i) => (
+                                              <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '8px 6px', textAlign: 'center' }}>
+                                                <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: s.col, letterSpacing: '-0.02em' }}>{s.val}</div>
+                                                <div style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>{s.label}</div>
+                                              </div>
+                                            ))}
+                                          </div>
+
+                                          {/* Two-column: Contract + Profile */}
+                                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                                            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px' }}>
+                                              <div style={{ fontFamily: 'Oswald', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Rookie Contract</div>
+                                              {contract ? (
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontSize: '0.78rem' }}>
+                                                  <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>AAV </span><span style={{ color: 'var(--white)', fontWeight: 600 }}>{window.formatSalary?.(contract.aav) || '\u2014'}</span></div>
+                                                  <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>Years </span><span style={{ color: 'var(--white)', fontWeight: 600 }}>{contract.yrsLeft}yr</span></div>
+                                                  <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>Total </span><span style={{ color: 'var(--white)', fontWeight: 600 }}>{window.formatSalary?.(contract.total) || '\u2014'}</span></div>
+                                                  <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>GTD </span><span style={{ color: 'var(--white)', fontWeight: 600 }}>{window.formatSalary?.(contract.guaranteed) || '\u2014'}</span></div>
+                                                </div>
+                                              ) : (
+                                                <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.5 }}>Rookie slot TBD</div>
+                                              )}
+                                            </div>
+                                            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px' }}>
+                                              <div style={{ fontFamily: 'Oswald', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Physical Profile</div>
+                                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontSize: '0.78rem' }}>
+                                                <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>Ht </span><span style={{ color: 'var(--white)' }}>{r.p.height ? Math.floor(r.p.height/12)+"'"+r.p.height%12+'"' : '\u2014'}</span></div>
+                                                <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>Wt </span><span style={{ color: 'var(--white)' }}>{r.p.weight ? r.p.weight+'lbs' : '\u2014'}</span></div>
+                                                <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>College </span><span style={{ color: 'var(--white)' }}>{college || '\u2014'}</span></div>
+                                                <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>Exp </span><span style={{ color: 'var(--white)' }}>{r.p.years_exp || 0}yr</span></div>
+                                                {r.p.depth_chart_order != null && <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--silver)', opacity: 0.6 }}>Depth </span><span style={{ color: r.p.depth_chart_order <= 1 ? '#2ECC71' : 'var(--white)' }}>#{r.p.depth_chart_order + 1} {r.p.depth_chart_position || ''}</span></div>}
+                                              </div>
+                                            </div>
+                                          </div>
+
+                                          {/* College / Career Stats */}
+                                          <InlineCareerStats pid={r.pid} pos={pos} player={r.p} scoringSettings={currentLeague?.scoring_settings} statsData={statsData} />
+
+                                          {/* Scouting Notes — bigger editable area */}
+                                          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
+                                            <div style={{ fontFamily: 'Oswald', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Scouting Notes</div>
+                                            <textarea
+                                              value={note}
+                                              onChange={e => setBoardNotes(prev => ({...prev, [r.pid]: e.target.value}))}
+                                              onClick={e => e.stopPropagation()}
+                                              placeholder={'Add your scouting notes on ' + pName(r.p) + '...'}
+                                              style={{ width: '100%', minHeight: '70px', padding: '8px 10px', fontSize: '0.78rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', color: 'var(--silver)', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.5, outline: 'none' }}
+                                            />
+                                          </div>
+
+                                          {/* Action buttons */}
+                                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            <button onClick={e => { e.stopPropagation(); try { if (window.openFWPlayerModal) window.openFWPlayerModal(r.pid, playersData, statsData, currentLeague?.scoring_settings); } catch(err) { console.error(err); } }} style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Oswald', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}>FULL PROFILE</button>
+                                            <a href={'https://www.youtube.com/results?search_query=' + encodeURIComponent(pName(r.p) + ' highlights ' + leagueSeason)} target="_blank" rel="noopener" onClick={e => e.stopPropagation()}
+                                              style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Oswald', background: 'rgba(231,76,60,0.12)', color: '#E74C3C', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}>{'\u25B6'} HIGHLIGHTS</a>
+                                            <button onClick={e => { e.stopPropagation(); setReconPanelOpen(true); sendReconMessage('Give me a full scouting report on ' + pName(r.p) + ' (' + pos + ', ' + college + '). Include strengths, weaknesses, NFL comparison, and where I should draft them.'); }}
+                                              style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Oswald', background: 'rgba(124,107,248,0.15)', color: '#9b8afb', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>ASK ALEX</button>
+                                            <button onClick={e => { e.stopPropagation(); setExpandedDraftPid(null); }} style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Oswald', background: 'transparent', color: 'var(--silver)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>COLLAPSE</button>
+                                          </div>
+                                        </div>
+                                    )}
+                                    </React.Fragment>
                                 );
                             })}
                             {boardPlayers.length === 0 && <div style={{ padding: '16px', textAlign: 'center', color: 'var(--silver)', opacity: 0.5 }}>No players match this filter</div>}
