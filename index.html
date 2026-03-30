@@ -4194,7 +4194,7 @@
                         <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', alignItems: 'center' }}>
                             <button onClick={() => setBoardMode('dhq')} style={{ fontFamily: 'Oswald', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '6px 14px', cursor: 'pointer', borderRadius: '6px', border: '1px solid ' + (boardMode === 'dhq' ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'), background: boardMode === 'dhq' ? 'rgba(212,175,55,0.12)' : 'transparent', color: boardMode === 'dhq' ? 'var(--gold)' : 'var(--silver)' }}>DHQ Board</button>
                             <button onClick={() => { setBoardMode('my'); initMyBoard(); }} style={{ fontFamily: 'Oswald', fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '6px 14px', cursor: 'pointer', borderRadius: '6px', border: '1px solid ' + (boardMode === 'my' ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'), background: boardMode === 'my' ? 'rgba(212,175,55,0.12)' : 'transparent', color: boardMode === 'my' ? 'var(--gold)' : 'var(--silver)' }}>My Board</button>
-                            {boardMode === 'my' && <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.5, marginLeft: '4px' }}>Drag to reorder \u00B7 Click rank to reassign</span>}
+                            {boardMode === 'my' && <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.5, marginLeft: '4px' }}>Drag to reorder {'\u00B7'} Click rank to reassign</span>}
                         </div>
                         {/* Position filters */}
                         <div style={{ display: 'flex', gap: '4px', marginBottom: '14px', flexWrap: 'wrap' }}>
@@ -4207,8 +4207,8 @@
                         {/* Board list */}
                         <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px', overflow: 'hidden' }}>
                             {/* Header */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '30px 28px 1fr 36px 32px 48px 42px 54px auto 62px', gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', alignItems: 'center' }}>
-                                <span>#</span><span></span><span>Player</span><span>Pos</span><span>Age</span><span>DHQ</span><span>Fit</span><span>School</span><span>Tags</span><span></span>
+                            <div style={{ display: 'grid', gridTemplateColumns: '30px 28px 2fr 42px 36px 56px 50px 1fr auto 62px', gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', alignItems: 'center' }}>
+                                <span>#</span><span></span><span>Player</span><span>Pos</span><span>Age</span><span style={{textAlign:'right'}}>DHQ</span><span style={{textAlign:'center'}}>Fit</span><span>School</span><span>Tags</span><span></span>
                             </div>
                             {boardPlayers.map((r, idx) => {
                                 const pos = normPos(r.p.position) || r.p.position;
@@ -4217,7 +4217,7 @@
                                 const isDrafted = draftedPids.has(r.pid);
                                 const tag = boardTags[r.pid];
                                 const note = boardNotes[r.pid] || '';
-                                const age = r.p.age || (r.p.years_exp === 0 ? '~21' : '\u2014');
+                                const age = r.p.age || (r.p.birth_date ? Math.floor((Date.now() - new Date(r.p.birth_date).getTime()) / 31557600000) : r.p.years_exp === 0 ? 21 : '\u2014');
                                 const college = r.p.college || r.p.metadata?.college || '';
                                 const isEditing = editingRank === r.pid;
                                 return (
@@ -4227,7 +4227,7 @@
                                         onDragOver={handleDragOver}
                                         onDrop={() => handleDrop(r.pid)}
                                         style={{ opacity: isDrafted ? 0.35 : dragPid === r.pid ? 0.5 : 1, borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: boardMode === 'my' ? 'grab' : 'default', transition: 'opacity 0.1s' }}>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '30px 28px 1fr 36px 32px 48px 42px 54px auto 62px', gap: '4px', padding: '7px 10px', alignItems: 'center' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '30px 28px 2fr 42px 36px 56px 50px 1fr auto 62px', gap: '4px', padding: '7px 10px', alignItems: 'center' }}>
                                             {/* Rank — clickable to edit */}
                                             {isEditing ? (
                                                 <input autoFocus type="number" min="1" value={rankInput} onChange={e => setRankInput(e.target.value)}
@@ -4249,7 +4249,7 @@
                                             <span style={{ fontSize: '0.7rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)', padding: '1px 5px', background: (posColors[pos] || '#666') + '22', borderRadius: '3px', textAlign: 'center' }}>{pos}</span>
                                             <span style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>{age}</span>
                                             <span style={{ fontFamily: 'Oswald', fontWeight: 700, fontSize: '0.78rem', color: dhqCol, textAlign: 'right' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span>
-                                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: fitColor(fit.score), padding: '1px 5px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', textAlign: 'center' }}>{fit.score}</span>
+                                            <span title={fit.score + '/99'} style={{ fontSize: '0.68rem', fontWeight: 700, color: fitColor(fit.score), padding: '1px 5px', background: fitColor(fit.score) + '15', borderRadius: '8px', textAlign: 'center' }}>{fit.label}</span>
                                             <span style={{ fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{college || '\u2014'}</span>
                                             {/* Tags + YouTube */}
                                             <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
