@@ -874,6 +874,7 @@
 <script src="https://jcc100218.github.io/ReconAI/shared/ai-dispatch.js"></script>
 <script src="https://jcc100218.github.io/ReconAI/shared/player-modal.js"></script>
 <script src="nfl-contracts.js"></script>
+<script src="college-stats.js"></script>
 <script src="draft-history.js"></script>
 <script src="charts.js"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -1135,12 +1136,19 @@
     // ===== INLINE CAREER STATS (for expanded player card) =====
     function InlineCareerStats({ pid, pos, player, scoringSettings, statsData }) {
         const [html, setHtml] = React.useState(null);
+        const [collegeHtml, setCollegeHtml] = React.useState(null);
         const [loading, setLoading] = React.useState(true);
         React.useEffect(() => {
             let cancelled = false;
             const sc = scoringSettings || {};
             const curYear = parseInt(window.S?.season) || new Date().getFullYear();
             const exp = player?.years_exp || 0;
+
+            // Check for college stats first
+            if (typeof window.buildCollegeStatsTable === 'function') {
+                const cHtml = window.buildCollegeStatsTable(pid);
+                if (cHtml) setCollegeHtml(cHtml);
+            }
 
             // Show immediate data from statsData while fetching career
             const quickData = {};
@@ -1167,14 +1175,38 @@
             return () => { cancelled = true; };
         }, [pid]);
 
-        return React.createElement('div', { style: { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' } },
-            React.createElement('div', { style: { fontFamily: 'Oswald', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'Career Stats'),
-            loading && !html
-                ? React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.5 } }, 'Loading career stats...')
-                : html
-                    ? React.createElement('div', { dangerouslySetInnerHTML: { __html: html }, style: { fontSize: '13px' } })
-                    : React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.5 } }, 'No career stats available')
-        );
+        const collegeData = window.COLLEGE_STATS?.[pid];
+        const sections = [];
+
+        // College stats section
+        if (collegeHtml) {
+            sections.push(React.createElement('div', { key: 'college', style: { marginBottom: html ? '14px' : 0 } },
+                React.createElement('div', { style: { fontFamily: 'Oswald', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' } },
+                    'College Stats',
+                    collegeData && React.createElement('span', { style: { fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.5, textTransform: 'none', fontFamily: 'inherit', letterSpacing: 0 } }, collegeData.school + ' \u00B7 ' + collegeData.conf + ' \u00B7 ' + collegeData.years)
+                ),
+                React.createElement('div', { dangerouslySetInnerHTML: { __html: collegeHtml }, style: { fontSize: '13px' } })
+            ));
+        }
+
+        // NFL stats section
+        if (html) {
+            sections.push(React.createElement('div', { key: 'nfl' },
+                React.createElement('div', { style: { fontFamily: 'Oswald', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'NFL Stats'),
+                React.createElement('div', { dangerouslySetInnerHTML: { __html: html }, style: { fontSize: '13px' } })
+            ));
+        } else if (loading) {
+            sections.push(React.createElement('div', { key: 'loading', style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.5 } }, 'Loading stats...'));
+        }
+
+        if (!sections.length) {
+            sections.push(React.createElement('div', { key: 'empty' },
+                React.createElement('div', { style: { fontFamily: 'Oswald', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'Career Stats'),
+                React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.5 } }, 'No stats available')
+            ));
+        }
+
+        return React.createElement('div', { style: { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' } }, ...sections);
     }
 
     function SkeletonRows({ count, cols }) {
