@@ -4840,9 +4840,19 @@
 
             return notes.sort((a, b) => (b.time || 0) - (a.time || 0)).slice(0, 10);
         }, [playersData, myRoster]);
-        const [reconMessages, setReconMessages] = useState([
-          { role: 'assistant', content: 'Ask me anything about your league, team, or players.' }
-        ]);
+        // GM Onboarding wizard state
+        const gmIsUnconfigured = gmStrategy.mode === 'balanced' && !(gmStrategy.untouchable?.length) && !gmStrategy.notes && !(gmStrategy.targets?.length);
+        const [gmOnboardStep, setGmOnboardStep] = useState(0); // 0=not started, 1-4=steps, 5=done
+        const [reconMessages, setReconMessages] = useState(() => {
+          try {
+            const saved = localStorage.getItem('wr_chat_' + currentLeague?.league_id);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed) && parsed.length > 1) return parsed;
+            }
+          } catch {}
+          return [{ role: 'assistant', content: 'Ask me anything about your league, team, or players.' }];
+        });
         const [reconInput, setReconInput] = useState('');
 
         useEffect(() => {
@@ -4873,6 +4883,25 @@
           window.addEventListener('keydown', handler);
           return () => window.removeEventListener('keydown', handler);
         }, []);
+
+        // Auto-trigger GM onboarding when panel opens with unconfigured strategy
+        useEffect(() => {
+          if (reconPanelOpen && gmIsUnconfigured && gmOnboardStep === 0 && myRoster?.players?.length) {
+            startGmOnboarding();
+          }
+        }, [reconPanelOpen]);
+
+        // Persist chat messages to localStorage (cap at 20 messages)
+        useEffect(() => {
+          if (!currentLeague?.league_id || reconMessages.length <= 1) return;
+          // Don't persist if last message is loading indicator
+          const last = reconMessages[reconMessages.length - 1];
+          if (last?.content === '...') return;
+          try {
+            const toSave = reconMessages.slice(-20).map(m => ({ role: m.role, content: m.content }));
+            localStorage.setItem('wr_chat_' + currentLeague.league_id, JSON.stringify(toSave));
+          } catch {}
+        }, [reconMessages, currentLeague?.league_id]);
 
         // Compute power rankings when DHQ engine finishes or standings change
         useEffect(() => {
@@ -5335,6 +5364,119 @@
             }
         }
 
+        // GM Onboarding wizard — conversational strategy setup
+        function startGmOnboarding() {
+          if (gmOnboardStep > 0) return;
+          setGmOnboardStep(1);
+          setReconMessages([{
+            role: 'assistant',
+            content: 'Welcome to the War Room. I\'m Alex — your AI General Manager. Before we get started, let me learn how you want to run this team.\n\n**First things first — are we competing for a title this year, or building for the future?**',
+            onboardChoices: [
+              { label: 'Win Now', value: 'contend' },
+              { label: 'Balanced', value: 'balanced' },
+              { label: 'Rebuilding', value: 'rebuild' }
+            ]
+          }]);
+        }
+
+        function handleOnboardChoice(value) {
+          const step = gmOnboardStep;
+          if (step === 1) {
+            const modeLabels = { contend: 'Win Now', balanced: 'Balanced', rebuild: 'Rebuilding' };
+            setGmStrategy(prev => ({ ...prev, mode: value }));
+            setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined })),
+              { role: 'user', content: modeLabels[value] },
+              { role: 'assistant', content: value === 'contend'
+                ? 'Aggressive. I like it. We\'re going all-in.\n\n**How do you want to play it — conservative and calculated, or willing to swing big?**'
+                : value === 'rebuild'
+                ? 'Smart. Let\'s stack assets and build a dynasty.\n\n**How aggressive should we be with trades — swing for the fences, or play it safe?**'
+                : 'Flexible. We\'ll compete while keeping an eye on the future.\n\n**How aggressive should we be with trades?**',
+                onboardChoices: [
+                  { label: 'Conservative', value: 'conservative' },
+                  { label: 'Moderate', value: 'moderate' },
+                  { label: 'Aggressive', value: 'aggressive' }
+                ]
+              }
+            ]);
+            setGmOnboardStep(2);
+          } else if (step === 2) {
+            setGmStrategy(prev => ({ ...prev, riskTolerance: value }));
+            const topPlayers = (myRoster?.players || [])
+              .sort((a, b) => (window.App?.LI?.playerScores?.[b] || 0) - (window.App?.LI?.playerScores?.[a] || 0))
+              .slice(0, 6);
+            setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined })),
+              { role: 'user', content: value.charAt(0).toUpperCase() + value.slice(1) },
+              { role: 'assistant', content: 'Got it.\n\n**Anyone on your roster you\'d never trade? Your untouchables.** Tap to select — or skip if everyone has a price.',
+                onboardChoices: topPlayers.map(pid => ({
+                  label: (playersData[pid]?.full_name || pid),
+                  value: pid,
+                  multi: true
+                })),
+                onboardMulti: true,
+                onboardSkip: true
+              }
+            ]);
+            setGmOnboardStep(3);
+          } else if (step === 3) {
+            // value is array of pids or 'skip'
+            if (value !== 'skip' && Array.isArray(value) && value.length) {
+              setGmStrategy(prev => ({ ...prev, untouchable: value }));
+              const names = value.map(pid => playersData[pid]?.full_name || pid).join(', ');
+              setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined, onboardMulti: undefined, onboardSkip: undefined })),
+                { role: 'user', content: 'Untouchable: ' + names }
+              ]);
+            } else {
+              setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined, onboardMulti: undefined, onboardSkip: undefined })),
+                { role: 'user', content: 'Everyone has a price' }
+              ]);
+            }
+            setReconMessages(prev => [...prev,
+              { role: 'assistant', content: '**Last question — any positions you\'re actively targeting in trades?** Tap all that apply, or skip.',
+                onboardChoices: ['QB','RB','WR','TE','DL','LB','DB','Picks'].map(t => ({ label: t, value: t, multi: true })),
+                onboardMulti: true,
+                onboardSkip: true
+              }
+            ]);
+            setGmOnboardStep(4);
+          } else if (step === 4) {
+            if (value !== 'skip' && Array.isArray(value) && value.length) {
+              setGmStrategy(prev => ({ ...prev, targets: value }));
+              setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined, onboardMulti: undefined, onboardSkip: undefined })),
+                { role: 'user', content: 'Targeting: ' + value.join(', ') }
+              ]);
+            } else {
+              setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined, onboardMulti: undefined, onboardSkip: undefined })),
+                { role: 'user', content: 'No specific targets' }
+              ]);
+            }
+            setGmOnboardStep(5);
+            // Generate strategy assessment
+            setReconMessages(prev => [...prev, { role: 'assistant', content: '...' }]);
+            (async () => {
+              try {
+                const ctx = typeof dhqContext === 'function' ? dhqContext(false) : '';
+                const reply = typeof dhqAI === 'function'
+                  ? await dhqAI('strategy-analysis', 'Give me a 3-sentence personalized strategic assessment of my team based on my GM strategy settings. Be direct and specific.', ctx)
+                  : 'Strategy saved. Ask me anything about your team.';
+                setReconMessages(prev => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = { role: 'assistant', content: reply };
+                  return updated;
+                });
+              } catch (e) {
+                setReconMessages(prev => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = { role: 'assistant', content: 'Strategy locked in. Let\'s get to work — ask me anything. — Alex' };
+                  return updated;
+                });
+              }
+            })();
+          }
+        }
+
+        // Multi-select state for onboarding
+        const [onboardSelections, setOnboardSelections] = useState([]);
+
         // ReconAI: send message
         async function sendReconMessage(text) {
           if (!text?.trim()) return;
@@ -5359,8 +5501,11 @@
               }
               return m;
             });
+            // Route scout requests through trade-scout prompt for richer output
+            const isScoutRequest = /^Scout\s/i.test(text.trim());
+            const aiType = isScoutRequest ? 'trade-scout' : 'home-chat';
             const reply = typeof dhqAI === 'function'
-              ? await dhqAI('home-chat', null, null, { messages })
+              ? await dhqAI(aiType, null, null, { messages })
               : typeof callClaude === 'function'
                 ? await callClaude(messages)
                 : 'AI not available. Add an API key in Settings.';
@@ -9120,6 +9265,17 @@
                               </div>
                               <div style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>{team.wins}-{team.losses} {'\u00B7'} {team.totalDHQ?.toLocaleString()} DHQ</div>
                             </div>
+                            {team.rosterId !== myRoster?.roster_id && (
+                              <button onClick={() => {
+                                setReconPanelOpen(true);
+                                sendReconMessage('Scout ' + team.displayName + ' — give me a full scouting report. Their roster strengths/weaknesses, trading tendencies, how to negotiate with them, and 2-3 specific trade proposals I could send them.');
+                              }} title={'Scout ' + team.displayName} style={{
+                                padding: '3px 8px', fontSize: '0.66rem', fontFamily: 'Oswald',
+                                background: 'rgba(212,175,55,0.08)', color: 'var(--gold)',
+                                border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px',
+                                cursor: 'pointer', flexShrink: 0, letterSpacing: '0.03em'
+                              }}>SCOUT</button>
+                            )}
                             <div style={{ width: '60px' }}>
                               <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
                                 <div style={{ width: (team.healthScore || 0) + '%', height: '100%', background: team.tierColor || 'var(--gold)', borderRadius: '2px' }}></div>
@@ -9261,6 +9417,16 @@
                 </div>
                 <span style={{ fontSize: '0.68rem', color: '#7d8291' }}>Cmd+K</span>
                 <span style={{ flex: 1 }}></span>
+                {reconMessages.length > 1 && (
+                  <button onClick={() => {
+                    setReconMessages([{ role: 'assistant', content: 'Fresh start. What\'s on your mind? — Alex' }]);
+                    setGmOnboardStep(5);
+                    try { localStorage.removeItem('wr_chat_' + currentLeague?.league_id); } catch {}
+                  }} title="Clear chat history" style={{
+                    background: 'none', border: 'none', color: '#7d8291', cursor: 'pointer',
+                    fontSize: '0.62rem', padding: '2px 4px', fontFamily: 'Oswald', letterSpacing: '0.04em'
+                  }}>CLEAR</button>
+                )}
                 <button onClick={() => setReconPanelOpen(false)} style={{
                   background: 'none', border: 'none', color: '#7d8291', cursor: 'pointer',
                   fontSize: '1rem', padding: '2px'
@@ -9305,8 +9471,133 @@
                         <div style={{ width: '18px', height: '18px', borderRadius: '5px', background: 'linear-gradient(135deg, #D4AF37, #B8941E)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.5rem', fontWeight: 800, color: '#0A0A0A', fontFamily: 'Bebas Neue' }}>AI</div>
                         <span style={{ fontFamily: 'Bebas Neue', fontSize: '0.72rem', color: 'var(--gold)', letterSpacing: '0.03em' }}>ALEX INGRAM</span>
                       </div>
-                      <div style={{ fontSize: '0.78rem', lineHeight: 1.6, color: '#f0f0f3' }}
-                        dangerouslySetInnerHTML={{ __html: msg.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>') }} />
+                      {(() => {
+                        const tradeMatch = msg.content.match(/<!--\s*TRADE_CARD:([\s\S]*?)-->/);
+                        const textContent = msg.content.replace(/<!--\s*TRADE_CARD:[\s\S]*?-->/, '').trim();
+                        let tradeCard = null;
+                        if (tradeMatch) {
+                          try { tradeCard = JSON.parse(tradeMatch[1].trim()); } catch {}
+                        }
+                        return (
+                          <React.Fragment>
+                            <div style={{ fontSize: '0.78rem', lineHeight: 1.6, color: '#f0f0f3' }}
+                              dangerouslySetInnerHTML={{ __html: textContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>') }} />
+                            {tradeCard && (
+                              <div style={{ marginTop: '10px', background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '10px', padding: '10px', fontSize: '0.76rem' }}>
+                                <div style={{ fontFamily: 'Oswald', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+                                  Proposed Trade{tradeCard.target ? ' → ' + tradeCard.target : ''}
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '8px', alignItems: 'start' }}>
+                                  <div>
+                                    <div style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '4px', fontFamily: 'Oswald', textTransform: 'uppercase' }}>You Give</div>
+                                    {(tradeCard.yourSide || []).map((a, j) => (
+                                      <div key={j} style={{ padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                        <span style={{ color: '#f0f0f3' }}>{a.name}</span>
+                                        <span style={{ color: 'var(--silver)', fontSize: '0.68rem', marginLeft: '4px' }}>{a.dhq?.toLocaleString()} DHQ</span>
+                                      </div>
+                                    ))}
+                                    <div style={{ marginTop: '4px', fontWeight: 700, color: 'var(--gold)', fontSize: '0.72rem' }}>
+                                      Total: {(tradeCard.yourSide || []).reduce((s, a) => s + (a.dhq || 0), 0).toLocaleString()}
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', fontSize: '1.2rem', color: 'var(--gold)', paddingTop: '16px' }}>{'\u21C4'}</div>
+                                  <div>
+                                    <div style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '4px', fontFamily: 'Oswald', textTransform: 'uppercase' }}>You Get</div>
+                                    {(tradeCard.theirSide || []).map((a, j) => (
+                                      <div key={j} style={{ padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                        <span style={{ color: '#f0f0f3' }}>{a.name}</span>
+                                        <span style={{ color: 'var(--silver)', fontSize: '0.68rem', marginLeft: '4px' }}>{a.dhq?.toLocaleString()} DHQ</span>
+                                      </div>
+                                    ))}
+                                    <div style={{ marginTop: '4px', fontWeight: 700, color: 'var(--gold)', fontSize: '0.72rem' }}>
+                                      Total: {(tradeCard.theirSide || []).reduce((s, a) => s + (a.dhq || 0), 0).toLocaleString()}
+                                    </div>
+                                  </div>
+                                </div>
+                                {/* Fairness bar */}
+                                {(() => {
+                                  const yours = (tradeCard.yourSide || []).reduce((s, a) => s + (a.dhq || 0), 0);
+                                  const theirs = (tradeCard.theirSide || []).reduce((s, a) => s + (a.dhq || 0), 0);
+                                  const diff = theirs - yours;
+                                  const pct = yours > 0 ? Math.round((diff / yours) * 100) : 0;
+                                  const color = pct >= 5 ? '#2ECC71' : pct >= -5 ? 'var(--gold)' : '#E74C3C';
+                                  const label = pct >= 5 ? 'You win by ' + pct + '%' : pct >= -5 ? 'Fair trade' : 'You lose by ' + Math.abs(pct) + '%';
+                                  return (
+                                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                                        <div style={{ width: Math.min(100, 50 + pct) + '%', height: '100%', background: color, borderRadius: '2px' }} />
+                                      </div>
+                                      <span style={{ fontSize: '0.68rem', color, fontFamily: 'Oswald' }}>{label}</span>
+                                    </div>
+                                  );
+                                })()}
+                                {/* Action buttons */}
+                                <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                                  {tradeCard.sleeperDM && (
+                                    <button onClick={() => { navigator.clipboard.writeText(tradeCard.sleeperDM); }} style={{
+                                      padding: '5px 12px', fontSize: '0.7rem', fontFamily: 'Oswald',
+                                      background: 'linear-gradient(135deg, #7c6bf8, #9b8afb)', color: '#fff',
+                                      border: 'none', borderRadius: '14px', cursor: 'pointer'
+                                    }}>Copy DM</button>
+                                  )}
+                                  <button onClick={() => {
+                                    try {
+                                      const saved = JSON.parse(localStorage.getItem('wr_saved_trades_' + currentLeague?.league_id) || '[]');
+                                      saved.push({ ...tradeCard, savedAt: Date.now() });
+                                      localStorage.setItem('wr_saved_trades_' + currentLeague?.league_id, JSON.stringify(saved.slice(-20)));
+                                    } catch {}
+                                  }} style={{
+                                    padding: '5px 12px', fontSize: '0.7rem', fontFamily: 'Oswald',
+                                    background: 'rgba(212,175,55,0.08)', color: 'var(--gold)',
+                                    border: '1px solid rgba(212,175,55,0.2)', borderRadius: '14px', cursor: 'pointer'
+                                  }}>Save</button>
+                                </div>
+                              </div>
+                            )}
+                          </React.Fragment>
+                        );
+                      })()}
+                      {/* Onboarding choice buttons */}
+                      {msg.onboardChoices && (
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                          {msg.onboardChoices.map(c => {
+                            const isSelected = msg.onboardMulti && onboardSelections.includes(c.value);
+                            return (
+                              <button key={c.value} onClick={() => {
+                                if (msg.onboardMulti) {
+                                  setOnboardSelections(prev => prev.includes(c.value) ? prev.filter(v => v !== c.value) : [...prev, c.value]);
+                                } else {
+                                  handleOnboardChoice(c.value);
+                                }
+                              }} style={{
+                                padding: '6px 14px', fontSize: '0.76rem', fontFamily: 'Oswald',
+                                background: isSelected ? 'var(--gold)' : 'rgba(212,175,55,0.08)',
+                                color: isSelected ? 'var(--black)' : 'var(--gold)',
+                                border: '1px solid rgba(212,175,55,0.3)',
+                                borderRadius: '16px', cursor: 'pointer', transition: 'all 0.15s'
+                              }}>{c.label}{isSelected ? ' \u2713' : ''}</button>
+                            );
+                          })}
+                          {msg.onboardMulti && (
+                            <React.Fragment>
+                              {onboardSelections.length > 0 && (
+                                <button onClick={() => { handleOnboardChoice(onboardSelections); setOnboardSelections([]); }} style={{
+                                  padding: '6px 14px', fontSize: '0.76rem', fontFamily: 'Oswald',
+                                  background: 'linear-gradient(135deg, #2ECC71, #27AE60)', color: '#fff',
+                                  border: 'none', borderRadius: '16px', cursor: 'pointer'
+                                }}>Confirm ({onboardSelections.length})</button>
+                              )}
+                              {msg.onboardSkip && (
+                                <button onClick={() => { handleOnboardChoice('skip'); setOnboardSelections([]); }} style={{
+                                  padding: '6px 14px', fontSize: '0.76rem', fontFamily: 'Oswald',
+                                  background: 'rgba(255,255,255,0.04)', color: 'var(--silver)',
+                                  border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', cursor: 'pointer'
+                                }}>Skip</button>
+                              )}
+                            </React.Fragment>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 ))}
