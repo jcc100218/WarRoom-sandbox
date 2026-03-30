@@ -9421,7 +9421,16 @@
                 playersData={playersData}
                 statsData={statsData}
                 onClose={() => setSelectedPlayerPid(null)}
-                onFullProfile={() => { if (window.openFWPlayerModal) openFWPlayerModal(selectedPlayerPid, playersData, statsData); }}
+                onFullProfile={() => {
+                  try {
+                    if (typeof window.openFWPlayerModal === 'function') {
+                      const sc = currentLeague?.scoring_settings || {};
+                      window.openFWPlayerModal(selectedPlayerPid, playersData, statsData, sc);
+                    } else {
+                      console.warn('[War Room] openFWPlayerModal not loaded');
+                    }
+                  } catch(e) { console.error('[War Room] Player modal error:', e); }
+                }}
             />}
 
             {/* Alex Ingram Chat — bottom right */}
