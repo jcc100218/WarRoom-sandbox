@@ -3366,14 +3366,16 @@
         const spent = myRoster?.settings?.waiver_budget_used || 0;
         const remaining = Math.max(0, budget - spent);
         const hasFAAB = budget > 0;
+        const faabMinBid = currentLeague?.settings?.waiver_budget_min ?? 0;
 
         // Smart FAAB recommendation
         function faabSuggest(dhq, pos) {
             if (!hasFAAB || dhq <= 0) return null;
+            const floor = faabMinBid || 1;
             const base = Math.round(dhq / 250);
             const cap = Math.round(remaining * 0.15);
-            const sug = Math.max(1, Math.min(cap, base));
-            const lo = Math.max(1, Math.round(sug * 0.7));
+            const sug = Math.max(floor, Math.min(cap, base));
+            const lo = Math.max(floor, Math.round(sug * 0.7));
             const hi = Math.min(remaining, Math.round(sug * 1.4));
             // Competition: count teams with deficit at this position
             let competitors = 0;

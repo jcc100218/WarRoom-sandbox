@@ -211,7 +211,7 @@ function buildFATargetsPrompt(ctx: any): string {
 
     return `Build a free agency action plan for **${ctx.myOwner}** in **${ctx.leagueName}**.
 
-**REMAINING FAAB:** $${ctx.faabBudget} of $${ctx.startingBudget}
+**REMAINING FAAB:** $${ctx.faabBudget} of $${ctx.startingBudget}${ctx.faabMinBid > 0 ? `\n**MINIMUM BID:** $${ctx.faabMinBid} (league rule — never suggest below this)` : ''}
 **STARTING LINEUP SPOTS:** ${rosterPositions}
 
 **MY CURRENT ROSTER:**
@@ -424,7 +424,7 @@ function buildFAChatPrompt(ctx: any): string {
 
     return `You are advising **${ctx.myOwner}** on their free agency strategy in **${ctx.leagueName}**.
 
-**REMAINING FAAB:** $${ctx.faabBudget} of $${ctx.startingBudget}
+**REMAINING FAAB:** $${ctx.faabBudget} of $${ctx.startingBudget}${ctx.faabMinBid > 0 ? `\n**MINIMUM BID:** $${ctx.faabMinBid} (league rule — never suggest below this)` : ''}
 
 **MY ROSTER:**
 ${rosterStr || 'No roster data'}

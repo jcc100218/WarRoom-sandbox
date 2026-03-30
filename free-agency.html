@@ -1090,6 +1090,7 @@
                 return {
                     leagueName, myOwner: sleeperUsername,
                     faabBudget: finalBalance, startingBudget,
+                    faabMinBid: leagueInfo?.settings?.waiver_budget_min || 0,
                     myRoster: myRosterSummary, rosterPositions,
                     topFreeAgents: topFAs, availableRookies,
                     question: aiChatInput,
@@ -1805,7 +1806,8 @@
                                                     // Base bid: PPG-based percentage of budget
                                                     const basePct = Math.min(0.25, Math.max(0.01, tPpg / 100));
                                                     suggestedBid = Math.round(startingBudget * basePct * scarcityMult);
-                                                    suggestedBid = Math.max(1, Math.min(suggestedBid, finalBalance));
+                                                    const faabFloor = leagueInfo?.settings?.waiver_budget_min || 1;
+                                                    suggestedBid = Math.max(faabFloor, Math.min(suggestedBid, finalBalance));
                                                     // Confidence: how many other teams need this position
                                                     const rp2 = leagueInfo?.roster_positions || [];
                                                     const posNeeded = rp2.filter(p => normPos(p) === tNorm).length;
