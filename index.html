@@ -4783,6 +4783,8 @@
         const [expandedPid, setExpandedPid] = useState(null);
         const [showAvatarPicker, setShowAvatarPicker] = useState(false);
         const [avatarKey, setAvatarKey] = useState(0); // force re-render when avatar changes
+        const [welcomeMode, setWelcomeMode] = useState(false); // centered modal for first-time welcome
+        const [showCornerToast, setShowCornerToast] = useState(false); // "I'll be down here" toast
         const [heroStory, setHeroStory] = useState('');
         const [aiStories, setAiStories] = useState([]);
         const [transactions, setTransactions] = useState([]);
@@ -5154,6 +5156,7 @@
           localStorage.setItem(welcomeKey, '1');
           // Small delay so the app finishes rendering first
           const t = setTimeout(() => {
+            setWelcomeMode(true);
             setReconPanelOpen(true);
             setReconMessages([{
               role: 'assistant',
@@ -5173,8 +5176,9 @@
           return () => clearTimeout(t);
         }, [myRoster?.players?.length, currentLeague?.league_id]);
 
-        // Handle welcome choices
+        // Handle welcome choices — exit welcome mode, show corner toast
         function handleWelcomeChoice(value) {
+          setWelcomeMode(false);
           if (value === 'strategy') {
             setReconMessages(prev => [...prev.map(m => ({ ...m, onboardChoices: undefined })),
               { role: 'user', content: 'Set my strategy' }
@@ -5186,6 +5190,14 @@
           } else if (value === 'avatar') {
             setReconMessages(prev => prev.map(m => ({ ...m, onboardChoices: undefined })));
             setShowAvatarPicker(true);
+          }
+          // Show "I'll be down here" toast after transition
+          if (value !== 'strategy' && value !== 'advice') {
+            setReconPanelOpen(false);
+            setTimeout(() => {
+              setShowCornerToast(true);
+              setTimeout(() => setShowCornerToast(false), 4000);
+            }, 300);
           }
         }
 
@@ -9843,8 +9855,16 @@
                 }}
             />}
 
-            {/* Alex Ingram Chat — bottom right */}
-            {reconPanelOpen && <div style={{
+            {/* Alex Ingram Chat — centered welcome or bottom-right */}
+            {reconPanelOpen && <div style={welcomeMode ? {
+              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+              width: '480px', maxHeight: '600px',
+              background: '#0a0b0d', border: '2px solid rgba(212,175,55,0.4)',
+              borderRadius: '20px', zIndex: 300,
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(212,175,55,0.15), 0 0 120px rgba(212,175,55,0.06)',
+              animation: 'wrFadeIn 0.3s ease'
+            } : {
               position: 'fixed', bottom: '80px', right: '24px',
               width: '380px', maxHeight: '520px',
               background: '#0a0b0d', border: '2px solid rgba(212,175,55,0.3)',
@@ -9853,6 +9873,8 @@
               boxShadow: '0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(212,175,55,0.1)',
               animation: 'wrFadeIn 0.2s ease'
             }}>
+            {/* Welcome backdrop */}
+            {welcomeMode && <div onClick={() => { setWelcomeMode(false); setReconPanelOpen(false); setTimeout(() => { setShowCornerToast(true); setTimeout(() => setShowCornerToast(false), 4000); }, 300); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: -1 }} />}
               {/* Header */}
               <div style={{
                 padding: '12px 16px', borderBottom: '1px solid rgba(212,175,55,0.2)',
@@ -10107,8 +10129,24 @@
               </div>
             </div>}
 
+            {/* "I'll be down here" toast */}
+            {showCornerToast && (
+              <div style={{
+                position: 'fixed', bottom: '82px', right: '24px',
+                background: '#0a0b0d', border: '1px solid rgba(212,175,55,0.3)',
+                borderRadius: '12px', padding: '10px 16px', zIndex: 202,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                animation: 'wrFadeIn 0.3s ease', maxWidth: '220px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlexAvatar size={22} />
+                  <span style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.4 }}>I'll be down here if you need me {'\uD83D\uDC47'}</span>
+                </div>
+              </div>
+            )}
+
             {/* Alex Ingram Bubble Button — bottom right corner */}
-            <button onClick={() => setReconPanelOpen(!reconPanelOpen)} style={{
+            <button onClick={() => { setReconPanelOpen(!reconPanelOpen); setWelcomeMode(false); }} style={{
               position: 'fixed', bottom: '24px', right: '24px',
               width: '52px', height: '52px', borderRadius: '14px',
               background: reconPanelOpen ? 'rgba(212,175,55,0.15)' : 'transparent',
