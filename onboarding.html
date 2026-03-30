@@ -506,7 +506,7 @@
         <div class="plan-card" id="plan-standard" onclick="selectPlan('standard')">
           <div class="plan-icon">⚔️</div>
           <div class="plan-name">Standard</div>
-          <div class="plan-price">$9.95 <span>/ month</span></div>
+          <div class="plan-price">$9.99 <span>/ month</span></div>
           <ul class="plan-features">
             <li><span class="pf-check">✦</span> Fantasy War Room <em style="color:var(--muted);font-size:0.7rem;">or Dynasty HQ</em></li>
             <li><span class="pf-check">✦</span> All tools in your chosen product</li>
@@ -568,7 +568,7 @@
         <div class="payment-sub" id="paySub">
           Full access to all War Room tools — Team Comparison, Behavioral Trade Calculator, Draft War Room, Free Agency Tracker, Calendar, Trophy Case, and Direct Messaging. AI included (20 queries/mo).
         </div>
-        <div class="payment-price" id="payPrice">$9.95 <span>/ month</span></div>
+        <div class="payment-price" id="payPrice">$9.99 <span>/ month</span></div>
         <button class="cta-btn" id="stripeBtn" onclick="goToStripe()">Proceed to Secure Checkout →</button>
         <p class="stripe-note">Secured by <a href="https://stripe.com" target="_blank" rel="noopener">Stripe</a> &middot; Cancel anytime &middot; No hidden fees</p>
       </div>
@@ -917,7 +917,7 @@
         : 'All War Room tools unlocked. 20 AI queries/mo. BYO AI key supported. No contract.';
       document.getElementById('payPrice').innerHTML    = isPro
         ? '$14.95 <span>/ month</span>'
-        : '$9.95 <span>/ month</span>';
+        : '$9.99 <span>/ month</span>';
     }
 
     function updateProgress(n) {
@@ -1173,7 +1173,7 @@
       const username = getUsername();
 
       const tierLabels = {
-        standard: 'Standard — $9.95/mo',
+        standard: 'Standard — $9.99/mo',
         pro:      'Pro Bundle — $14.95/mo',
       };
       const tierLabel = tierLabels[profile.tier] || profile.tier || 'Standard';
