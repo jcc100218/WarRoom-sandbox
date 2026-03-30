@@ -5013,6 +5013,39 @@
                     window.S.matchups = matchupsData || [];
                     window.S.myRosterId = myRosterData?.roster_id;
                     window.S.myUserId = sleeperUserId;
+                    // Bridge user object so dhqBuildRosterContext can identify the owner
+                    window.S.user = { user_id: sleeperUserId, display_name: sleeperUsername, username: sleeperUsername };
+
+                    // Bridge helper functions for dhq-ai.js context builders
+                    const _p = players || {};
+                    window.myR = () => (window.S.rosters || []).find(r => r.roster_id === window.S.myRosterId);
+                    window.pName = pid => _p[pid]?.full_name || pid;
+                    window.pPos = pid => _p[pid]?.position || '';
+                    window.pAge = pid => _p[pid]?.age || 0;
+                    window.pM = pos => { if (['DE','DT'].includes(pos)) return 'DL'; if (['CB','S','FS','SS'].includes(pos)) return 'DB'; if (['OLB','ILB','MLB'].includes(pos)) return 'LB'; return pos; };
+                    window.dynastyValue = pid => window.App?.LI?.playerScores?.[pid] || 0;
+                    window.getFAAB = () => {
+                        const league = window.S.leagues?.[0];
+                        const my = window.myR();
+                        const isFAAB = (league?.settings?.waiver_type === 2) || (league?.settings?.waiver_budget > 0);
+                        const budget = isFAAB ? (league?.settings?.waiver_budget || 0) : 0;
+                        const spent = my?.settings?.waiver_budget_used || 0;
+                        const minBid = isFAAB ? (league?.settings?.waiver_budget_min ?? 0) : 0;
+                        return { budget, spent, remaining: Math.max(0, budget - spent), isFAAB, minBid };
+                    };
+                    window.loadMentality = () => {
+                        const gm = window._wrGmStrategy || {};
+                        const modeMap = { contend: 'winnow', rebuild: 'rebuild', balanced: 'balanced' };
+                        return { mentality: modeMap[gm.mode] || 'balanced', neverDrop: (gm.untouchable || []).map(pid => _p[pid]?.full_name || pid).join(', '), notes: gm.notes || '' };
+                    };
+                    window.App.myR = window.myR;
+                    window.App.pName = window.pName;
+                    window.App.pPos = window.pPos;
+                    window.App.pAge = window.pAge;
+                    window.App.pM = window.pM;
+                    window.App.dynastyValue = window.dynastyValue;
+                    window.App.getFAAB = window.getFAAB;
+                    window.App.loadMentality = window.loadMentality;
 
                     // Load AI keys from localStorage so callClaude can use them
                     const savedProvider = localStorage.getItem('dynastyhq_provider') || 'gemini';
@@ -5053,6 +5086,7 @@
                     (async () => {
                         try {
                             const nflState = await fetchJSON(`${SLEEPER_BASE_URL}/state/nfl`).catch(() => ({}));
+                            if (nflState && window.S) window.S.nflState = nflState;
                             const currentWeek = nflState?.display_week || nflState?.week || 1;
                             const isOffseason = !nflState?.season_type || nflState.season_type === 'off' || currentWeek <= 1;
                             const weekFetches = [];
@@ -5515,6 +5549,7 @@
               return updated;
             });
           } catch(e) {
+            console.warn('[Alex Ingram] AI error:', e.message);
             setReconMessages(prev => {
               const updated = [...prev];
               updated[updated.length - 1] = { role: 'assistant', content: 'Error: ' + e.message };
