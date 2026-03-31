@@ -237,7 +237,7 @@
         const [analyticsData, setAnalyticsData] = useState(null);
         const [analyticsTab, setAnalyticsTab] = useState('roster');
         const [rosterFilter, setRosterFilter] = useState('All');
-        const [rosterSort, setRosterSort] = useState({ key: 'dhq', dir: -1 });
+        const [rosterSort, setRosterSort] = useState({ key: 'dhq', dir: 1 });
         const [visibleCols, setVisibleCols] = useState(() => {
             try {
                 const saved = localStorage.getItem('wr_roster_cols');
@@ -2341,7 +2341,7 @@
             peak:       { label: 'Peak Window Phase', shortLabel: 'Peak', width: '50px', group: 'dynasty' },
             action:     { label: 'Trade Recommendation', shortLabel: 'Action', width: '56px', group: 'dynasty' },
             gp:         { label: 'Games Played', shortLabel: 'GP', width: '36px', group: 'stats' },
-            durability: { label: 'Durability Rating', shortLabel: 'Dur', width: '40px', group: 'stats' },
+            durability: { label: 'Durability — games played out of 17 (green=15+, amber=10-14, red=<10)', shortLabel: 'Dur', width: '40px', group: 'stats' },
             yrsExp:     { label: 'Years of Experience', shortLabel: 'Exp', width: '38px', group: 'dynasty' },
             college:    { label: 'College', shortLabel: 'College', width: '90px', group: 'scout' },
             nflDraft:   { label: 'NFL Draft Round', shortLabel: 'Draft', width: '48px', group: 'scout' },
@@ -3341,7 +3341,10 @@
                 <div className="wr-main-content" style={{ marginLeft: '160px' }}>
                 {/* Header */}
                 <header className="header" style={{ position: 'relative', marginBottom: '0', paddingBottom: '0.75rem' }}>
-                    <div className="header-title">{currentLeague.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                        <div className="header-title" style={{ margin: 0 }}>{currentLeague.name}</div>
+                        <button onClick={onBack} title="Switch league" style={{ background: 'none', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '6px', padding: '3px 10px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'Oswald', fontSize: '0.72rem', fontWeight: 600, opacity: 0.7, letterSpacing: '0.04em' }}>⇄ SWITCH</button>
+                    </div>
                     <div style={{ textAlign: 'center', color: 'var(--gold)', fontSize: '1.1rem', fontFamily: 'Oswald, sans-serif', marginTop: '0.25rem' }}>
                         {timeYear} SEASON
                     </div>
