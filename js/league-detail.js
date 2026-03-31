@@ -605,7 +605,7 @@
         const [reconInput, setReconInput] = useState('');
 
         useEffect(() => {
-            if ((activeTab === 'analytics' || activeTab === 'command') && !analyticsData && window.App?.LI_LOADED) {
+            if (activeTab === 'analytics' && !analyticsData && window.App?.LI_LOADED) {
                 const data = typeof runLeagueAnalytics === 'function' ? runLeagueAnalytics() : null;
                 setAnalyticsData(data);
             }
@@ -739,9 +739,9 @@
             // If LI hasn't loaded yet, poll until it does and recompute with real health scores
             if (!window.App?.LI_LOADED) {
                 const interval = setInterval(() => {
-                    if (window.App?.LI_LOADED) { computeRankings(); setTimeRecomputeTs(Date.now()); clearInterval(interval); }
+                    if (window.App?.LI_LOADED) { computeRankings(); clearInterval(interval); }
                 }, 1500);
-                const timeout = setTimeout(() => { if (window.App?.LI_LOADED) { computeRankings(); setTimeRecomputeTs(Date.now()); } }, 500);
+                const timeout = setTimeout(() => { if (window.App?.LI_LOADED) computeRankings(); }, 500);
                 return () => { clearInterval(interval); clearTimeout(timeout); };
             }
         }, [standings, currentLeague, timeRecomputeTs, statsData]);
