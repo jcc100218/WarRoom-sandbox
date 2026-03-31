@@ -605,7 +605,7 @@
         const [reconInput, setReconInput] = useState('');
 
         useEffect(() => {
-            if (activeTab === 'analytics' && !analyticsData && window.App?.LI_LOADED) {
+            if ((activeTab === 'analytics' || activeTab === 'command') && !analyticsData && window.App?.LI_LOADED) {
                 const data = typeof runLeagueAnalytics === 'function' ? runLeagueAnalytics() : null;
                 setAnalyticsData(data);
             }
@@ -739,10 +739,9 @@
             // If LI hasn't loaded yet, poll until it does and recompute with real health scores
             if (!window.App?.LI_LOADED) {
                 const interval = setInterval(() => {
-                    if (window.App?.LI_LOADED) { computeRankings(); clearInterval(interval); }
+                    if (window.App?.LI_LOADED) { computeRankings(); setTimeRecomputeTs(Date.now()); clearInterval(interval); }
                 }, 1500);
-                // Safety: also recompute after a short delay in case LI loaded between render and effect
-                const timeout = setTimeout(() => { if (window.App?.LI_LOADED) computeRankings(); }, 500);
+                const timeout = setTimeout(() => { if (window.App?.LI_LOADED) { computeRankings(); setTimeRecomputeTs(Date.now()); } }, 500);
                 return () => { clearInterval(interval); clearTimeout(timeout); };
             }
         }, [standings, currentLeague, timeRecomputeTs, statsData]);
@@ -3864,14 +3863,6 @@
                             // Compete window
                             const compWindow = d.window || {};
                             const compYears = compWindow.years || 0;
-                            // Avg compete window across league
-                            let lgWindowTotal = 0, lgWindowCount = 0;
-                            try {
-                                allRosters.forEach(ros => {
-                                    const pw = typeof projectCompetitiveWindow === 'function' ? null : null; // skip if expensive
-                                });
-                            } catch(e) {}
-
                             // KPI sparkline data: build from projection years
                             const projData = (d.projection || []).map(p => p.projectedDHQ);
                             const healthData = (d.projection || []).map(p => p.projectedHealth || healthScore);
