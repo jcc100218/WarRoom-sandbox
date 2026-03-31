@@ -199,8 +199,8 @@
                     <div className="header-brand">
                         <img src="icon-192.png" alt="Logo" className="owner-logo-small" />
                         <div className="header-text">
-                            <h1 className="owner-name">{displayName} FOOTBALL CLUB</h1>
-                            <div className="header-subtitle">"If you're not first, you're last" — Ricky Bobby</div>
+                            <h1 className="owner-name">FANTASY WARS</h1>
+                            <div className="header-subtitle">{displayName} FOOTBALL CLUB</div>
                         </div>
                     </div>
                     <svg className="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" onClick={() => setShowSettings(true)} style={{ cursor: 'pointer' }}>
@@ -223,7 +223,7 @@
                 {/* ── Two Equal Product Cards ── */}
                 <div className="hub-layout">
 
-                    {/* ──── Card 1: Sleeper Leagues ──── */}
+                    {/* ──── Card 1: War Room ──── */}
                     <div className="product-card">
                         <div className="product-card-header">
                             <div className="product-card-icon gold">
@@ -234,8 +234,8 @@
                                 </svg>
                             </div>
                             <div>
-                                <div className="product-card-title">SLEEPER LEAGUES</div>
-                                <div className="product-card-subtitle">Manage your league universe</div>
+                                <div className="product-card-title">WAR ROOM</div>
+                                <div className="product-card-subtitle">Command your dynasty</div>
                             </div>
                         </div>
                         <div className="product-card-body">
@@ -282,10 +282,17 @@
                         </div>
                         <div className="product-card-body">
                             <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginBottom: '1rem', lineHeight: 1.6 }}>
-                                War room intelligence for trades, waivers, and roster strategy. AI-powered analysis tuned to your exact league and scoring.
+                                AI-powered dynasty assistant for trades, waivers, and roster strategy — tuned to your exact league and scoring.
                             </div>
 
-                            <a href={reconUrl(lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta purple" style={{ textDecoration: 'none' }}>ENTER RECONAI</a>
+                            {sleeperUsername && sleeperLeagues.length > 0 && (
+                                <LeagueSelector onSelect={(league) => {
+                                    setReconLeagueId(league.id);
+                                    localStorage.setItem('wr_last_league_id', league.id);
+                                    localStorage.setItem('wr_last_league_name', league.name);
+                                }} accent="purple" />
+                            )}
+                            <a href={reconUrl(reconLeagueId || lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta purple" style={{ textDecoration: 'none' }}>ENTER RECONAI</a>
                             {resumeLeague && (
                                 <div className="hub-cta-row">
                                     <a href={reconUrl(lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta ghost-purple" style={{ textDecoration: 'none' }}>Open {lastLeagueName}</a>
