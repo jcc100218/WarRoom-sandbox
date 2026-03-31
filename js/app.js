@@ -122,249 +122,198 @@
             </>;
         }
 
+        // ── Shared league selector helper ──
+        const lastLeagueId = localStorage.getItem('wr_last_league_id');
+        const lastLeagueName = localStorage.getItem('wr_last_league_name');
+        const displayName = sleeperUser
+            ? (customDisplayName || sleeperUser.display_name || sleeperUser.username || sleeperUsername).toUpperCase()
+            : (customDisplayName || 'COMMANDER').toUpperCase();
+
+        function LeagueSelector({ onSelect, accent }) {
+            const selectCls = 'hub-league-select' + (accent === 'purple' ? ' purple' : '');
+            if (!sleeperUsername) return null;
+            if (loading) return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--silver)', fontSize: '0.82rem' }}>Loading leagues...</div>;
+            if (error) return <div style={{ padding: '0.75rem', textAlign: 'center', color: '#E74C3C', fontSize: '0.82rem' }}>{error}</div>;
+            if (sleeperLeagues.length === 0) return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--silver)', fontSize: '0.82rem' }}>No leagues found for {selectedYear}</div>;
+            return (
+                <div className="hub-league-selector">
+                    <label>Select League</label>
+                    <select className={selectCls} defaultValue="" onChange={e => {
+                        const league = sleeperLeagues.find(l => l.id === e.target.value);
+                        if (league) onSelect(league);
+                    }}>
+                        <option value="" disabled>Choose a league...</option>
+                        {sleeperLeagues.map(l => (
+                            <option key={l.id} value={l.id}>{l.name} ({l.wins}-{l.losses}{l.ties > 0 ? '-'+l.ties : ''} · {l.rosters?.length || '?'}T)</option>
+                        ))}
+                    </select>
+                </div>
+            );
+        }
+
+        function handleSelectLeague(league) {
+            setActiveLeagueId(league.id);
+            setSelectedLeague(league);
+            localStorage.setItem('wr_last_league_id', league.id);
+            localStorage.setItem('wr_last_league_name', league.name);
+        }
+
+        const resumeLeague = sleeperLeagues.find(l => l.id === lastLeagueId);
+
         return (
             <div className="app-container">
                 {/* Onboarding overlay */}
                 {showOnboarding && (
                     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.9)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:'24px', overflowY:'auto' }}>
                         <div style={{ background:'linear-gradient(135deg, var(--off-black), var(--charcoal))', border:'2px solid var(--gold)', borderRadius:'16px', padding:'32px', maxWidth:'540px', width:'100%' }}>
-                            {/* Header */}
                             <div style={{ textAlign:'center', marginBottom:'20px' }}>
                                 <div style={{ fontFamily:'Bebas Neue', fontSize:'2rem', color:'var(--gold)', letterSpacing:'0.08em', marginBottom:'4px' }}>WELCOME TO YOUR WAR ROOM</div>
-                                <div style={{ fontSize:'0.88rem', color:'var(--silver)', lineHeight:1.6 }}>Here's what matters right now — and what to do next.</div>
+                                <div style={{ fontSize:'0.88rem', color:'var(--silver)', lineHeight:1.6 }}>Two ways to dominate your dynasty league.</div>
                             </div>
-
-                            {/* Team status (if data available) */}
-                            {sleeperLeagues.length > 0 && (() => {
-                                const lastId = localStorage.getItem('wr_last_league_id');
-                                const lastName = localStorage.getItem('wr_last_league_name');
-                                if (!lastName) return null;
-                                return <div style={{ background:'rgba(212,175,55,0.06)', border:'1px solid rgba(212,175,55,0.25)', borderRadius:'10px', padding:'14px 16px', marginBottom:'16px', textAlign:'center' }}>
-                                    <div style={{ fontSize:'0.78rem', color:'var(--gold)', fontFamily:'Oswald', textTransform:'uppercase', marginBottom:'4px' }}>YOUR LEAGUE</div>
-                                    <div style={{ fontSize:'1rem', color:'var(--white)', fontWeight:700 }}>{lastName}</div>
-                                </div>;
-                            })()}
-
-                            {/* Quick paths — action-oriented, not feature descriptions */}
-                            <div style={{ marginBottom:'20px' }}>
-                                <div style={{ fontSize:'0.78rem', color:'var(--gold)', fontFamily:'Oswald', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'10px' }}>YOUR FIRST MOVES</div>
-                                {[
-                                    { label: 'Diagnose your team', desc: 'See strengths, weaknesses, and what to fix first', action: 'analytics' },
-                                    { label: 'Scout your league', desc: 'Map every roster, find trade targets', action: 'league' },
-                                    { label: 'Find trade partners', desc: 'Who needs what you have — and vice versa', action: 'trades' },
-                                    { label: 'Plan your draft', desc: 'Build your board, know your picks', action: 'draft' },
-                                    { label: 'Set waiver strategy', desc: 'Best adds this week with bid confidence', action: 'fa' },
-                                ].map((path, i) => (
-                                    <div key={i} onClick={() => { setShowOnboarding(false); localStorage.setItem('wr_onboarded_v1', '1'); if (sleeperLeagues.length === 1) setSelectedLeague(sleeperLeagues[0]); }} style={{ display:'flex', gap:'12px', padding:'10px 12px', borderRadius:'8px', cursor:'pointer', transition:'background 0.12s', borderBottom:'1px solid rgba(255,255,255,0.04)' }} onMouseEnter={e => e.currentTarget.style.background='rgba(212,175,55,0.06)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                                        <div style={{ fontFamily:'Bebas Neue', fontSize:'1.2rem', color:'var(--gold)', minWidth:'22px', textAlign:'center' }}>{i+1}</div>
-                                        <div>
-                                            <div style={{ fontSize:'0.88rem', color:'var(--white)', fontWeight:600 }}>{path.label}</div>
-                                            <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6 }}>{path.desc}</div>
-                                        </div>
-                                    </div>
-                                ))}
+                            <div style={{ display:'flex', gap:'12px', marginBottom:'20px', flexDirection: window.innerWidth < 500 ? 'column' : 'row' }}>
+                                <div style={{ flex:1, background:'rgba(212,175,55,0.06)', border:'1px solid rgba(212,175,55,0.25)', borderRadius:'10px', padding:'16px', textAlign:'center' }}>
+                                    <div style={{ fontFamily:'Bebas Neue', fontSize:'1.1rem', color:'var(--gold)', marginBottom:'4px' }}>SLEEPER LEAGUES</div>
+                                    <div style={{ fontSize:'0.76rem', color:'var(--silver)', lineHeight:1.5 }}>Draft room, roster control, standings, and league-wide intelligence</div>
+                                </div>
+                                <div style={{ flex:1, background:'rgba(124,107,248,0.06)', border:'1px solid rgba(124,107,248,0.25)', borderRadius:'10px', padding:'16px', textAlign:'center' }}>
+                                    <div style={{ fontFamily:'Bebas Neue', fontSize:'1.1rem', color:'#7c6bf8', marginBottom:'4px' }}>RECONAI</div>
+                                    <div style={{ fontSize:'0.76rem', color:'var(--silver)', lineHeight:1.5 }}>AI-powered trade analysis, waivers, and roster strategy</div>
+                                </div>
                             </div>
-
-                            {/* Primary CTA */}
                             <button onClick={() => { setShowOnboarding(false); localStorage.setItem('wr_onboarded_v1', '1'); }} style={{ width:'100%', padding:'12px', background:'var(--gold)', color:'var(--black)', border:'none', borderRadius:'8px', fontFamily:'Bebas Neue', fontSize:'1.2rem', letterSpacing:'0.06em', cursor:'pointer', marginBottom:'8px' }}>
-                                START WITH TEAM DIAGNOSIS
+                                ENTER WAR ROOM
                             </button>
-                            <div style={{ textAlign:'center', fontSize:'0.76rem', color:'var(--silver)', opacity:0.4 }}>You can always access all modules from the sidebar</div>
+                            <div style={{ textAlign:'center', fontSize:'0.76rem', color:'var(--silver)', opacity:0.4 }}>Choose a product below to get started</div>
                         </div>
                     </div>
                 )}
+
+                {/* ── Header ── */}
                 <header className="header">
-                    <div className="header-title">FANTASY FOOTBALL WAR ROOM</div>
-                    <h1 className="owner-name">
-                        <img src="icon-192.png" alt="OD Logo" className="owner-logo-small" />
-                        {sleeperUser
-                            ? (customDisplayName || sleeperUser.display_name || sleeperUser.username || sleeperUsername).toUpperCase() + ' FOOTBALL CLUB'
-                            : sleeperUsername
-                                ? 'LOADING...'
-                                : (customDisplayName || newSession?.user?.displayName || newSession?.user?.email?.split('@')[0] || 'COMMANDER').toUpperCase() + ' FOOTBALL CLUB'}
-                        <img src="icon-192.png" alt="OD Logo" className="owner-logo-small" />
-                    </h1>
-                    <div className="quote">
-                        "If you're not first, you're last"
-                        <div className="quote-author">— Ricky Bobby</div>
+                    <div className="header-brand">
+                        <img src="icon-192.png" alt="Logo" className="owner-logo-small" />
+                        <div className="header-text">
+                            <h1 className="owner-name">{displayName} FOOTBALL CLUB</h1>
+                            <div className="header-subtitle">"If you're not first, you're last" — Ricky Bobby</div>
+                        </div>
                     </div>
-                    <svg 
-                        className="settings-icon" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2"
-                        onClick={() => setShowSettings(true)}
-                        style={{ cursor: 'pointer' }}
-                    >
+                    <svg className="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" onClick={() => setShowSettings(true)} style={{ cursor: 'pointer' }}>
                         <circle cx="12" cy="12" r="3" stroke="var(--gold)"/>
                         <path d="M12 1v6m0 6v6m-5.2-7.8l-4.3-4.2m12.9 0l4.3 4.2M1 12h6m6 0h6m-7.8 5.2l-4.2 4.3m0-12.9l4.2 4.3" stroke="var(--gold)"/>
                     </svg>
                 </header>
 
-                <div className="main-layout">
-                    {/* Leagues */}
-                    <div className="center-column">
-                        <div className="league-window">
-                            <div className="league-window-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-                                <div style={{ flexShrink: 0 }}>SLEEPER LEAGUES</div>
-                                <select
-                                    value={selectedYear}
-                                    onChange={e => setSelectedYear(e.target.value)}
-                                    style={{
-                                        background: 'var(--charcoal)',
-                                        border: '1px solid rgba(212,175,55,0.4)',
-                                        borderRadius: '4px',
-                                        color: 'var(--white)',
-                                        fontFamily: 'Oswald, sans-serif',
-                                        fontWeight: '700',
-                                        fontSize: '0.72rem',
-                                        padding: '0.18rem 0.45rem',
-                                        cursor: 'pointer',
-                                        outline: 'none',
-                                        flexShrink: 0,
-                                    }}
-                                >
-                                    {AVAILABLE_YEARS.map(year => (
-                                        <option key={year} value={year}>{year}</option>
-                                    ))}
-                                </select>
+                {/* ── Session Strip ── */}
+                {resumeLeague && !loading && (
+                    <div className="session-strip">
+                        <span className="session-strip-label">Last Session:</span>
+                        <span className="session-strip-league">{lastLeagueName}</span>
+                        <button className="session-strip-btn primary" onClick={() => handleSelectLeague(resumeLeague)}>Resume</button>
+                        <button className="session-strip-btn secondary" onClick={() => handleSelectLeague(resumeLeague)}>View Alerts</button>
+                        <button className="session-strip-btn secondary" onClick={() => handleSelectLeague(resumeLeague)}>Open Draft Room</button>
+                    </div>
+                )}
+
+                {/* ── Two Equal Product Cards ── */}
+                <div className="hub-layout">
+
+                    {/* ──── Card 1: Sleeper Leagues ──── */}
+                    <div className="product-card">
+                        <div className="product-card-header">
+                            <div className="product-card-icon gold">
+                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--black)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                                    <path d="M2 17l10 5 10-5"/>
+                                    <path d="M2 12l10 5 10-5"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <div className="product-card-title">SLEEPER LEAGUES</div>
+                                <div className="product-card-subtitle">Manage your league universe</div>
+                            </div>
+                        </div>
+                        <div className="product-card-body">
+                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginBottom: '1rem', lineHeight: 1.6 }}>
+                                Draft room, roster control, standings, trade center, and league-wide intelligence — all powered by your Sleeper data.
                             </div>
 
-                            <div className="league-window-scroll">
-                                {/* Command Center Summary */}
-                                {(() => {
-                                    const lastLeagueId = localStorage.getItem('wr_last_league_id');
-                                    const lastLeagueName = localStorage.getItem('wr_last_league_name');
-                                    if (lastLeagueId && lastLeagueName && !loading) {
-                                        const resumeLeague = sleeperLeagues.find(l => l.id === lastLeagueId);
-                                        return (
-                                            <div style={{ margin: '8px', padding: '12px', background: 'linear-gradient(135deg, rgba(212,175,55,0.08), rgba(212,175,55,0.02))', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '8px' }}>
-                                                <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '0.82rem', color: 'var(--gold)', letterSpacing: '0.1em', marginBottom: '8px' }}>COMMAND CENTER</div>
-                                                <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginBottom: '10px' }}>Last session: <strong style={{ color: 'var(--white)' }}>{lastLeagueName}</strong></div>
-                                                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                                    {resumeLeague && (
-                                                        <button onClick={() => { setActiveLeagueId(resumeLeague.id); setSelectedLeague(resumeLeague); }}
-                                                            style={{ padding: '5px 12px', fontSize: '0.72rem', fontFamily: 'Oswald, sans-serif', fontWeight: 700, background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '5px', cursor: 'pointer', letterSpacing: '0.03em' }}>
-                                                            Resume League
-                                                        </button>
-                                                    )}
-                                                    {resumeLeague && (
-                                                        <button onClick={() => { setActiveLeagueId(resumeLeague.id); setSelectedLeague(resumeLeague); }}
-                                                            style={{ padding: '5px 12px', fontSize: '0.72rem', fontFamily: 'Oswald, sans-serif', fontWeight: 600, background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: '5px', cursor: 'pointer', letterSpacing: '0.03em' }}>
-                                                            View Alerts
-                                                        </button>
-                                                    )}
-                                                    {resumeLeague && (
-                                                        <button onClick={() => { setActiveLeagueId(resumeLeague.id); setSelectedLeague(resumeLeague); }}
-                                                            style={{ padding: '5px 12px', fontSize: '0.72rem', fontFamily: 'Oswald, sans-serif', fontWeight: 600, background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: '5px', cursor: 'pointer', letterSpacing: '0.03em' }}>
-                                                            Open Draft Room
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    }
-                                    return null;
-                                })()}
-                                {!sleeperUsername ? (
-                                    <div style={{ padding: '2rem', maxWidth: '420px', margin: '0 auto' }}>
-                                        {/* Activation card */}
-                                        <div style={{ background: 'linear-gradient(135deg, var(--off-black), var(--charcoal))', border: '2px solid rgba(212,175,55,0.4)', borderRadius: '14px', padding: '28px 24px', textAlign: 'center', marginBottom: '16px' }}>
-                                            <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.6rem', color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '6px' }}>CONNECT YOUR LEAGUE</div>
-                                            <div style={{ fontSize: '0.85rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '20px' }}>
-                                                War Room runs on your league data. Connect to unlock dynasty strategy, roster analysis, and league-wide intelligence.
-                                            </div>
-                                            {/* Primary CTA */}
-                                            <div style={{ marginBottom: '16px' }}>
-                                                <input id="wr-sleeper-input" placeholder="Enter your Sleeper username" style={{ width: '100%', padding: '12px 16px', background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '8px', color: 'var(--white)', fontFamily: 'Oswald', fontSize: '0.95rem', marginBottom: '8px', textAlign: 'center' }} onKeyDown={e => { if (e.key === 'Enter') { const v = e.target.value.trim(); if (v) { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:v})); window.location.reload(); } } }} />
-                                                <button onClick={() => { const v = document.getElementById('wr-sleeper-input')?.value?.trim(); if (v) { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:v})); window.location.reload(); } }} style={{ width: '100%', padding: '12px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', fontFamily: 'Bebas Neue', fontSize: '1.1rem', letterSpacing: '0.05em', cursor: 'pointer' }}>CONNECT SLEEPER ACCOUNT</button>
-                                            </div>
-                                            <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.5 }}>Supports Sleeper dynasty leagues. Enter your Sleeper username above.</div>
-                                        </div>
-                                        {/* Secondary paths */}
-                                        <div style={{ display: 'flex', gap: '10px' }}>
-                                            <button onClick={() => { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:'jcc100218'})); localStorage.setItem('wr_demo_mode', '1'); window.location.reload(); }} style={{ flex: 1, padding: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '8px', color: 'var(--gold)', fontFamily: 'Oswald', fontSize: '0.82rem', cursor: 'pointer' }}>Explore Demo League</button>
-                                        </div>
+                            {!sleeperUsername ? (
+                                <div className="hub-connect-card">
+                                    <input id="wr-sleeper-input" placeholder="Enter your Sleeper username" onKeyDown={e => { if (e.key === 'Enter') { const v = e.target.value.trim(); if (v) { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:v})); window.location.reload(); } } }} />
+                                    <button className="hub-cta gold" onClick={() => { const v = document.getElementById('wr-sleeper-input')?.value?.trim(); if (v) { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:v})); window.location.reload(); } }}>CONNECT SLEEPER ACCOUNT</button>
+                                    <div style={{ marginTop: '8px' }}>
+                                        <button className="hub-cta ghost" onClick={() => { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:'jcc100218'})); localStorage.setItem('wr_demo_mode', '1'); window.location.reload(); }}>Explore Demo League</button>
                                     </div>
-                                ) : loading ? (
-                                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--gold)' }}>
-                                        Loading leagues...
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="hub-year-row">
+                                        <span className="hub-year-label">Season:</span>
+                                        <select className="hub-year-select" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
+                                            {AVAILABLE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                                        </select>
                                     </div>
-                                ) : error ? (
-                                    <div style={{ padding: '1rem', textAlign: 'center', color: '#E74C3C', fontSize: '0.85rem' }}>
-                                        {error}
-                                    </div>
-                                ) : sleeperLeagues.length === 0 ? (
-                                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--silver)', fontSize: '0.85rem' }}>
-                                        No leagues found for {selectedYear}
-                                    </div>
-                                ) : (
-                                    sleeperLeagues.map(league => (
-                                        <div
-                                            key={league.id}
-                                            className={`league-item ${activeLeagueId === league.id ? 'active' : ''}`}
-                                            onClick={() => {
-                                                setActiveLeagueId(league.id);
-                                                setSelectedLeague(league);
-                                                localStorage.setItem('wr_last_league_id', league.id);
-                                                localStorage.setItem('wr_last_league_name', league.name);
-                                                            }}
-                                        >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                                <div className="league-item-name" style={{ flex: 1 }}>
-                                                    {league.name}
-                                                </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                                                    {league.rosters && (
-                                                        <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6 }}>
-                                                            {league.rosters.length} teams
-                                                        </span>
-                                                    )}
-                                                    <div className="league-item-record" style={{ fontWeight: 700, fontSize: '0.78rem' }}>
-                                                        {league.wins}-{league.losses}{league.ties > 0 ? `-${league.ties}` : ''}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
+                                    <LeagueSelector onSelect={handleSelectLeague} accent="gold" />
+                                    {resumeLeague && (
+                                        <button className="hub-cta gold" onClick={() => handleSelectLeague(resumeLeague)}>RESUME {lastLeagueName?.toUpperCase()}</button>
+                                    )}
+                                    {!resumeLeague && sleeperLeagues.length > 0 && (
+                                        <button className="hub-cta gold" onClick={() => handleSelectLeague(sleeperLeagues[0])}>ENTER {sleeperLeagues[0].name?.toUpperCase()}</button>
+                                    )}
+                                </>
+                            )}
                         </div>
                     </div>
 
-                    {/* ReconAI Launch Button */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', paddingTop: '8px' }}>
-                        <a href="https://jcc100218.github.io/ReconAI/" target="_blank" rel="noopener noreferrer" style={{
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
-                            padding: '16px 20px', borderRadius: '12px', textDecoration: 'none',
-                            background: 'linear-gradient(135deg, rgba(124,107,248,0.15), rgba(124,107,248,0.05))',
-                            border: '2px solid rgba(124,107,248,0.3)',
-                            transition: 'all 0.2s', cursor: 'pointer'
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#7c6bf8'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(124,107,248,0.3)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(124,107,248,0.3)'; e.currentTarget.style.boxShadow = 'none'; }}
-                        >
-                            <div style={{
-                                width: '40px', height: '40px', borderRadius: '10px',
-                                background: 'linear-gradient(135deg, #7c6bf8, #5b4cc4)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                boxShadow: '0 4px 16px rgba(124,107,248,0.3)'
-                            }}>
+                    {/* ──── Card 2: ReconAI ──── */}
+                    <div className="product-card accent-purple">
+                        <div className="product-card-header">
+                            <div className="product-card-icon purple">
                                 <svg viewBox="0 0 32 32" width="22" height="22" fill="none">
                                     <circle cx="16" cy="16" r="8" stroke="#e0d4ff" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.6"/>
                                     <circle cx="16" cy="16" r="4" stroke="#e0d4ff" strokeWidth="1.5"/>
                                     <circle cx="16" cy="16" r="1.5" fill="#e0d4ff"/>
                                 </svg>
                             </div>
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#f0f0f3', letterSpacing: '-0.02em' }}>
-                                    Recon<span style={{ color: '#7c6bf8' }}>AI</span>
-                                </div>
-                                <div style={{ fontSize: '0.78rem', color: '#7d8291', marginTop: '2px' }}>AI Advisor</div>
+                            <div>
+                                <div className="product-card-title">RECON<span style={{ color: '#7c6bf8' }}>AI</span></div>
+                                <div className="product-card-subtitle">Your AI front office</div>
                             </div>
-                        </a>
+                        </div>
+                        <div className="product-card-body">
+                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginBottom: '1rem', lineHeight: 1.6 }}>
+                                War room intelligence for trades, waivers, and roster strategy. AI-powered analysis tuned to your exact league and scoring.
+                            </div>
+
+                            {!sleeperUsername ? (
+                                <div style={{ padding: '1rem 0', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '0.82rem', color: 'var(--silver)', marginBottom: '12px' }}>Connect your Sleeper account to unlock ReconAI</div>
+                                    <a href="https://jcc100218.github.io/ReconAI/" target="_blank" rel="noopener noreferrer" className="hub-cta ghost-purple" style={{ textDecoration: 'none' }}>Open ReconAI Directly</a>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="hub-year-row">
+                                        <span className="hub-year-label">Season:</span>
+                                        <select className="hub-year-select" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
+                                            {AVAILABLE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                                        </select>
+                                    </div>
+                                    <LeagueSelector onSelect={(league) => {
+                                        localStorage.setItem('wr_last_league_id', league.id);
+                                        localStorage.setItem('wr_last_league_name', league.name);
+                                        window.open('https://jcc100218.github.io/ReconAI/', '_blank');
+                                    }} accent="purple" />
+                                    <a href="https://jcc100218.github.io/ReconAI/" target="_blank" rel="noopener noreferrer" className="hub-cta purple" style={{ textDecoration: 'none' }}>ENTER RECONAI</a>
+                                    {resumeLeague && (
+                                        <div className="hub-cta-row">
+                                            <a href="https://jcc100218.github.io/ReconAI/" target="_blank" rel="noopener noreferrer" className="hub-cta ghost-purple" style={{ textDecoration: 'none' }}>Open {lastLeagueName}</a>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
                     </div>
+
                 </div>
 
                 {showSettings && (
