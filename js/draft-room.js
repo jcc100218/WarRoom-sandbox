@@ -63,9 +63,10 @@
                     if (!p.position || ['HC','OC','DC','GM'].includes(p.position)) return false;
                     // Must be active status (filters out stale entries from old years)
                     if (p.status === 'Inactive') return false;
-                    // Must have DHQ value OR be on an NFL team
+                    // Must have DHQ value OR be on an NFL team OR be an active IDP player
                     const hasValue = (window.App?.LI?.playerScores?.[pid] || 0) > 0;
-                    return hasValue || p.team;
+                    const isIDP = ['DL','DE','DT','NT','IDL','EDGE','LB','OLB','ILB','MLB','DB','CB','S','SS','FS'].includes(p.position);
+                    return hasValue || p.team || (isIDP && p.status === 'Active');
                 })
                 .map(([pid, p]) => ({ pid, p, dhq: window.App?.LI?.playerScores?.[pid] || 0 }))
                 .sort((a, b) => b.dhq - a.dhq);
@@ -438,19 +439,7 @@
                             <span style={{ marginLeft: 'auto', fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.4 }}>Click row to expand {'\u00B7'} Drag to reorder My Board</span>
                         </div>
 
-                        {/* Side-by-side boards */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                            <div>
-                                <div style={{ fontFamily: 'Oswald', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>DHQ Board <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.5, textTransform: 'none' }}>engine rankings</span></div>
-                                {renderCompactBoard(boardPlayers, true)}
-                            </div>
-                            <div>
-                                <div style={{ fontFamily: 'Oswald', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>My Board <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.5, textTransform: 'none' }}>your rankings</span></div>
-                                {renderCompactBoard(myBoardPlayers, false)}
-                            </div>
-                        </div>
-
-                        {/* Expanded player card — full width below both boards */}
+                        {/* Expanded player card — full width ABOVE boards */}
                         {expandedDraftPid && (() => {
                             const r = rookies.find(rk => rk.pid === expandedDraftPid);
                             if (!r) return null;
@@ -480,6 +469,12 @@
                                         <span style={{ fontSize: '0.72rem', fontWeight: 700, fontFamily: 'Oswald', padding: '2px 10px', borderRadius: '10px', background: dhqColVal + '20', color: dhqColVal }}>{r.dhq > 0 ? r.dhq.toLocaleString() + ' DHQ' : 'No DHQ'}</span>
                                         <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 10px', borderRadius: '10px', background: fitColor(fit.score) + '15', color: fitColor(fit.score) }}>{fit.label} Fit</span>
                                         {tag && <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 10px', borderRadius: '10px', background: tagDefs[tag].color + '20', color: tagDefs[tag].color }}>{tagDefs[tag].icon} {tagDefs[tag].label}</span>}
+                                      </div>
+                                      {/* Quick tag buttons */}
+                                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' }}>
+                                        {Object.entries(tagDefs).map(([tKey, tDef]) => (
+                                          <button key={tKey} onClick={(e) => { e.stopPropagation(); setBoardTags(prev => ({ ...prev, [r.pid]: prev[r.pid] === tKey ? undefined : tKey })); }} style={{ padding: '3px 10px', fontSize: '0.68rem', fontFamily: 'Oswald', fontWeight: 600, borderRadius: '12px', cursor: 'pointer', border: '1px solid ' + (tag === tKey ? tDef.color : 'rgba(255,255,255,0.12)'), background: tag === tKey ? tDef.color + '25' : 'rgba(255,255,255,0.03)', color: tag === tKey ? tDef.color : 'var(--silver)', transition: 'all 0.15s' }}>{tDef.icon} {tDef.label}</button>
+                                        ))}
                                       </div>
                                     </div>
                                   </div>
@@ -516,6 +511,20 @@
                                 </div>
                             );
                         })()}
+
+                        {/* Side-by-side boards */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                            <div>
+                                <div style={{ fontFamily: 'Oswald', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>DHQ Board <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.5, textTransform: 'none' }}>engine rankings</span></div>
+                                {renderCompactBoard(boardPlayers, true)}
+                            </div>
+                            <div>
+                                <div style={{ fontFamily: 'Oswald', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>My Board <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.5, textTransform: 'none' }}>your rankings</span></div>
+                                {renderCompactBoard(myBoardPlayers, false)}
+                            </div>
+                        </div>
+
+                        {/* Expanded card moved above boards — old location */}
 
                         {/* OLD BOARD — REPLACED BY SIDE-BY-SIDE ABOVE */}
                         {false && <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px', overflow: 'hidden' }}>

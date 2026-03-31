@@ -199,8 +199,8 @@
                     <div className="header-brand">
                         <img src="icon-192.png" alt="Logo" className="owner-logo-small" />
                         <div className="header-text">
-                            <h1 className="owner-name">{displayName} FOOTBALL CLUB</h1>
-                            <div className="header-subtitle">"If you're not first, you're last" — Ricky Bobby</div>
+                            <h1 className="owner-name">FANTASY WARS</h1>
+                            <div className="header-subtitle">{String(displayName)}</div>
                         </div>
                     </div>
                     <svg className="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" onClick={() => setShowSettings(true)} style={{ cursor: 'pointer' }}>
@@ -234,8 +234,8 @@
                                 </svg>
                             </div>
                             <div>
-                                <div className="product-card-title">SLEEPER LEAGUES</div>
-                                <div className="product-card-subtitle">Manage your league universe</div>
+                                <div className="product-card-title">WAR ROOM</div>
+                                <div className="product-card-subtitle">Command your dynasty</div>
                             </div>
                         </div>
                         <div className="product-card-body">
@@ -253,12 +253,6 @@
                                 </div>
                             ) : (
                                 <>
-                                    <div className="hub-year-row">
-                                        <span className="hub-year-label">Season:</span>
-                                        <select className="hub-year-select" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
-                                            {AVAILABLE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                                        </select>
-                                    </div>
                                     <LeagueSelector onSelect={handleSelectLeague} accent="gold" />
                                     {resumeLeague && (
                                         <button className="hub-cta gold" onClick={() => handleSelectLeague(resumeLeague)}>RESUME {lastLeagueName?.toUpperCase()}</button>
@@ -298,12 +292,6 @@
                                 </div>
                             ) : (
                                 <>
-                                    <div className="hub-year-row">
-                                        <span className="hub-year-label">Season:</span>
-                                        <select className="hub-year-select" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
-                                            {AVAILABLE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                                        </select>
-                                    </div>
                                     <LeagueSelector onSelect={(league) => {
                                         setReconLeagueId(league.id);
                                         localStorage.setItem('wr_last_league_id', league.id);

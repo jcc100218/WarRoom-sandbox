@@ -66,10 +66,10 @@
         }, [playersData]);
 
         // ── PROJECTION ENGINE: derive future player values from aging curves ──
-        function projectPlayerValue(pid, baseDhq, baseAge, pos, delta) {
+        function projectPlayerValue(pid, baseDhq, baseAge, pos, delta, meta) {
             if (!baseDhq || baseDhq <= 0 || delta === 0) return baseDhq;
             const peakWindows = window.App?.peakWindows || {QB:[24,34],RB:[22,27],WR:[22,30],TE:[23,30],DL:[23,29],LB:[23,28],DB:[23,29]};
-            const decayRates = window.App?.decayRates || {QB:0.06,RB:0.25,WR:0.14,TE:0.12,DL:0.15,LB:0.15,DB:0.14};
+            const decayRates = window.App?.decayRates || {QB:0.08,RB:0.30,WR:0.18,TE:0.15,DL:0.18,LB:0.18,DB:0.17};
             const nPos = pos === 'DE' || pos === 'DT' ? 'DL' : pos === 'CB' || pos === 'S' ? 'DB' : pos === 'OLB' || pos === 'ILB' ? 'LB' : pos;
             const [pLo, pHi] = peakWindows[nPos] || [24, 29];
             const decay = decayRates[nPos] || 0.12;
@@ -78,32 +78,52 @@
             // If no age data, skip projections (can't project without knowing age)
             if (!baseAge || baseAge <= 0) return baseDhq;
 
+            // Trend factor — recent trajectory shifts projection
+            const trend = meta?.trend || 0; // e.g. +0.15 = trending up 15%
+            const trendBoost = 1 + (trend * 0.5); // dampen raw trend for projection
+
+            // Season-aware half-life: offseason projections decay slower
+            const now = new Date();
+            const month = now.getMonth(); // 0-indexed
+            const inSeason = month >= 8 || month <= 1; // Sep-Feb
+            const halfLife = inSeason ? 1.5 : 3.0; // years
+
             // Higher-value players get bigger appreciation (proven producers)
             const isProven = baseDhq >= 4000;
             const isElite = baseDhq >= 7000;
             // Peak midpoint — players appreciate until they hit this, then hold/decline
             const peakMid = Math.floor((pLo + pHi) / 2);
 
+            // Position ceilings — cap projected value by position
+            const posCeilings = {QB: 12000, RB: 9000, WR: 10500, TE: 8500, DL: 7000, LB: 7000, DB: 7000};
+            const ceiling = posCeilings[nPos] || 10000;
+
             if (delta > 0) {
                 // Future: year-by-year projection
                 for (let yr = 1; yr <= delta; yr++) {
                     const ageAtYr = baseAge + yr;
+                    // Apply half-life decay to projection confidence
+                    const confidence = Math.pow(0.5, yr / halfLife);
                     if (ageAtYr <= pLo) {
-                        // Pre-peak: young players with production gain significantly
-                        const growthRate = isElite ? 0.12 : isProven ? 0.08 : 0.05;
-                        val *= 1 + growthRate;
+                        // Pre-peak: bigger growth rates, blended with confidence
+                        const growthRate = isElite ? 0.18 : isProven ? 0.14 : 0.08;
+                        const projected = val * (1 + growthRate * trendBoost);
+                        val = projected * confidence + val * (1 - confidence);
                     } else if (ageAtYr <= peakMid) {
-                        // Early peak: still appreciating, elite assets peak here
-                        val *= isElite ? 1.05 : isProven ? 1.02 : 1.0;
+                        // Early peak: still appreciating
+                        const rate = isElite ? 0.06 : isProven ? 0.03 : 0.0;
+                        val *= (1 + rate * trendBoost);
                     } else if (ageAtYr <= pHi) {
                         // Late peak: holding or starting to decline
-                        val *= isElite ? 1.0 : isProven ? (1 - decay * 0.08) : (1 - decay * 0.2);
+                        val *= isElite ? 1.0 : isProven ? (1 - decay * 0.1) : (1 - decay * 0.25);
                     } else {
-                        // Past peak: full decay, accelerating
+                        // Past peak: steeper decay with 0.25 acceleration
                         const yearsPast = ageAtYr - pHi;
-                        const accel = 1 + yearsPast * 0.15;
+                        const accel = 1 + yearsPast * 0.25;
                         val *= (1 - decay * accel);
                     }
+                    // Enforce position ceiling
+                    val = Math.min(val, ceiling);
                 }
             } else {
                 // Historical: reverse — younger players had less value
@@ -237,7 +257,7 @@
         const [analyticsData, setAnalyticsData] = useState(null);
         const [analyticsTab, setAnalyticsTab] = useState('roster');
         const [rosterFilter, setRosterFilter] = useState('All');
-        const [rosterSort, setRosterSort] = useState({ key: 'dhq', dir: -1 });
+        const [rosterSort, setRosterSort] = useState({ key: 'dhq', dir: 1 });
         const [visibleCols, setVisibleCols] = useState(() => {
             try {
                 const saved = localStorage.getItem('wr_roster_cols');
@@ -2341,7 +2361,7 @@
             peak:       { label: 'Peak Window Phase', shortLabel: 'Peak', width: '50px', group: 'dynasty' },
             action:     { label: 'Trade Recommendation', shortLabel: 'Action', width: '56px', group: 'dynasty' },
             gp:         { label: 'Games Played', shortLabel: 'GP', width: '36px', group: 'stats' },
-            durability: { label: 'Durability Rating', shortLabel: 'Dur', width: '40px', group: 'stats' },
+            durability: { label: 'Durability — games played out of 17 (green=15+, amber=10-14, red=<10)', shortLabel: 'Dur', width: '40px', group: 'stats' },
             yrsExp:     { label: 'Years of Experience', shortLabel: 'Exp', width: '38px', group: 'dynasty' },
             college:    { label: 'College', shortLabel: 'College', width: '90px', group: 'scout' },
             nflDraft:   { label: 'NFL Draft Round', shortLabel: 'Draft', width: '48px', group: 'scout' },
@@ -3341,7 +3361,10 @@
                 <div className="wr-main-content" style={{ marginLeft: '160px' }}>
                 {/* Header */}
                 <header className="header" style={{ position: 'relative', marginBottom: '0', paddingBottom: '0.75rem' }}>
-                    <div className="header-title">{currentLeague.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                        <div className="header-title">{currentLeague.name}</div>
+                        <button onClick={onBack} style={{ padding: '4px 12px', fontSize: '0.68rem', fontFamily: 'Oswald, sans-serif', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap' }}>SWITCH</button>
+                    </div>
                     <div style={{ textAlign: 'center', color: 'var(--gold)', fontSize: '1.1rem', fontFamily: 'Oswald, sans-serif', marginTop: '0.25rem' }}>
                         {timeYear} SEASON
                     </div>
@@ -3842,13 +3865,7 @@
                             // Compete window
                             const compWindow = d.window || {};
                             const compYears = compWindow.years || 0;
-                            // Avg compete window across league
-                            let lgWindowTotal = 0, lgWindowCount = 0;
-                            try {
-                                allRosters.forEach(ros => {
-                                    const pw = typeof projectCompetitiveWindow === 'function' ? null : null; // skip if expensive
-                                });
-                            } catch(e) {}
+                            // Avg compete window — dead code removed
 
                             // KPI sparkline data: build from projection years
                             const projData = (d.projection || []).map(p => p.projectedDHQ);
