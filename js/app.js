@@ -182,7 +182,6 @@
         }
 
         function handleSelectLeague(league) {
-            if (!league) return;
             setActiveLeagueId(league.id);
             setSelectedLeague(league);
             localStorage.setItem('wr_last_league_id', league.id);
@@ -199,7 +198,7 @@
                         <img src="icon-192.png" alt="Logo" className="owner-logo-small" />
                         <div className="header-text">
                             <h1 className="owner-name">FANTASY WARS</h1>
-                            <div className="header-subtitle">{displayName}</div>
+                            <div className="header-subtitle">{String(displayName)}</div>
                         </div>
                     </div>
                     <svg className="settings-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" onClick={() => setShowSettings(true)} style={{ cursor: 'pointer' }}>
@@ -222,7 +221,7 @@
                 {/* ── Two Equal Product Cards ── */}
                 <div className="hub-layout">
 
-                    {/* ──── Card 1: War Room ──── */}
+                    {/* ──── Card 1: Sleeper Leagues ──── */}
                     <div className="product-card">
                         <div className="product-card-header">
                             <div className="product-card-icon gold">
@@ -254,10 +253,10 @@
                                 <>
                                     <LeagueSelector onSelect={handleSelectLeague} accent="gold" />
                                     {resumeLeague && (
-                                        <button className="hub-cta gold" onClick={() => handleSelectLeague(resumeLeague)}>RESUME {lastLeagueName?.toUpperCase()}</button>
+                                        <button className="hub-cta gold" onClick={() => handleSelectLeague(resumeLeague)}>RESUME {String(lastLeagueName || '').toUpperCase()}</button>
                                     )}
                                     {!resumeLeague && sleeperLeagues.length > 0 && (
-                                        <button className="hub-cta gold" onClick={() => handleSelectLeague(sleeperLeagues[0])}>ENTER {sleeperLeagues[0].name?.toUpperCase()}</button>
+                                        <button className="hub-cta gold" onClick={() => handleSelectLeague(sleeperLeagues[0])}>ENTER {String(sleeperLeagues[0].name || '').toUpperCase()}</button>
                                     )}
                                 </>
                             )}
@@ -281,21 +280,28 @@
                         </div>
                         <div className="product-card-body">
                             <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginBottom: '1rem', lineHeight: 1.6 }}>
-                                AI-powered dynasty assistant for trades, waivers, and roster strategy — tuned to your exact league and scoring.
+                                War room intelligence for trades, waivers, and roster strategy. AI-powered analysis tuned to your exact league and scoring.
                             </div>
 
-                            {sleeperUsername && sleeperLeagues.length > 0 && (
-                                <LeagueSelector onSelect={(league) => {
-                                    setReconLeagueId(league.id);
-                                    localStorage.setItem('wr_last_league_id', league.id);
-                                    localStorage.setItem('wr_last_league_name', league.name);
-                                }} accent="purple" />
-                            )}
-                            <a href={reconUrl(reconLeagueId || lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta purple" style={{ textDecoration: 'none' }}>ENTER RECONAI</a>
-                            {resumeLeague && (
-                                <div className="hub-cta-row">
-                                    <a href={reconUrl(lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta ghost-purple" style={{ textDecoration: 'none' }}>Open {lastLeagueName}</a>
+                            {!sleeperUsername ? (
+                                <div style={{ padding: '1rem 0', textAlign: 'center' }}>
+                                    <div style={{ fontSize: '0.82rem', color: 'var(--silver)', marginBottom: '12px' }}>Connect your Sleeper account to unlock ReconAI</div>
+                                    <a href={RECONAI_BASE} target="_blank" rel="noopener noreferrer" className="hub-cta ghost-purple" style={{ textDecoration: 'none' }}>Open ReconAI Directly</a>
                                 </div>
+                            ) : (
+                                <>
+                                    <LeagueSelector onSelect={(league) => {
+                                        setReconLeagueId(league.id);
+                                        localStorage.setItem('wr_last_league_id', league.id);
+                                        localStorage.setItem('wr_last_league_name', league.name);
+                                    }} accent="purple" />
+                                    <a href={reconUrl(reconLeagueId || lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta purple" style={{ textDecoration: 'none' }}>ENTER RECONAI</a>
+                                    {resumeLeague && (
+                                        <div className="hub-cta-row">
+                                            <a href={reconUrl(lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta ghost-purple" style={{ textDecoration: 'none' }}>{'Open ' + String(lastLeagueName || '')}</a>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
