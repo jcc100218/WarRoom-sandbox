@@ -253,12 +253,6 @@
                                 </div>
                             ) : (
                                 <>
-                                    <div className="hub-year-row">
-                                        <span className="hub-year-label">Season:</span>
-                                        <select className="hub-year-select" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
-                                            {AVAILABLE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                                        </select>
-                                    </div>
                                     <LeagueSelector onSelect={handleSelectLeague} accent="gold" />
                                     {resumeLeague && (
                                         <button className="hub-cta gold" onClick={() => handleSelectLeague(resumeLeague)}>RESUME {lastLeagueName?.toUpperCase()}</button>
@@ -291,31 +285,11 @@
                                 War room intelligence for trades, waivers, and roster strategy. AI-powered analysis tuned to your exact league and scoring.
                             </div>
 
-                            {!sleeperUsername ? (
-                                <div style={{ padding: '1rem 0', textAlign: 'center' }}>
-                                    <div style={{ fontSize: '0.82rem', color: 'var(--silver)', marginBottom: '12px' }}>Connect your Sleeper account to unlock ReconAI</div>
-                                    <a href={RECONAI_BASE} target="_blank" rel="noopener noreferrer" className="hub-cta ghost-purple" style={{ textDecoration: 'none' }}>Open ReconAI Directly</a>
+                            <a href={reconUrl(lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta purple" style={{ textDecoration: 'none' }}>ENTER RECONAI</a>
+                            {resumeLeague && (
+                                <div className="hub-cta-row">
+                                    <a href={reconUrl(lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta ghost-purple" style={{ textDecoration: 'none' }}>Open {lastLeagueName}</a>
                                 </div>
-                            ) : (
-                                <>
-                                    <div className="hub-year-row">
-                                        <span className="hub-year-label">Season:</span>
-                                        <select className="hub-year-select" value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
-                                            {AVAILABLE_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                                        </select>
-                                    </div>
-                                    <LeagueSelector onSelect={(league) => {
-                                        setReconLeagueId(league.id);
-                                        localStorage.setItem('wr_last_league_id', league.id);
-                                        localStorage.setItem('wr_last_league_name', league.name);
-                                    }} accent="purple" />
-                                    <a href={reconUrl(reconLeagueId || lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta purple" style={{ textDecoration: 'none' }}>ENTER RECONAI</a>
-                                    {resumeLeague && (
-                                        <div className="hub-cta-row">
-                                            <a href={reconUrl(lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta ghost-purple" style={{ textDecoration: 'none' }}>Open {lastLeagueName}</a>
-                                        </div>
-                                    )}
-                                </>
                             )}
                         </div>
                     </div>
