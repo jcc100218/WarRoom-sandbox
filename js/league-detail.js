@@ -171,19 +171,38 @@
         // ── LEGEND PANEL — explains War Room tools without revealing sauce ──
         function LegendPanel() {
             const [open, setOpen] = React.useState(false);
-            const items = [
-                { term: 'DHQ Value', def: 'Dynasty valuation score (0-10,000) combining production, age, situation, and market consensus. Higher = more valuable dynasty asset.' },
-                { term: 'Health Score', def: 'Team competitiveness rating (0-100). Blends scoring power (can you win weekly?) with positional coverage (are you deep enough?). 80+ = elite, 60+ = contender.' },
-                { term: 'Contender Rank', def: 'Your win-now ranking based on optimal starting lineup strength vs the rest of your league.' },
-                { term: 'Dynasty Rank', def: 'Your long-term ranking based on total asset value across your entire roster — starters, bench, and taxi.' },
-                { term: 'Peak Window', def: 'The age range where a player is statistically at peak production. Varies by position — RBs peak early, QBs last forever.' },
-                { term: 'Trend', def: 'Year-over-year production change (%). Positive = improving, negative = declining. Influences projections and trade recommendations.' },
-                { term: 'Owner DNA', def: 'Behavioral profile based on trade history — how an owner negotiates. Used to predict trade acceptance and suggest negotiation tactics.' },
-                { term: 'Compete Window', def: 'Estimated years your roster can remain competitive before age-related decline forces a rebuild.' },
-                { term: 'Elite Player', def: 'Any player with DHQ 7,000+. These are league-winning cornerstone assets. Most championship rosters have 2-3.' },
-                { term: 'Fit Score', def: 'How well a draft prospect fills your specific roster needs. Based on positional depth and starter requirements.' },
-                { term: 'FAAB', def: 'Free Agent Acquisition Budget — your waiver wire spending money. War Room suggests bid amounts based on player value and competitor analysis.' },
-                { term: 'Trade Impact', def: 'Simulates how a proposed trade would change your health score, elite count, and competitive tier before you send it.' },
+            const [expanded, setExpanded] = React.useState(false);
+            const quickItems = [
+                { term: 'DHQ Value', def: 'Dynasty value score (0-10,000). Higher = more valuable.' },
+                { term: 'Health Score', def: 'Team rating (0-100). Scoring power + depth.' },
+                { term: 'Elite Player', def: 'Top 5 at their position in your league.' },
+                { term: 'Peak Window', def: 'Age range for peak production by position.' },
+                { term: 'Owner DNA', def: 'Trade behavior profile for negotiations.' },
+                { term: 'Compete Window', def: 'Years before age decline forces rebuild.' },
+            ];
+            const fullItems = [
+                { cat: 'Valuations', items: [
+                    { term: 'DHQ Value', def: 'Dynasty valuation score on a 0-10,000 scale. Combines on-field production, age trajectory, roster situation, positional scarcity, and market consensus. Updated when you refresh data.' },
+                    { term: 'Elite Player', def: 'A player ranked top 5 at their position across all rosters in your league. Championship rosters typically have 2-4 elite assets.' },
+                    { term: 'Peak Window', def: 'The age range where players at each position are statistically most productive. QBs have the longest window (23-39), RBs the shortest (21-31). Players outside their window decline in value.' },
+                    { term: 'Trend', def: 'Year-over-year production change as a percentage. A player who went from 15 PPG to 18 PPG has a +20% trend. During the season, trend directly influences DHQ values (up to \u00B18%).' },
+                ]},
+                { cat: 'Team Assessment', items: [
+                    { term: 'Health Score', def: 'Your team\u2019s competitive readiness on a 0-100 scale. 60% is based on your optimal starting lineup strength, 40% on positional depth and coverage. 85+ = Elite tier, 72+ = Contender, 60+ = Crossroads.' },
+                    { term: 'Contender Rank', def: 'How you stack up for winning THIS season. Based on your best possible starting lineup PPG compared to every other team in the league.' },
+                    { term: 'Dynasty Rank', def: 'Your long-term foundation strength. Based on total DHQ value across your entire roster \u2014 starters, bench, taxi, and picks.' },
+                    { term: 'Compete Window', def: 'How many more years your roster can realistically compete before age-related decline forces a rebuild. Based on the age curves of your top assets.' },
+                ]},
+                { cat: 'Trading', items: [
+                    { term: 'Owner DNA', def: 'A behavioral profile derived from each owner\u2019s trade history. Types include Fleecer (always wins trades), Stalwart (fair deals only), Dominator (wants to feel like the winner), Acceptor (open to deals), and Desperate (panic trades). Used to predict acceptance likelihood.' },
+                    { term: 'Trade Impact', def: 'Before you send a trade, see exactly how it changes your health score, elite count, and competitive tier. Simulates the roster swap and recalculates everything.' },
+                    { term: 'Acceptance Likelihood', def: 'Predicted chance the other owner accepts your offer, based on value difference, their DNA type, positional needs, and psychological factors like endowment bias.' },
+                ]},
+                { cat: 'Draft & Free Agency', items: [
+                    { term: 'Fit Score', def: 'How well a draft prospect fills your specific roster needs. A team thin at RB will see RB prospects scored higher. Based on positional depth analysis.' },
+                    { term: 'FAAB Strategy', def: 'Free Agent Acquisition Budget recommendations. War Room analyzes which other teams need the same players and how much budget they have left, then suggests a bid amount to win without overpaying.' },
+                    { term: 'Drop Candidates', def: 'Your lowest-value bench players that could be cut to make room for upgrades. Sorted by DHQ with peak status flagged.' },
+                ]},
             ];
             return React.createElement('div', { style: { marginBottom: '8px' } },
                 React.createElement('button', {
@@ -192,11 +211,38 @@
                     onMouseEnter: e => { e.currentTarget.style.background = 'rgba(212,175,55,0.06)'; },
                     onMouseLeave: e => { e.currentTarget.style.background = 'transparent'; }
                 }, open ? '\u25BC' : '\u25B6', ' Legend'),
-                open && React.createElement('div', { style: { padding: '8px 12px', maxHeight: '300px', overflowY: 'auto' } },
-                    ...items.map(item => React.createElement('div', { key: item.term, style: { marginBottom: '10px' } },
-                        React.createElement('div', { style: { fontSize: '0.76rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', letterSpacing: '0.04em' } }, item.term),
-                        React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.5, marginTop: '2px' } }, item.def)
-                    ))
+                open && React.createElement('div', { style: { padding: '8px 12px' } },
+                    ...quickItems.map(item => React.createElement('div', { key: item.term, style: { marginBottom: '8px' } },
+                        React.createElement('div', { style: { fontSize: '0.72rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald' } }, item.term),
+                        React.createElement('div', { style: { fontSize: '0.68rem', color: 'var(--silver)', lineHeight: 1.4, marginTop: '1px' } }, item.def)
+                    )),
+                    React.createElement('button', {
+                        onClick: () => setExpanded(true),
+                        style: { width: '100%', marginTop: '6px', padding: '6px', fontSize: '0.72rem', fontFamily: 'Oswald', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer' }
+                    }, 'FULL GUIDE \u2192')
+                ),
+                // Expanded modal overlay
+                expanded && React.createElement('div', {
+                    onClick: () => setExpanded(false),
+                    style: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }
+                },
+                    React.createElement('div', {
+                        onClick: e => e.stopPropagation(),
+                        style: { background: '#0a0b0d', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '14px', width: '100%', maxWidth: '640px', maxHeight: '80vh', overflowY: 'auto', padding: '24px 28px' }
+                    },
+                        React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' } },
+                            React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1.4rem', color: 'var(--gold)', letterSpacing: '0.06em' } }, 'WAR ROOM GUIDE'),
+                            React.createElement('button', { onClick: () => setExpanded(false), style: { background: 'none', border: 'none', color: 'var(--silver)', cursor: 'pointer', fontSize: '1.2rem' } }, '\u2715')
+                        ),
+                        React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '20px' } }, 'Fantasy Wars analyzes your dynasty league to give you an edge in every decision \u2014 trades, drafts, waivers, and roster construction. Here\u2019s what every tool and metric means.'),
+                        ...fullItems.map(section => React.createElement('div', { key: section.cat, style: { marginBottom: '20px' } },
+                            React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', borderBottom: '1px solid rgba(212,175,55,0.2)', paddingBottom: '4px', marginBottom: '10px' } }, section.cat),
+                            ...section.items.map(item => React.createElement('div', { key: item.term, style: { marginBottom: '12px' } },
+                                React.createElement('div', { style: { fontSize: '0.84rem', fontWeight: 700, color: 'var(--white)' } }, item.term),
+                                React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.6, marginTop: '2px' } }, item.def)
+                            ))
+                        ))
+                    )
                 )
             );
         }
@@ -3358,9 +3404,13 @@
                     display: 'flex', flexDirection: 'column',
                     padding: '16px 0', zIndex: 100, transition: 'transform 0.2s ease'
                 }}>
-                    {/* Logo */}
-                    <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.3rem', color: 'var(--gold)', letterSpacing: '0.06em', padding: '0 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      WAR ROOM
+                    {/* Logo — click to go home */}
+                    <div onClick={onBack} style={{ padding: '0 16px', marginBottom: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} title="Back to Fantasy Wars home">
+                      <img src="icon-192.png" alt="Fantasy Wars" style={{ width: '28px', height: '28px', borderRadius: '6px' }} onError={e => { e.target.style.display = 'none'; }} />
+                      <div>
+                        <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', lineHeight: 1.1 }}>FANTASY WARS</div>
+                        <div style={{ fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.5, fontFamily: 'Oswald', letterSpacing: '0.04em' }}>WAR ROOM</div>
+                      </div>
                       {(() => {
                         const champs = window.App?.LI?.championships || {};
                         const cnt = Object.values(champs).filter(c => c.champion === myRoster?.roster_id).length;
