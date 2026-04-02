@@ -4037,10 +4037,16 @@
 
                             // Health score
                             let healthScore = 0;
+                            let tier = 'UNKNOWN';
+                            let needs = [];
                             try {
                                 if (window.assessTeamFromGlobal) {
                                     const assessment = window.assessTeamFromGlobal(myRid);
-                                    if (assessment) healthScore = assessment.healthScore || 0;
+                                    if (assessment) {
+                                        healthScore = assessment.healthScore || 0;
+                                        tier = (assessment.tier || 'UNKNOWN').toUpperCase();
+                                        needs = assessment.needs || [];
+                                    }
                                 }
                             } catch(e) {}
                             // Winner avg health
