@@ -377,6 +377,46 @@
                     </div>
                 </div>}
 
+                {/* ── DROP CANDIDATES — lowest-value rostered players ── */}
+                {myRoster?.players?.length > 0 && (() => {
+                    const dropCandidates = (myRoster.players || [])
+                        .map(pid => {
+                            const p = playersData[pid];
+                            if (!p) return null;
+                            const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+                            const pos = normPos(p.position) || p.position;
+                            const meta = window.App?.LI?.playerMeta?.[pid];
+                            const peakYrs = meta?.peakYrsLeft || 0;
+                            const isStarter = (myRoster.starters || []).includes(pid);
+                            // Skip starters — only suggest bench/taxi drops
+                            if (isStarter) return null;
+                            return { pid, p, dhq, pos, peakYrs, name: p.full_name || 'Unknown', age: p.age || 0 };
+                        })
+                        .filter(Boolean)
+                        .sort((a, b) => a.dhq - b.dhq)
+                        .slice(0, 5);
+                    if (!dropCandidates.length) return null;
+                    return React.createElement('div', { style: { marginBottom: '20px' } },
+                        React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1rem', color: '#E74C3C', letterSpacing: '0.06em', marginBottom: '8px' } }, 'DROP CANDIDATES'),
+                        React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Lowest-value bench players — cut to make room for upgrades'),
+                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
+                            ...dropCandidates.map(d =>
+                                React.createElement('div', { key: d.pid, onClick: () => { if (window._wrSelectPlayer) window._wrSelectPlayer(d.pid); }, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(231,76,60,0.04)', border: '1px solid rgba(231,76,60,0.15)', borderRadius: '8px', cursor: 'pointer' } },
+                                    React.createElement('img', { src: 'https://sleepercdn.com/content/nfl/players/' + d.pid + '.jpg', style: { width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }, onError: e => { e.target.style.display = 'none'; } }),
+                                    React.createElement('div', { style: { flex: 1 } },
+                                        React.createElement('div', { style: { fontSize: '0.84rem', fontWeight: 600, color: 'var(--white)' } }, d.name),
+                                        React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, d.pos + ' \u00B7 ' + (d.p.team || 'FA') + ' \u00B7 Age ' + (d.age || '?'))
+                                    ),
+                                    React.createElement('div', { style: { textAlign: 'right' } },
+                                        React.createElement('div', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Oswald', color: d.dhq > 0 ? 'var(--silver)' : '#E74C3C' } }, d.dhq > 0 ? d.dhq.toLocaleString() : 'No value'),
+                                        React.createElement('div', { style: { fontSize: '0.68rem', color: d.peakYrs <= 0 ? '#E74C3C' : 'var(--silver)' } }, d.peakYrs > 0 ? d.peakYrs + 'yr peak' : 'Past peak')
+                                    )
+                                )
+                            )
+                        )
+                    );
+                })()}
+
                 {/* ── POSITION FILTER + FULL LIST (Analyst only, or always if no recs) ── */}
                 {(viewMode !== 'command' || recommendations.length === 0) && <React.Fragment><div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <span style={{ fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginRight: '8px' }}>ALL FREE AGENTS</span>
