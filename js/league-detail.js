@@ -168,6 +168,39 @@
             return Math.max(0, Math.round(val));
         }
 
+        // ── LEGEND PANEL — explains War Room tools without revealing sauce ──
+        function LegendPanel() {
+            const [open, setOpen] = React.useState(false);
+            const items = [
+                { term: 'DHQ Value', def: 'Dynasty valuation score (0-10,000) combining production, age, situation, and market consensus. Higher = more valuable dynasty asset.' },
+                { term: 'Health Score', def: 'Team competitiveness rating (0-100). Blends scoring power (can you win weekly?) with positional coverage (are you deep enough?). 80+ = elite, 60+ = contender.' },
+                { term: 'Contender Rank', def: 'Your win-now ranking based on optimal starting lineup strength vs the rest of your league.' },
+                { term: 'Dynasty Rank', def: 'Your long-term ranking based on total asset value across your entire roster — starters, bench, and taxi.' },
+                { term: 'Peak Window', def: 'The age range where a player is statistically at peak production. Varies by position — RBs peak early, QBs last forever.' },
+                { term: 'Trend', def: 'Year-over-year production change (%). Positive = improving, negative = declining. Influences projections and trade recommendations.' },
+                { term: 'Owner DNA', def: 'Behavioral profile based on trade history — how an owner negotiates. Used to predict trade acceptance and suggest negotiation tactics.' },
+                { term: 'Compete Window', def: 'Estimated years your roster can remain competitive before age-related decline forces a rebuild.' },
+                { term: 'Elite Player', def: 'Any player with DHQ 7,000+. These are league-winning cornerstone assets. Most championship rosters have 2-3.' },
+                { term: 'Fit Score', def: 'How well a draft prospect fills your specific roster needs. Based on positional depth and starter requirements.' },
+                { term: 'FAAB', def: 'Free Agent Acquisition Budget — your waiver wire spending money. War Room suggests bid amounts based on player value and competitor analysis.' },
+                { term: 'Trade Impact', def: 'Simulates how a proposed trade would change your health score, elite count, and competitive tier before you send it.' },
+            ];
+            return React.createElement('div', { style: { marginBottom: '8px' } },
+                React.createElement('button', {
+                    onClick: () => setOpen(!open),
+                    style: { width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--gold)', fontSize: '0.78rem', fontFamily: 'Oswald, sans-serif', letterSpacing: '0.03em', textAlign: 'left' },
+                    onMouseEnter: e => { e.currentTarget.style.background = 'rgba(212,175,55,0.06)'; },
+                    onMouseLeave: e => { e.currentTarget.style.background = 'transparent'; }
+                }, open ? '\u25BC' : '\u25B6', ' Legend'),
+                open && React.createElement('div', { style: { padding: '8px 12px', maxHeight: '300px', overflowY: 'auto' } },
+                    ...items.map(item => React.createElement('div', { key: item.term, style: { marginBottom: '10px' } },
+                        React.createElement('div', { style: { fontSize: '0.76rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Oswald', letterSpacing: '0.04em' } }, item.term),
+                        React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.5, marginTop: '2px' } }, item.def)
+                    ))
+                )
+            );
+        }
+
         // ── REACTIVE: when timeYear changes, refetch + recompute everything ──
         useEffect(() => {
             if (!basePlayersData || !Object.keys(basePlayersData).length) return;
@@ -3393,6 +3426,9 @@
                         <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: window.App?.LI_LOADED ? '#2ECC71' : 'var(--silver)', margin: '0 auto 2px' }}></div>
                         {window.App?.LI_LOADED ? 'Synced' : 'Loading'}
                     </div>
+
+                    {/* Legend / Guide */}
+                    {React.createElement(LegendPanel)}
 
                     {/* Refresh Button */}
                     <button onClick={async () => {

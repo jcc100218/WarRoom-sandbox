@@ -143,9 +143,28 @@
     // ===== GLOBAL UI COMPONENTS =====
     function Tip({ children }) {
         const [open, setOpen] = React.useState(false);
-        return React.createElement(React.Fragment, null,
-            React.createElement('span', { className:'wr-tip-icon', onClick:function(e){ e.stopPropagation(); setOpen(!open); } }, '?'),
-            open ? React.createElement('div', { className:'wr-tip-box show', onClick:function(e){ e.stopPropagation(); } }, children) : null
+        const ref = React.useRef(null);
+        // Close when clicking outside
+        React.useEffect(() => {
+            if (!open) return;
+            function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+            document.addEventListener('click', handleClick);
+            return () => document.removeEventListener('click', handleClick);
+        }, [open]);
+        return React.createElement('span', { ref: ref, style: { position: 'relative', display: 'inline-flex' } },
+            React.createElement('span', {
+                className: 'wr-tip-icon',
+                onClick: function(e) { e.stopPropagation(); setOpen(!open); },
+                onMouseEnter: function() { setOpen(true); },
+                onMouseLeave: function() { setTimeout(function() { setOpen(false); }, 2000); }
+            }, '?'),
+            open ? React.createElement('div', {
+                className: 'wr-tip-box show',
+                onClick: function(e) { e.stopPropagation(); },
+                onMouseEnter: function() { setOpen(true); },
+                onMouseLeave: function() { setOpen(false); },
+                style: { position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: '6px', width: '220px', zIndex: 500, whiteSpace: 'normal' }
+            }, children) : null
         );
     }
 
