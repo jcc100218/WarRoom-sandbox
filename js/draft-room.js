@@ -304,25 +304,11 @@
                     // Initialize My Board order if empty
                     const initMyBoard = () => { if (myBoardOrder.length === 0) setMyBoardOrder(rookies.map(r => r.pid)); };
 
-                    // Get board players based on mode
-                    let boardPlayers;
-                    if (boardMode === 'my') {
-                        initMyBoard();
-                        const order = myBoardOrder.length ? myBoardOrder : rookies.map(r => r.pid);
-                        boardPlayers = order.map(pid => rookies.find(r => r.pid === pid)).filter(Boolean);
-                        // Add any rookies not in the order
-                        const inOrder = new Set(order);
-                        rookies.forEach(r => { if (!inOrder.has(r.pid)) boardPlayers.push(r); });
-                    } else {
-                        boardPlayers = [...rookies];
-                    }
-
-                    // Apply position filter
-                    if (boardPosFilter) boardPlayers = boardPlayers.filter(r => normPos(r.p.position) === boardPosFilter);
-
-                    // Apply sorting (only in DHQ mode — My Board uses custom order)
-                    if (boardMode === 'dhq' && boardSort.key) {
-                        boardPlayers.sort((a, b) => {
+                    // DHQ board: always sorted by DHQ from engine (never affected by My Board)
+                    let dhqBoardPlayers = [...rookies];
+                    if (boardPosFilter) dhqBoardPlayers = dhqBoardPlayers.filter(r => normPos(r.p.position) === boardPosFilter);
+                    if (boardSort.key) {
+                        dhqBoardPlayers.sort((a, b) => {
                             let va, vb;
                             const k = boardSort.key;
                             if (k === 'dhq') { va = a.dhq; vb = b.dhq; }
@@ -522,7 +508,7 @@
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                             <div>
                                 <div style={{ fontFamily: 'Oswald', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>DHQ Board <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.5, textTransform: 'none' }}>engine rankings</span></div>
-                                {renderCompactBoard(boardPlayers, true)}
+                                {renderCompactBoard(dhqBoardPlayers, true)}
                             </div>
                             <div>
                                 <div style={{ fontFamily: 'Oswald', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>My Board <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.5, textTransform: 'none' }}>your rankings</span></div>

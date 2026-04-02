@@ -106,6 +106,21 @@
                     React.createElement('div', { style:{ fontSize:'0.68rem', color:'#7d8291', textTransform:'uppercase', letterSpacing:'0.06em' } }, s.lbl)
                 ); })
             ),
+            // Age curve visualization
+            React.createElement('div', { style:{ padding:'8px 16px' } },
+                React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px' } },
+                    React.createElement('div', { style:{ fontSize:'0.68rem', color:'#7d8291', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700 } }, 'Age Curve'),
+                    React.createElement('div', { style:{ fontSize:'0.72rem', color:peakCol } }, peakLabel+' \u00B7 '+(peakYrs > 0 ? peakYrs+'yr left' : 'Past peak'))
+                ),
+                React.createElement('div', { style:{ display:'flex', height:'16px', borderRadius:'4px', overflow:'hidden', gap:'1px' } },
+                    ...Array.from({length:17}, function(_,i){ var a=i+20; var col=a<pLo-3?'rgba(96,165,250,0.3)':a<pLo?'rgba(46,204,113,0.45)':(a>=pLo&&a<=pHi)?'rgba(46,204,113,0.75)':a<=pHi+2?'rgba(212,175,55,0.45)':'rgba(231,76,60,0.35)'; return React.createElement('div', { key:a, style:{ flex:1, background:col, opacity:a===age?1:0.55, outline:a===age?'2px solid #D4AF37':'none', outlineOffset:'-1px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.6rem', fontWeight:700, color:a===age?'#f0f0f3':'transparent' } }, a===age?String(age):''); })
+                ),
+                React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', fontSize:'0.64rem', color:'#7d8291', marginTop:'2px' } },
+                    React.createElement('span', null, '20'),
+                    React.createElement('span', null, 'Peak '+pLo+'\u2013'+pHi),
+                    React.createElement('span', null, '36')
+                )
+            ),
             // Recommendation line — Alex Ingram insight
             React.createElement('div', { style:{ padding:'6px 12px', margin:'0 8px', background:'rgba(212,175,55,0.04)', borderLeft:'3px solid rgba(212,175,55,0.4)', borderRadius:'0 6px 6px 0', display:'flex', gap:'6px', alignItems:'flex-start' } },
                 React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'5px', background:'linear-gradient(135deg, #D4AF37, #B8941E)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'0.5rem', fontWeight:800, color:'#0A0A0A', fontFamily:'Bebas Neue', marginTop:'2px' } }, 'AI'),

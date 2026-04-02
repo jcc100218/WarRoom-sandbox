@@ -42,7 +42,14 @@
         const isAnalyst = viewMode === 'analyst';
         useEffect(() => { try { localStorage.setItem('wr_view_mode', viewMode); } catch(e) {} }, [viewMode]);
 
-        window._wrSelectPlayer = setSelectedPlayerPid;
+        // Open full player modal instead of mini card
+        window._wrSelectPlayer = (pid) => {
+            if (typeof window.openFWPlayerModal === 'function') {
+                window.openFWPlayerModal(pid, playersData, statsData, currentLeague?.scoring_settings || {});
+            } else {
+                setSelectedPlayerPid(pid);
+            }
+        };
 
         // Derived selectors — modules use these, never compute their own
         const isCurrentYear = timeYear === currentSeason;
