@@ -417,6 +417,185 @@
                     );
                 })()}
 
+                {/* ── DROP-FOR-ADD PAIRS — combine drop + pickup into actionable moves ── */}
+                {(() => {
+                    const drops = (myRoster?.players || [])
+                        .filter(pid => !(myRoster.starters || []).includes(pid))
+                        .map(pid => ({ pid, p: playersData[pid], dhq: window.App?.LI?.playerScores?.[pid] || 0, pos: normPos(playersData[pid]?.position) }))
+                        .filter(d => d.p && d.dhq < 2000)
+                        .sort((a, b) => a.dhq - b.dhq).slice(0, 5);
+                    const pairs = [];
+                    drops.forEach(drop => {
+                        const upgrade = availablePlayers.find(a => a.pos === drop.pos && a.dhq > drop.dhq + 500 && !pairs.some(p => p.add.pid === a.pid));
+                        if (upgrade) {
+                            const addFaab = faabSuggest(upgrade.dhq, upgrade.pos);
+                            pairs.push({ drop, add: upgrade, faab: addFaab, gain: upgrade.dhq - drop.dhq });
+                        }
+                    });
+                    if (!pairs.length) return null;
+                    return React.createElement('div', { style: { marginBottom: '20px' } },
+                        React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1rem', color: '#2ECC71', letterSpacing: '0.06em', marginBottom: '4px' } }, 'RECOMMENDED MOVES'),
+                        React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Drop + add pairs that upgrade your roster'),
+                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
+                            ...pairs.slice(0, 4).map((pair, i) =>
+                                React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'rgba(46,204,113,0.04)', border: '1px solid rgba(46,204,113,0.15)', borderRadius: '8px' } },
+                                    React.createElement('div', { style: { flex: 1 } },
+                                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' } },
+                                            React.createElement('span', { style: { fontSize: '0.78rem', color: '#E74C3C', fontWeight: 700 } }, '\u2212 ' + (pair.drop.p.full_name || 'Unknown')),
+                                            React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, pair.drop.pos + ' \u00B7 ' + pair.drop.dhq.toLocaleString() + ' DHQ')
+                                        ),
+                                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
+                                            React.createElement('span', { style: { fontSize: '0.78rem', color: '#2ECC71', fontWeight: 700 } }, '+ ' + (pair.add.p.full_name || 'Unknown')),
+                                            React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, pair.add.pos + ' \u00B7 ' + pair.add.dhq.toLocaleString() + ' DHQ')
+                                        )
+                                    ),
+                                    React.createElement('div', { style: { textAlign: 'right', flexShrink: 0 } },
+                                        React.createElement('div', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Oswald', color: '#2ECC71' } }, '+' + pair.gain.toLocaleString()),
+                                        pair.faab && React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--gold)' } }, '$' + pair.faab.lo + '-' + pair.faab.hi)
+                                    )
+                                )
+                            )
+                        )
+                    );
+                })()}
+
+                {/* ── LEAGUE FAAB TRACKER — every team's remaining budget ── */}
+                {hasFAAB && React.createElement('div', { style: { marginBottom: '20px' } },
+                    React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' } }, 'LEAGUE FAAB TRACKER'),
+                    React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'See who can outbid you \u2014 and who\u2019s tapped out'),
+                    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px' } },
+                        ...(currentLeague.rosters || []).map(r => {
+                            const user = (currentLeague.users || []).find(u => u.user_id === r.owner_id);
+                            const name = user?.display_name || user?.username || ('Team ' + r.roster_id);
+                            const rBudget = currentLeague?.settings?.waiver_budget || 0;
+                            const rSpent = r.settings?.waiver_budget_used || 0;
+                            const rRemaining = Math.max(0, rBudget - rSpent);
+                            const pct = rBudget > 0 ? Math.round(rRemaining / rBudget * 100) : 0;
+                            const col = pct > 50 ? '#2ECC71' : pct > 25 ? '#F0A500' : '#E74C3C';
+                            const isMe = r.roster_id === myRoster?.roster_id;
+                            return React.createElement('div', { key: r.roster_id, style: { background: isMe ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)', border: '1px solid ' + (isMe ? 'rgba(212,175,55,0.3)' : 'rgba(255,255,255,0.06)'), borderRadius: '8px', padding: '8px 10px' } },
+                                React.createElement('div', { style: { fontSize: '0.76rem', fontWeight: isMe ? 700 : 500, color: isMe ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '4px' } }, name + (isMe ? ' (you)' : '')),
+                                React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
+                                    React.createElement('div', { style: { flex: 1, height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' } },
+                                        React.createElement('div', { style: { height: '100%', width: pct + '%', background: col, borderRadius: '3px' } })
+                                    ),
+                                    React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, fontFamily: 'Oswald', color: col, minWidth: '32px', textAlign: 'right' } }, '$' + rRemaining)
+                                )
+                            );
+                        }).sort((a, b) => {
+                            const aMe = a.key === myRoster?.roster_id;
+                            return aMe ? -1 : 0;
+                        })
+                    )
+                )}
+
+                {/* ── WAIVER PRIORITY BOARD — full ranked pickup list ── */}
+                {React.createElement('div', { style: { marginBottom: '20px' } },
+                    React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' } }, 'WAIVER PRIORITY BOARD'),
+                    React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'All available players ranked by pickup priority'),
+                    React.createElement('div', { style: { background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '10px', overflow: 'hidden', maxHeight: '400px', overflowY: 'auto' } },
+                        ...availablePlayers.slice(0, 25).map((x, i) => {
+                            const st = statsData[x.pid] || {};
+                            const ppg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : 0;
+                            const [, pHi2] = peaks[x.pos] || [24, 29];
+                            const peakYrs2 = Math.max(0, pHi2 - (x.p.age || 25));
+                            const myNeed = assess?.needs?.find(n => n.pos === x.pos);
+                            const faab2 = faabSuggest(x.dhq, x.pos);
+                            const dhqCol2 = x.dhq >= 7000 ? '#2ECC71' : x.dhq >= 4000 ? '#3498DB' : x.dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)';
+                            return React.createElement('div', { key: x.pid, onClick: () => { if (window._wrSelectPlayer) window._wrSelectPlayer(x.pid); }, style: { display: 'grid', gridTemplateColumns: '24px 1fr 40px 42px 50px 60px', gap: '6px', padding: '6px 10px', borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', fontSize: '0.76rem', alignItems: 'center', background: myNeed ? 'rgba(46,204,113,0.03)' : 'transparent' },
+                                onMouseEnter: e => { e.currentTarget.style.background = 'rgba(212,175,55,0.06)'; },
+                                onMouseLeave: e => { e.currentTarget.style.background = myNeed ? 'rgba(46,204,113,0.03)' : 'transparent'; }
+                            },
+                                React.createElement('span', { style: { fontFamily: 'Oswald', color: i < 3 ? 'var(--gold)' : 'var(--silver)' } }, i + 1),
+                                React.createElement('div', { style: { overflow: 'hidden' } },
+                                    React.createElement('div', { style: { fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, x.p.full_name || 'Unknown'),
+                                    React.createElement('div', { style: { fontSize: '0.68rem', color: 'var(--silver)' } }, x.pos + ' \u00B7 ' + (x.p.team || 'FA') + (myNeed ? ' \u00B7 fills ' + myNeed.urgency : ''))
+                                ),
+                                React.createElement('span', { style: { fontWeight: 700, color: posColors[x.pos] || 'var(--silver)' } }, x.pos),
+                                React.createElement('span', { style: { color: 'var(--silver)' } }, ppg > 0 ? ppg : '\u2014'),
+                                React.createElement('span', { style: { fontWeight: 700, fontFamily: 'Oswald', color: dhqCol2 } }, x.dhq > 0 ? x.dhq.toLocaleString() : '\u2014'),
+                                faab2 ? React.createElement('span', { style: { fontWeight: 700, color: 'var(--gold)', fontSize: '0.72rem' } }, '$' + faab2.lo + '-' + faab2.hi) : React.createElement('span', null, '\u2014')
+                            );
+                        })
+                    )
+                )}
+
+                {/* ── ROSTER CHURN ALERTS — recently dropped startable players ── */}
+                {(() => {
+                    const recentDrops = [];
+                    const transactions = window.S?.transactions || {};
+                    const curWeek = window.S?.currentWeek || 1;
+                    for (let w = curWeek; w >= Math.max(1, curWeek - 2); w--) {
+                        (transactions['w' + w] || []).forEach(t => {
+                            if (t.type !== 'free_agent' && t.type !== 'waiver') return;
+                            Object.keys(t.drops || {}).forEach(pid => {
+                                const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+                                if (dhq >= 1500) {
+                                    const dropper = (currentLeague.users || []).find(u => {
+                                        const r = (currentLeague.rosters || []).find(r2 => t.roster_ids?.includes(r2.roster_id) && r2.owner_id === u.user_id);
+                                        return !!r;
+                                    });
+                                    recentDrops.push({ pid, dhq, name: playersData[pid]?.full_name || 'Unknown', pos: normPos(playersData[pid]?.position), week: w, droppedBy: dropper?.display_name || 'Unknown' });
+                                }
+                            });
+                        });
+                    }
+                    if (!recentDrops.length) return null;
+                    return React.createElement('div', { style: { marginBottom: '20px' } },
+                        React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1rem', color: '#F0A500', letterSpacing: '0.06em', marginBottom: '4px' } }, 'ROSTER CHURN ALERTS'),
+                        React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Startable players dropped in the last 2 weeks'),
+                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
+                            ...recentDrops.slice(0, 6).map(d =>
+                                React.createElement('div', { key: d.pid, onClick: () => { if (window._wrSelectPlayer) window._wrSelectPlayer(d.pid); }, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(240,165,0,0.04)', border: '1px solid rgba(240,165,0,0.15)', borderRadius: '8px', cursor: 'pointer' } },
+                                    React.createElement('div', { style: { flex: 1 } },
+                                        React.createElement('div', { style: { fontSize: '0.84rem', fontWeight: 600, color: 'var(--white)' } }, d.name),
+                                        React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, d.pos + ' \u00B7 DHQ ' + d.dhq.toLocaleString() + ' \u00B7 Dropped by ' + d.droppedBy + ' \u00B7 Week ' + d.week)
+                                    ),
+                                    React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, color: '#F0A500' } }, 'GRAB')
+                                )
+                            )
+                        )
+                    );
+                })()}
+
+                {/* ── FAAB BIDDING INTELLIGENCE — competitor-aware strategy ── */}
+                {hasFAAB && recommendations.length > 0 && React.createElement('div', { style: { marginBottom: '20px' } },
+                    React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' } }, 'BIDDING STRATEGY'),
+                    React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Competitor-aware bid recommendations for your top targets'),
+                    React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
+                        ...recommendations.slice(0, 4).map(r => {
+                            if (!r.faab) return null;
+                            // Find the richest competitor who needs this position
+                            let topCompetitor = null;
+                            (currentLeague.rosters || []).forEach(ros => {
+                                if (ros.roster_id === myRoster?.roster_id) return;
+                                const cnt = (ros.players || []).filter(pid => normPos(playersData[pid]?.position) === r.pos).length;
+                                const reqCount = (currentLeague.roster_positions || []).filter(s => normPos(s) === r.pos || s === 'FLEX').length;
+                                if (cnt < reqCount) {
+                                    const rBudget2 = currentLeague?.settings?.waiver_budget || 0;
+                                    const rSpent2 = ros.settings?.waiver_budget_used || 0;
+                                    const rRem = Math.max(0, rBudget2 - rSpent2);
+                                    const user2 = (currentLeague.users || []).find(u => u.user_id === ros.owner_id);
+                                    if (!topCompetitor || rRem > topCompetitor.remaining) {
+                                        topCompetitor = { name: user2?.display_name || 'Unknown', remaining: rRem, rosterId: ros.roster_id };
+                                    }
+                                }
+                            });
+                            const strategyBid = topCompetitor && topCompetitor.remaining > r.faab.sug ? Math.min(remaining, Math.round(topCompetitor.remaining * 0.6)) : r.faab.sug;
+                            const strategy = topCompetitor
+                                ? (topCompetitor.remaining > r.faab.hi ? topCompetitor.name + ' has $' + topCompetitor.remaining + ' and needs ' + r.pos + '. Bid $' + strategyBid + ' to beat them.' : 'Low threat \u2014 bid $' + r.faab.sug + ' (standard)')
+                                : 'No competition \u2014 bid minimum $' + r.faab.lo;
+                            return React.createElement('div', { key: r.pid, style: { padding: '10px 14px', background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px' } },
+                                React.createElement('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' } },
+                                    React.createElement('span', { style: { fontSize: '0.84rem', fontWeight: 700, color: 'var(--white)' } }, r.p.full_name || 'Unknown'),
+                                    React.createElement('span', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Oswald', color: 'var(--gold)' } }, '$' + strategyBid)
+                                ),
+                                React.createElement('div', { style: { fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.5 } }, strategy)
+                            );
+                        }).filter(Boolean)
+                    )
+                )}
+
                 {/* ── POSITION FILTER + FULL LIST (Analyst only, or always if no recs) ── */}
                 {(viewMode !== 'command' || recommendations.length === 0) && <React.Fragment><div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <span style={{ fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginRight: '8px' }}>ALL FREE AGENTS</span>
