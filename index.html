@@ -773,8 +773,7 @@
     @keyframes wrFadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
     .wr-fade-in { animation:wrFadeIn 0.25s ease both }
     .wr-fade-in-delay { animation:wrFadeIn 0.3s ease 0.1s both }
-    @keyframes wrPulseGold { 0%,100%{box-shadow:0 0 0 0 rgba(212,175,55,0)} 50%{box-shadow:0 0 0 4px rgba(212,175,55,0.15)} }
-    .wr-pulse { animation:wrPulseGold 2s ease infinite }
+    .wr-pulse { box-shadow:0 0 0 2px rgba(212,175,55,0.15) }
 
     /* ── Annotation callout ──────────────────────────────── */
     .wr-annotation { font-size:0.72rem;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:0.02em;padding:3px 8px;border-radius:4px;border-left:2px solid var(--gold);background:rgba(212,175,55,0.06);color:var(--silver);line-height:1.4;margin-top:6px }
@@ -788,11 +787,9 @@
     .wr-scanline::after{content:'';position:absolute;top:-100%;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(212,175,55,0.15),transparent);animation:wrScan 5s linear infinite}
     @keyframes wrScan{0%{top:-2px}100%{top:100%}}
 
-    /* ── Critical pulse for buttons/alerts ────────────────── */
-    .wr-pulse-gold{animation:wrPulseGoldBtn 2s ease infinite}
-    @keyframes wrPulseGoldBtn{0%,100%{box-shadow:0 0 0 0 rgba(212,175,55,0.3)}50%{box-shadow:0 0 0 8px rgba(212,175,55,0)}}
-    .wr-pulse-red{animation:wrPulseRed 1.5s ease infinite}
-    @keyframes wrPulseRed{0%,100%{box-shadow:0 0 0 0 rgba(231,76,60,0.3)}50%{box-shadow:0 0 0 8px rgba(231,76,60,0)}}
+    /* ── Accent classes (static, no animation) ──────────────── */
+    .wr-pulse-gold{box-shadow:0 0 0 2px rgba(212,175,55,0.25)}
+    .wr-pulse-red{box-shadow:0 0 0 2px rgba(231,76,60,0.25)}
 
     /* ── Corner brackets (targeting reticle) ──────────────── */
     .wr-brackets{position:relative;padding:12px 16px}
@@ -832,8 +829,7 @@
     .wr-ring-pre{box-shadow:0 0 0 2px #3498DB}
     .wr-ring-post{box-shadow:0 0 0 2px #F0A500}
     .wr-ring-decline{box-shadow:0 0 0 2px #E74C3C}
-    .wr-ring-starter{animation:wrStarterPulse 2s ease infinite}
-    @keyframes wrStarterPulse{0%,100%{box-shadow:0 0 0 2px #D4AF37}50%{box-shadow:0 0 0 4px rgba(212,175,55,0.3)}}
+    .wr-ring-starter{box-shadow:0 0 0 2px #D4AF37}
 
     /* Mini trend sparkline bars */
     .wr-spark{display:flex;align-items:flex-end;gap:1px;height:16px}
