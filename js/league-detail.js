@@ -85,6 +85,22 @@
         // Persist time year
         useEffect(() => { try { localStorage.setItem('wr_time_year', String(timeYear)); } catch(e) {} }, [timeYear]);
 
+        // Validate shared dependencies from ReconAI CDN
+        useEffect(() => {
+            const deps = {
+                'dynastyValue': typeof window.dynastyValue === 'function',
+                'assessTeamFromGlobal': typeof window.assessTeamFromGlobal === 'function',
+                'calcOptimalPPG': typeof window.App?.calcOptimalPPG === 'function',
+                'getPlayerAction': typeof window.getPlayerAction === 'function',
+                'peakWindows': !!window.App?.peakWindows,
+                'normPos': typeof window.App?.normPos === 'function',
+            };
+            const missing = Object.entries(deps).filter(([, ok]) => !ok).map(([name]) => name);
+            if (missing.length) {
+                console.warn('[War Room] Missing shared dependencies:', missing.join(', '), '— some features may not work. Try refreshing.');
+            }
+        }, []);
+
         // Save base player data on first load (before any age projection)
         useEffect(() => {
             if (Object.keys(playersData).length > 100 && !basePlayersData) {
@@ -537,7 +553,8 @@
                     const pastPeak = myPlayers.reduce((s, pid) => {
                         const p = playersData[pid]; if (!p) return s;
                         const pos = p.position; const age = p.age || 26;
-                        const peaks = {QB:39,RB:31,WR:33,TE:34,DL:33,LB:32,DB:34};
+                        const pw = window.App?.peakWindows || {QB:[23,39],RB:[21,31],WR:[21,33],TE:[21,34],DL:[26,33],LB:[26,32],DB:[21,34]};
+                        const peaks = Object.fromEntries(Object.entries(pw).map(([k,[,hi]]) => [k,hi]));
                         return age > (peaks[pos] || 29) ? s + (scores[pid] || 0) : s;
                     }, 0);
                     const pct = total > 0 ? Math.round(pastPeak / total * 100) : 0;
@@ -2163,7 +2180,7 @@
               </div>
               </div>)}
               {leagueSubView === 'players' && (() => {
-                const posColors = {QB:'#E74C3C',RB:'#2ECC71',WR:'#3498DB',TE:'#F0A500',K:'#9B59B6',DL:'#E67E22',LB:'#1ABC9C',DB:'#E91E63'};
+                const posColors = window.App?.POS_COLORS || {QB:'#E74C3C',RB:'#2ECC71',WR:'#3498DB',TE:'#F0A500',K:'#9B59B6',DL:'#E67E22',LB:'#1ABC9C',DB:'#E91E63'};
                 const allPlayers = [];
                 (currentLeague.rosters || []).forEach(r => {
                     const user = currentLeague.users?.find(u => u.user_id === r.owner_id);
@@ -2308,7 +2325,7 @@
               const acq = getAcquisitionInfo(pid, roster.roster_id);
               const st = statsData[pid] || {};
               const ppg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : 0;
-              const posColors = {QB:'#E74C3C',RB:'#2ECC71',WR:'#3498DB',TE:'#F0A500',K:'#9B59B6',DL:'#E67E22',LB:'#1ABC9C',DB:'#E91E63'};
+              const posColors = window.App?.POS_COLORS || {QB:'#E74C3C',RB:'#2ECC71',WR:'#3498DB',TE:'#F0A500',K:'#9B59B6',DL:'#E67E22',LB:'#1ABC9C',DB:'#E91E63'};
               const isStarter = (roster.starters || []).includes(pid);
               return { pid, p, pos, dhq, acq, ppg, isStarter, posCol: posColors[pos] || 'var(--silver)' };
             }).filter(Boolean).sort((a,b) => b.dhq - a.dhq);
@@ -2622,7 +2639,7 @@
             const isTaxi = taxi.has(pid);
             const section = isStarter ? 'starter' : isIR ? 'ir' : isTaxi ? 'taxi' : 'bench';
 
-            const peaks = {QB:[23,39],RB:[21,31],WR:[21,33],TE:[21,34],DL:[26,33],LB:[26,32],DB:[21,34]};
+            const peaks = window.App?.peakWindows || {QB:[23,39],RB:[21,31],WR:[21,33],TE:[21,34],DL:[26,33],LB:[26,32],DB:[21,34]};
             const [pLo, pHi] = peaks[pos] || [24,29];
             const peakRangeHi = Math.max(pHi + 4, age ? age + 1 : pHi + 4);
             const peakPct = age ? Math.max(0, Math.min(100, ((age - (pLo-4)) / (peakRangeHi - (pLo-4))) * 100)) : 50;
@@ -2656,7 +2673,7 @@
           const ppgBg = (v, pos) => v >= (posP75[pos]||10) ? 'rgba(46,204,113,0.12)' : v <= (posP25[pos]||3) ? 'rgba(231,76,60,0.08)' : 'transparent';
           const trendBg = t => t >= 15 ? 'rgba(46,204,113,0.12)' : t <= -15 ? 'rgba(231,76,60,0.1)' : 'transparent';
           const statusCol = s => s === 'starter' ? 'var(--gold)' : s === 'ir' ? '#E74C3C' : s === 'taxi' ? '#3498DB' : 'transparent';
-          const posColors = {QB:'#E74C3C',RB:'#2ECC71',WR:'#3498DB',TE:'#F0A500',K:'#9B59B6',DL:'#E67E22',LB:'#1ABC9C',DB:'#E91E63'};
+          const posColors = window.App?.POS_COLORS || {QB:'#E74C3C',RB:'#2ECC71',WR:'#3498DB',TE:'#F0A500',K:'#9B59B6',DL:'#E67E22',LB:'#1ABC9C',DB:'#E91E63'};
 
           const filtered = filteredAndSortedRows(rows);
 
@@ -3048,7 +3065,7 @@
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                         {['QB','RB','WR','TE','DL','LB','DB','K'].map(pos => {
                           const val = gmStrategy.positionalNeeds?.[pos] || 5;
-                          const posColors = {QB:'#E74C3C',RB:'#2ECC71',WR:'#3498DB',TE:'#F0A500',K:'#9B59B6',DL:'#E67E22',LB:'#1ABC9C',DB:'#E91E63'};
+                          const posColors = window.App?.POS_COLORS || {QB:'#E74C3C',RB:'#2ECC71',WR:'#3498DB',TE:'#F0A500',K:'#9B59B6',DL:'#E67E22',LB:'#1ABC9C',DB:'#E91E63'};
                           return (
                             <button key={pos} onClick={() => setGmStrategy(prev => ({...prev, positionalNeeds: {...prev.positionalNeeds, [pos]: val >= 10 ? 1 : val + 1}}))} style={{
                               padding: '8px 4px', background: 'rgba(255,255,255,0.02)', border: '1px solid ' + (posColors[pos] || '#666') + (val >= 7 ? '55' : '22'),
@@ -3243,7 +3260,7 @@
                 {filtered.map((r, idx) => {
                   const isExpanded = expandedPid === r.pid;
                   const contract = window.NFL_CONTRACTS?.[r.pid];
-                  const peaks = {QB:[23,39],RB:[21,31],WR:[21,33],TE:[21,34],DL:[26,33],LB:[26,32],DB:[21,34]};
+                  const peaks = window.App?.peakWindows || {QB:[23,39],RB:[21,31],WR:[21,33],TE:[21,34],DL:[26,33],LB:[26,32],DB:[21,34]};
                   const [pLo, pHi] = peaks[r.pos] || [24,29];
 
                   const actionClass = r.rec === 'SELL' || r.rec === 'Sell' ? 'wr-row-sell' :

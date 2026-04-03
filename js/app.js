@@ -104,12 +104,14 @@
         // Show league detail if selected
         if (selectedLeague) {
             return <>
-                <LeagueDetail
-                    league={selectedLeague}
-                    onBack={() => setSelectedLeague(null)}
-                    sleeperUserId={sleeperUser?.user_id}
-                    onOpenSettings={() => setShowSettings(true)}
-                />
+                <ErrorBoundary>
+                    <LeagueDetail
+                        league={selectedLeague}
+                        onBack={() => setSelectedLeague(null)}
+                        sleeperUserId={sleeperUser?.user_id}
+                        onOpenSettings={() => setShowSettings(true)}
+                    />
+                </ErrorBoundary>
                 {showSettings && (
                     <SettingsModal
                         onClose={() => setShowSettings(false)}

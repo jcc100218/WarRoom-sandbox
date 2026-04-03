@@ -393,6 +393,47 @@
     window.getMatchupAnnotation = getMatchupAnnotation;
     window.getKpiAnnotation = getKpiAnnotation;
 
+    // Error Boundary — catches render crashes and shows recovery UI
+    class ErrorBoundary extends React.Component {
+        constructor(props) {
+            super(props);
+            this.state = { hasError: false, error: null };
+        }
+        static getDerivedStateFromError(error) {
+            return { hasError: true, error };
+        }
+        componentDidCatch(error, info) {
+            console.error('[War Room] Render crash:', error, info.componentStack);
+        }
+        render() {
+            if (this.state.hasError) {
+                return React.createElement('div', {
+                    style: {
+                        padding: '40px 20px', textAlign: 'center', maxWidth: '500px',
+                        margin: '80px auto', background: 'var(--black)', border: '2px solid rgba(231,76,60,0.3)',
+                        borderRadius: '14px'
+                    }
+                },
+                    React.createElement('div', { style: { fontSize: '2rem', marginBottom: '12px' } }, '\u26A0\uFE0F'),
+                    React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1.4rem', color: 'var(--white)', marginBottom: '8px' } }, 'Something went wrong'),
+                    React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '16px' } },
+                        'War Room encountered an error. This usually fixes itself on reload.'),
+                    React.createElement('button', {
+                        onClick: () => { this.setState({ hasError: false, error: null }); },
+                        style: { padding: '10px 24px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', fontFamily: 'Oswald', fontSize: '1rem', cursor: 'pointer', marginRight: '8px' }
+                    }, 'Try Again'),
+                    React.createElement('button', {
+                        onClick: () => window.location.reload(),
+                        style: { padding: '10px 24px', background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '8px', fontFamily: 'Oswald', fontSize: '1rem', cursor: 'pointer' }
+                    }, 'Reload Page'),
+                    React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.5, marginTop: '12px' } },
+                        String(this.state.error?.message || '').substring(0, 100))
+                );
+            }
+            return this.props.children;
+        }
+    }
+    window.ErrorBoundary = ErrorBoundary;
 
     function TradeFinderTab({ allRosters, myRosterId, assessments, ownerDna, playersData, picksByOwner, getPlayerValue, getPickValue, calcOwnerPosture, calcPsychTaxes, calcAcceptanceLikelihood, DNA_TYPES, autoTarget, onAutoTargetConsumed }) {
         const [finderMode, setFinderMode] = React.useState('my');
