@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════════════
-// draft-room.js — DraftTab component (Command, Big Board, Rankings)
+// draft-room.js — DraftTab component (Flash Brief, Big Board)
 // ══════════════════════════════════════════════════════════════════
     // ══════════════════════════════════════════════════════════════════════════
     // END FREE AGENCY TAB
@@ -13,7 +13,8 @@
         const draftRounds = currentLeague.settings?.draft_rounds || 5;
         const tradedPicks = window.S?.tradedPicks || [];
         const [draftSort, setDraftSort] = useState({ key: 'dhq', dir: -1 });
-        const [draftView, setDraftView] = useState('command'); // 'command' | 'board' | 'rankings'
+        const [draftView, setDraftView] = useState('command'); // 'command' | 'board'
+        const [draftInfo, setDraftInfo] = useState(null);
         const [boardData, setBoardData] = useState(() => { try { const s = localStorage.getItem('wr_bigboard_' + (currentLeague.id||'')); return s ? JSON.parse(s) : null; } catch(e) { return null; } });
         const [draftedPids, setDraftedPids] = useState(new Set());
         const [boardNotes, setBoardNotes] = useState({});
@@ -142,6 +143,18 @@
             }
         }, []);
 
+        // Fetch draft countdown info from Sleeper
+        useEffect(() => {
+            if (!currentLeague?.id) return;
+            fetch('https://api.sleeper.app/v1/league/' + (currentLeague.league_id || currentLeague.id) + '/drafts')
+                .then(r => r.ok ? r.json() : [])
+                .then(drafts => {
+                    const upcoming = drafts.find(d => d.status === 'pre_draft') || drafts[0];
+                    if (upcoming) setDraftInfo(upcoming);
+                })
+                .catch(() => {});
+        }, [currentLeague]);
+
         // Helper: get player display name
         const pName = (p) => p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'Unknown';
 
@@ -198,14 +211,72 @@
 
                 {/* Sub-view navigation */}
                 <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px' }}>
-                    <button style={navBtn('command')} onClick={() => setDraftView('command')}>Command</button>
+                    <button style={navBtn('command')} onClick={() => setDraftView('command')}>Flash Brief</button>
                     <button style={navBtn('board')} onClick={() => setDraftView('board')}>Big Board</button>
-                    <button style={navBtn('rankings')} onClick={() => setDraftView('rankings')}>Rankings</button>
                 </div>
 
-                {/* ═══════════════════ VIEW 1: COMMAND ═══════════════════ */}
+                {/* ═══════════════════ VIEW 1: FLASH BRIEF ═══════════════════ */}
                 {activeView === 'command' && (
                     <div>
+                        {/* Draft Countdown Clock */}
+                        {draftInfo?.start_time && draftInfo.status === 'pre_draft' && (() => {
+                            const now = Date.now();
+                            const start = draftInfo.start_time;
+                            const diff = start - now;
+                            if (diff <= 0) return <div style={{ background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '8px', padding: '14px 16px', marginBottom: '14px', textAlign: 'center', fontFamily: 'Bebas Neue', fontSize: '1.6rem', color: '#2ECC71', letterSpacing: '0.04em' }}>DRAFT IS LIVE</div>;
+                            const days = Math.floor(diff / 86400000);
+                            const hours = Math.floor((diff % 86400000) / 3600000);
+                            const mins = Math.floor((diff % 3600000) / 60000);
+                            return <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '14px 16px', marginBottom: '14px', textAlign: 'center' }}>
+                                <div style={{ fontFamily: 'Oswald', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Draft Countdown</div>
+                                <div style={{ fontFamily: 'Bebas Neue', fontSize: '2rem', color: 'var(--white)', letterSpacing: '0.04em' }}>
+                                    {days > 0 ? days + 'd ' : ''}{hours}h {mins}m
+                                </div>
+                                <div style={{ fontSize: '0.76rem', color: 'var(--silver)', marginTop: '4px' }}>
+                                    {new Date(start).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at {new Date(start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.5, marginTop: '4px' }}>
+                                    {draftInfo.type === 'linear' ? 'Linear' : draftInfo.type === 'snake' ? 'Snake' : draftInfo.type} · {draftInfo.settings?.rounds || 5} rounds · {draftInfo.settings?.teams || 16} teams
+                                </div>
+                            </div>;
+                        })()}
+
+                        {/* Draft Class Preview (moved from Rankings) */}
+                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
+                            <div style={{ fontFamily: 'Oswald', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Draft Class Preview</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.6 }}>
+                                Based on PFF and consensus rankings, the strongest position groups in the upcoming draft class are typically available via the AI advisor. Click the ReconAI panel and ask about specific positions or prospects.
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+                                <button onClick={() => { if (typeof setReconPanelOpen === 'function') { setReconPanelOpen(true); sendReconMessage('What are the strongest position groups in the upcoming rookie draft class?'); } }}
+                                    style={{ padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'Oswald', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer' }}>
+                                    Ask Alex about draft class
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Your Picks (moved from Rankings) */}
+                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
+                            <div style={{ fontFamily: 'Oswald', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Your Picks</div>
+                            {[leagueSeason, leagueSeason + 1, leagueSeason + 2].map(yr => {
+                                const yearPicks = myPicks.filter(pk => pk.year === yr);
+                                if (!yearPicks.length) return null;
+                                return (
+                                    <div key={yr} style={{ marginBottom: '12px' }}>
+                                        <div style={{ fontSize: '0.74rem', color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{yr}</div>
+                                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                            {yearPicks.map((pk, i) => (
+                                                <div key={i} style={{ padding: '4px 8px', borderRadius: '4px', background: pk.own ? 'rgba(212,175,55,0.08)' : 'rgba(124,107,248,0.1)', border: '1px solid ' + (pk.own ? 'rgba(212,175,55,0.25)' : 'rgba(124,107,248,0.25)'), fontSize: '0.76rem' }}>
+                                                    <span style={{ fontWeight: 700, color: pk.own ? 'var(--gold)' : '#a78bfa' }}>R{pk.round}</span>
+                                                    {!pk.own && <span style={{ fontSize: '0.78rem', color: 'var(--silver)', marginLeft: '4px' }}>(acq)</span>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
                         {/* ON THE CLOCK card */}
                         <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
@@ -728,92 +799,6 @@
                     );
                 })()}
 
-                {/* ═══════════════════ VIEW 3: RANKINGS ═══════════════════ */}
-                {activeView === 'rankings' && (
-                    <div>
-                        {/* Draft Class Preview */}
-                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
-                            <div style={{ fontFamily: 'Oswald', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Draft Class Preview</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.6 }}>
-                                Based on PFF and consensus rankings, the strongest position groups in the upcoming draft class are typically available via the AI advisor. Click the ReconAI panel and ask about specific positions or prospects.
-                            </div>
-                            <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
-                                <button onClick={() => { if (typeof setReconPanelOpen === 'function') { setReconPanelOpen(true); sendReconMessage('What are the strongest position groups in the upcoming rookie draft class?'); } }}
-                                    style={{ padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'Oswald', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer' }}>
-                                    Ask Alex about draft class
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* My Picks grouped by year */}
-                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
-                            <div style={{ fontFamily: 'Oswald', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Your Picks</div>
-                            {[leagueSeason, leagueSeason + 1, leagueSeason + 2].map(yr => {
-                                const yearPicks = myPicks.filter(pk => pk.year === yr);
-                                if (!yearPicks.length) return null;
-                                return (
-                                    <div key={yr} style={{ marginBottom: '12px' }}>
-                                        <div style={{ fontSize: '0.74rem', color: 'var(--gold)', fontFamily: 'Oswald', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{yr}</div>
-                                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                                            {yearPicks.map((pk, i) => (
-                                                <div key={i} style={{ padding: '4px 8px', borderRadius: '4px', background: pk.own ? 'rgba(212,175,55,0.08)' : 'rgba(124,107,248,0.1)', border: '1px solid ' + (pk.own ? 'rgba(212,175,55,0.25)' : 'rgba(124,107,248,0.25)'), fontSize: '0.76rem' }}>
-                                                    <span style={{ fontWeight: 700, color: pk.own ? 'var(--gold)' : '#a78bfa' }}>R{pk.round}</span>
-                                                    {!pk.own && <span style={{ fontSize: '0.78rem', color: 'var(--silver)', marginLeft: '4px' }}>(acq)</span>}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Position filter */}
-                        <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                            <button onClick={() => setBoardPosFilter('')} style={{ padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'Oswald', borderRadius: '14px', cursor: 'pointer', border: '1px solid ' + (!boardPosFilter ? 'rgba(212,175,55,0.3)' : 'rgba(255,255,255,0.08)'), background: !boardPosFilter ? 'rgba(212,175,55,0.12)' : 'transparent', color: !boardPosFilter ? 'var(--gold)' : 'var(--silver)' }}>All</button>
-                            {['QB','RB','WR','TE'].map(pos => (
-                                <button key={pos} onClick={() => setBoardPosFilter(boardPosFilter === pos ? '' : pos)} style={{ padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'Oswald', borderRadius: '14px', cursor: 'pointer', border: '1px solid ' + (boardPosFilter === pos ? (posColors[pos] || '#666') + '55' : 'rgba(255,255,255,0.08)'), background: boardPosFilter === pos ? (posColors[pos] || '#666') + '18' : 'transparent', color: boardPosFilter === pos ? posColors[pos] : 'var(--silver)' }}>{pos}</button>
-                            ))}
-                        </div>
-
-                        {/* Sortable Rookie Board */}
-                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', overflow: 'hidden' }}>
-                            {/* Header row - sortable */}
-                            <div style={{ display: 'grid', gridTemplateColumns: draftGridCols, gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)' }}>
-                                <span style={{ ...draftHeaderStyle, cursor: 'default' }}>#</span>
-                                <span style={draftHeaderStyle}></span>
-                                <span style={draftHeaderStyle} onClick={() => handleDraftSort('name')}>Rookie{draftSortIndicator('name')}</span>
-                                <span style={draftHeaderStyle} onClick={() => handleDraftSort('pos')}>Pos{draftSortIndicator('pos')}</span>
-                                <span style={draftHeaderStyle} onClick={() => handleDraftSort('age')}>Age{draftSortIndicator('age')}</span>
-                                <span style={draftHeaderStyle} onClick={() => handleDraftSort('dhq')}>DHQ{draftSortIndicator('dhq')}</span>
-                                <span style={draftHeaderStyle} onClick={() => handleDraftSort('college')}>College{draftSortIndicator('college')}</span>
-                            </div>
-                            {/* Body */}
-                            <div style={{ maxHeight: '500px', overflow: 'auto' }}>
-                                {sortedRookies.map(({ pid, p, dhq }, idx) => {
-                                    const pos = normPos(p.position) || p.position;
-                                    const dhqCol = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#3498DB' : dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)';
-                                    return (
-                                        <div key={pid}
-                                            onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(pid); }}
-                                            style={{ display: 'grid', gridTemplateColumns: draftGridCols, gap: '4px', padding: '5px 10px', borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', fontSize: '0.72rem', alignItems: 'center', transition: 'background 0.1s' }}
-                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.06)'}
-                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                            <span style={{ fontFamily: 'Oswald', fontSize: '0.74rem', color: 'var(--silver)' }}>{idx + 1}</span>
-                                            <div style={{ width: '22px', height: '22px', flexShrink: 0 }}>
-                                                <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + pid + '.jpg'} alt="" onError={e => e.target.style.display='none'} style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover' }} />
-                                            </div>
-                                            <div style={{ fontWeight: 600, color: 'var(--white)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'Unknown'}</div>
-                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' }}>{pos}</span>
-                                            <span style={{ color: 'var(--silver)' }}>{p.age || '\u2014'}</span>
-                                            <span style={{ fontWeight: 700, fontFamily: 'Oswald', color: dhqCol }}>{dhq > 0 ? dhq.toLocaleString() : '\u2014'}</span>
-                                            <span style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.65, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{p.college || p.metadata?.college || '\u2014'}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         );
     }
