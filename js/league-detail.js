@@ -3775,7 +3775,7 @@
                         const val = computeKpiValue(kpiKey);
                         const isEditing = editingKpi === idx;
                         return (
-                            <div key={kpiKey + idx} className="wr-brackets wr-brackets-bottom" style={{
+                            <div key={kpiKey + idx} style={{
                                 ...kpiCardStyle, position: 'relative', cursor: 'default',
                                 border: isEditing ? '1px solid var(--gold)' : kpiCardStyle.border
                             }}>
@@ -3933,7 +3933,7 @@
                                 <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.8rem', color: 'var(--gold)', letterSpacing: '0.05em', marginBottom: '20px' }}>FLASH BRIEF</div>
 
                                 {/* Team Diagnosis */}
-                                <div className="wr-scanline" style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', padding: '20px 24px', marginBottom: '20px' }}>
+                                <div style={{ ...aCardStyle, borderLeft: '4px solid var(--gold)', padding: '20px 24px', marginBottom: '20px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
                                         <div style={{ fontFamily: 'Bebas Neue', fontSize: '2.8rem', color: myRank <= 3 ? goodColor : myRank <= 6 ? warnColor : badColor, lineHeight: 1 }}>#{myRank || '?'}</div>
                                         <div>
@@ -4262,7 +4262,7 @@
                             return (
                             <React.Fragment>
                                 {/* ── ROSTER DIAGNOSIS — Alex Ingram Slack-style ── */}
-                                <div style={{ marginBottom: '16px' }} className="wr-scanline">
+                                <div style={{ marginBottom: '16px' }}>
                                     <GMMessage title="Roster Diagnosis">
                                         {(() => {
                                             const parts = [];
@@ -4561,7 +4561,7 @@
                             return (
                             <React.Fragment>
                                 {/* ── DRAFT STRATEGY SUMMARY ── */}
-                                <div style={{ marginBottom: '16px' }} className="wr-scanline">
+                                <div style={{ marginBottom: '16px' }}>
                                     <GMMessage title="Draft Intelligence">
                                         {!dr.winnerHitRate || Object.keys(dr.winnerHitRate).length === 0
                                             ? 'Your upcoming draft picks and league draft intelligence. Target exciting prospects that fit your roster needs.'
@@ -4694,7 +4694,7 @@
                             return (
                             <React.Fragment>
                                 {/* ── WAIVER STRATEGY SUMMARY ── */}
-                                <div style={{ marginBottom: '16px' }} className="wr-scanline">
+                                <div style={{ marginBottom: '16px' }}>
                                     <GMMessage title="Waiver Intelligence">
                                         {winnerEarlyPct === 0 && myEarlyPct === 0
                                             ? 'No significant FAAB activity yet this season. Monitor early-season pickups closely \u2014 winners typically front-load spending on high-upside ' + (underSpendPos[0] || 'RB/WR') + ' to build early advantages.'
@@ -4833,7 +4833,7 @@
                             return (
                             <React.Fragment>
                                 {/* ── TRADE STRATEGY SUMMARY ── */}
-                                <div style={{ marginBottom: '16px' }} className="wr-scanline">
+                                <div style={{ marginBottom: '16px' }}>
                                     <GMMessage title="Trade Intelligence">
                                         {tradeSummaryText}
                                         {React.createElement('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' } },
@@ -5010,7 +5010,7 @@
                             return (
                             <React.Fragment>
                                 {/* ── FUTURE OUTLOOK SUMMARY ── */}
-                                <div style={{ marginBottom: '16px' }} className="wr-scanline">
+                                <div style={{ marginBottom: '16px' }}>
                                     <GMMessage title="Future Outlook">
                                         {'Your roster is ' + outlook + '. Competitive window: ' + (windowYears > 0 ? windowYears + ' year' + (windowYears > 1 ? 's' : '') : 'closed') + '. ' + atRiskPct + '% of your DHQ is past peak in 2 years' + (atRiskPlayers.length > 0 ? ' (' + atRiskPlayers.slice(0, 3).map(p => p.name).join(', ') + ')' : '') + '. Strategy: ' + projStrategy + '.'}
                                         {React.createElement('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' } },
@@ -5150,7 +5150,7 @@
                             return (
                             <React.Fragment>
                                 {/* ── PLAYOFF PROFILE SUMMARY ── */}
-                                <div style={{ marginBottom: '16px' }} className="wr-scanline">
+                                <div style={{ marginBottom: '16px' }}>
                                     <GMMessage title="Playoff Profile">
                                         {playoffDiag + playoffInsight}
                                     </GMMessage>
@@ -5366,7 +5366,7 @@
                             return (
                                 <React.Fragment>
                                 {/* ── LEAGUE NARRATIVE SUMMARY ── */}
-                                <div style={{ marginBottom: '16px' }} className="wr-scanline">
+                                <div style={{ marginBottom: '16px' }}>
                                     <GMMessage title="League Narrative">
                                         {'League dominated by ' + dominantTeam + ' with ' + dominantTitles + ' title' + (dominantTitles > 1 ? 's' : '') + '.' + (repeatWinners.length > 0 ? ' Repeat winners: ' + repeatWinners.join(', ') + '.' : ' No repeat champions yet \u2014 wide-open league.') + ' Your trajectory: ' + myTrajectory + (myChampsTL > 0 ? ' (' + myChampsTL + ' title' + (myChampsTL > 1 ? 's' : '') + ')' : '') + '. Next likely champion candidates: ' + nextChampCandidates + '.'}
                                     </GMMessage>
