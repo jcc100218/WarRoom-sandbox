@@ -3324,6 +3324,7 @@
                                 { label: 'GP', val: r.effectiveGP || '\u2014', col: r.effectiveGP >= 14 ? '#2ECC71' : r.effectiveGP >= 10 ? 'var(--silver)' : '#E74C3C' },
                                 { label: 'TREND', val: r.trend ? (r.trend > 0 ? '+' : '') + r.trend + '%' : '\u2014', col: r.trend >= 15 ? '#2ECC71' : r.trend <= -15 ? '#E74C3C' : 'var(--silver)' },
                                 { label: 'PEAK', val: r.peakPhase, col: r.peakPhase === 'PRE' ? '#2ECC71' : r.peakPhase === 'PRIME' ? 'var(--gold)' : '#E74C3C' },
+                                { label: 'WINDOW', val: r.peakYrsLeft > 0 ? r.peakYrsLeft + 'yr' : 'Closed', col: r.peakYrsLeft >= 5 ? '#2ECC71' : r.peakYrsLeft >= 2 ? 'var(--gold)' : '#E74C3C' },
                               ].map((s, i) => (
                                 <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '8px 6px', textAlign: 'center' }}>
                                   <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: s.col, letterSpacing: '-0.02em' }}>{s.val}</div>
@@ -3347,7 +3348,31 @@
                             </div>
                           </div>
 
-                          {/* Dynasty Profile bar */}
+                          {/* Age Curve visualization */}
+                          {(() => {
+                            const pw = window.App?.peakWindows || {QB:[23,39],RB:[21,31],WR:[21,33],TE:[21,34],DL:[26,33],LB:[26,32],DB:[21,34]};
+                            const nP = r.pos === 'DE' || r.pos === 'DT' ? 'DL' : r.pos === 'CB' || r.pos === 'S' ? 'DB' : r.pos;
+                            const [pLo, pHi] = pw[nP] || [24, 29];
+                            const ages = Array.from({length: 17}, (_, i) => i + 20);
+                            return <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                <div style={{ fontFamily: 'Oswald', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Age Curve</div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{'Currently age ' + (r.age || '?') + ' \u00B7 ' + r.peakPhase + ' \u00B7 ' + (r.peakYrsLeft > 0 ? '~' + r.peakYrsLeft + 'yr left' : 'Past peak')}</div>
+                              </div>
+                              <div style={{ display: 'flex', height: '22px', borderRadius: '5px', overflow: 'hidden', gap: '1px' }}>
+                                {ages.map(a => {
+                                  const col = a < pLo - 3 ? 'rgba(96,165,250,0.3)' : a < pLo ? 'rgba(46,204,113,0.45)' : (a >= pLo && a <= pHi) ? 'rgba(46,204,113,0.75)' : a <= pHi + 2 ? 'rgba(212,175,55,0.45)' : 'rgba(231,76,60,0.35)';
+                                  const isMe = a === (r.age || 0);
+                                  return <div key={a} style={{ flex: 1, background: col, opacity: isMe ? 1 : 0.55, outline: isMe ? '2px solid #D4AF37' : 'none', outlineOffset: '-1px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 700, color: isMe ? '#f0f0f3' : 'transparent' }}>{isMe ? a : ''}</div>;
+                                })}
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.64rem', color: 'var(--silver)', marginTop: '3px' }}>
+                                <span>20</span><span>{'Peak ' + pLo + '\u2013' + pHi}</span><span>36</span>
+                              </div>
+                            </div>;
+                          })()}
+
+                          {/* Dynasty Profile */}
                           <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
                             <div style={{ fontFamily: 'Oswald', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Dynasty Profile</div>
                             <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.5 }}>
