@@ -117,7 +117,7 @@
 
             // Higher-value players get bigger appreciation (proven producers)
             const isProven = baseDhq >= 4000;
-            const isElite = baseDhq >= 7000;
+            const isElite = typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(pid) : baseDhq >= 7000;
             // Peak midpoint — players appreciate until they hit this, then hold/decline
             const peakMid = Math.floor((pLo + pHi) / 2);
 
@@ -2017,7 +2017,7 @@
                                 const best = top3[0];
                                 const roster = currentLeague.rosters.find(r => r.roster_id === best.rosterId);
                                 const totalDHQ = (roster?.players || []).reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0);
-                                const elites = (roster?.players || []).filter(pid => (window.App?.LI?.playerScores?.[pid] || 0) >= 7000).length;
+                                const elites = typeof window.App?.countElitePlayers === 'function' ? window.App.countElitePlayers(roster?.players || []) : (roster?.players || []).filter(pid => (window.App?.LI?.playerScores?.[pid] || 0) >= 7000).length;
                                 const ages = (roster?.players || []).map(pid => playersData[pid]?.age).filter(a => a && a > 18);
                                 const avgAge = ages.length ? ages.reduce((s, a) => s + a, 0) / ages.length : 28;
                                 return {
@@ -2239,11 +2239,7 @@
     const draftRounds = currentLeague.settings?.draft_rounds || 5;
     const years = [leagueSeason, leagueSeason + 1, leagueSeason + 2];
 
-    const getOwner = (rid) => {
-        const roster = (currentLeague.rosters || []).find(r => r.roster_id === rid);
-        const user = (currentLeague.users || []).find(u => u.user_id === roster?.owner_id);
-        return user?.display_name || user?.username || 'Team ' + rid;
-    };
+    // Use shared getOwnerName() defined above
 
     return (
         <div>
@@ -2279,10 +2275,10 @@
                                         }}>
                                             <span style={{ fontFamily: 'Oswald', fontWeight: 700, color: rd === 1 ? 'var(--gold)' : 'var(--silver)' }}>R{rd}</span>
                                             <span style={{ color: isMyPick ? 'var(--gold)' : 'var(--white)', fontWeight: isMyPick ? 700 : 400 }}>
-                                                {getOwner(currentOwnerRid)}{isMyPick ? ' (You)' : ''}
+                                                {getOwnerName(currentOwnerRid)}{isMyPick ? ' (You)' : ''}
                                             </span>
                                             <span style={{ color: 'var(--silver)', opacity: traded ? 1 : 0.4 }}>
-                                                {getOwner(originalRid)}{isMyOriginal ? ' (You)' : ''}
+                                                {getOwnerName(originalRid)}{isMyOriginal ? ' (You)' : ''}
                                             </span>
                                             <span style={{ fontSize: '0.7rem', fontWeight: 600, color: traded ? '#F0A500' : '#2ECC71' }}>
                                                 {traded ? 'Traded' : 'Own'}
@@ -2633,7 +2629,8 @@
             const peakPhase = !age ? '\u2014' : age < pLo ? 'PRE' : age <= pHi ? 'PRIME' : 'POST';
             const peakYrsLeft = age ? Math.max(0, pHi - age) : 0;
 
-            const rec = peakYrsLeft <= 0 && trend <= -10 ? 'SELL NOW' : peakYrsLeft <= 0 ? 'SELL' : peakYrsLeft <= 2 && trend >= 15 ? 'SELL HIGH' : peakYrsLeft <= 2 ? 'SELL' : dhq >= 7000 && peakYrsLeft >= 3 ? 'HOLD CORE' : peakYrsLeft >= 4 && dhq < 4000 ? 'BUY LOW' : dhq >= 5000 ? 'HOLD' : 'BUY';
+            const _pidElite = typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(pid) : dhq >= 7000;
+            const rec = peakYrsLeft <= 0 && trend <= -10 ? 'SELL NOW' : peakYrsLeft <= 0 ? 'SELL' : peakYrsLeft <= 2 && trend >= 15 ? 'SELL HIGH' : peakYrsLeft <= 2 ? 'SELL' : _pidElite && peakYrsLeft >= 3 ? 'HOLD CORE' : peakYrsLeft >= 4 && dhq < 4000 ? 'BUY LOW' : dhq >= 5000 ? 'HOLD' : 'BUY';
 
             return { pid, p, pos, dhq, age, curPPG, prevPPG, effectivePPG, effectiveGP, prevGP, durabilityGP, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, rec, curGP, meta, injury: p.injury_status };
           }).filter(Boolean);
@@ -2931,7 +2928,7 @@
                 const needs = assess?.needs?.slice(0, 3) || [];
                 const strengths = assess?.strengths || [];
                 const totalDhq = rows.reduce((s, r) => s + r.dhq, 0);
-                const elites = rows.filter(r => r.dhq >= 7000).length;
+                const elites = typeof window.App?.countElitePlayers === 'function' ? window.App.countElitePlayers(rows.map(r => r.pid)) : rows.filter(r => r.dhq >= 7000).length;
 
                 // Categorize players
                 const sellNow = rows.filter(r => r.peakYrsLeft <= 0 && r.dhq >= 2000 && r.trend <= -10).sort((a,b) => b.dhq - a.dhq).slice(0, 3);
@@ -3912,7 +3909,7 @@
                         const scores = window.App?.LI?.playerScores || {};
                         const myPids = myRoster?.players || [];
                         const totalDhq = myPids.reduce((s, pid) => s + (scores[pid] || 0), 0);
-                        const elites = myPids.filter(pid => (scores[pid] || 0) >= 7000).length;
+                        const elites = typeof window.App?.countElitePlayers === 'function' ? window.App.countElitePlayers(myPids) : myPids.filter(pid => (scores[pid] || 0) >= 7000).length;
                         const myAssess = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null;
                         const hs = myAssess?.healthScore || 0;
                         const tier = (myAssess?.tier || 'UNKNOWN').toUpperCase();
@@ -5002,7 +4999,7 @@
                             const LI = window.App?.LI || {};
                             const playerScores = LI.playerScores || {};
                             const playerMeta = LI.playerMeta || {};
-                            const peakWindows = window.App?.peakWindows || { QB: [24, 34], RB: [22, 27], WR: [22, 30], TE: [23, 30] };
+                            const peakWindows = window.App?.peakWindows || {QB:[23,39],RB:[21,31],WR:[21,33],TE:[21,34],DL:[26,33],LB:[26,32],DB:[21,34]};
                             const myRid = S?.myRosterId;
                             const myRosterObj = (S?.rosters || []).find(r => r.roster_id === myRid);
                             const myPlayers = myRosterObj?.players || [];
@@ -5306,17 +5303,17 @@
                         {analyticsTab === 'timeline' && (() => {
                             const championships = window.App?.LI?.championships || {};
                             const tradeHistory = window.App?.LI?.tradeHistory || [];
-                            const getOwner = rid => { const numRid = typeof rid === 'string' ? parseInt(rid) : rid; const r = (currentLeague.rosters||[]).find(x => x.roster_id === numRid || String(x.roster_id) === String(rid)); const u = (currentLeague.users||[]).find(x => x.user_id === r?.owner_id); return u?.display_name || u?.username || 'Team '+rid; };
+                            // Uses shared getOwnerName() defined at component level
                             const events = [];
 
                             Object.entries(championships).forEach(([season, data]) => {
-                                if (data.champion) events.push({ year: season, type: 'champ', title: getOwner(data.champion) + ' wins the championship', color: 'var(--gold)', ts: parseInt(season)*100+99 });
-                                if (data.runnerUp) events.push({ year: season, type: 'finals', title: getOwner(data.runnerUp) + ' finishes runner-up', color: 'var(--silver)', ts: parseInt(season)*100+98 });
+                                if (data.champion) events.push({ year: season, type: 'champ', title: getOwnerName(data.champion) + ' wins the championship', color: 'var(--gold)', ts: parseInt(season)*100+99 });
+                                if (data.runnerUp) events.push({ year: season, type: 'finals', title: getOwnerName(data.runnerUp) + ' finishes runner-up', color: 'var(--silver)', ts: parseInt(season)*100+98 });
                             });
 
                             tradeHistory.forEach(trade => {
                                 const rids = trade.roster_ids || [];
-                                const names = rids.map(r => getOwner(r)).join(' and ');
+                                const names = rids.map(r => getOwnerName(r)).join(' and ');
                                 const pids = Object.keys(trade.sides || {}).flatMap(rid => (trade.sides[rid]?.players || []));
                                 const playerNames = pids.slice(0, 3).map(pid => playersData[pid]?.full_name || pid).join(', ');
                                 const totalVal = pids.reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0);
@@ -5365,9 +5362,9 @@
                                 if (data.champion) champCounts[data.champion] = (champCounts[data.champion] || 0) + 1;
                             });
                             const champEntries = Object.entries(champCounts).sort((a, b) => b[1] - a[1]);
-                            const dominantTeam = champEntries.length > 0 ? getOwner(champEntries[0][0]) : 'N/A';
+                            const dominantTeam = champEntries.length > 0 ? getOwnerName(champEntries[0][0]) : 'N/A';
                             const dominantTitles = champEntries.length > 0 ? champEntries[0][1] : 0;
-                            const repeatWinners = champEntries.filter(([, cnt]) => cnt > 1).map(([rid]) => getOwner(rid));
+                            const repeatWinners = champEntries.filter(([, cnt]) => cnt > 1).map(([rid]) => getOwnerName(rid));
                             const myRidTL = myRoster?.roster_id;
                             const myChampsTL = champCounts[myRidTL] || 0;
                             // Trajectory from projection data
@@ -5381,7 +5378,7 @@
                                 try {
                                     if (window.assessTeamFromGlobal) {
                                         const a = window.assessTeamFromGlobal(ros.roster_id);
-                                        if (a) teamHealthList.push({ rid: ros.roster_id, name: getOwner(ros.roster_id), health: a.healthScore || 0 });
+                                        if (a) teamHealthList.push({ rid: ros.roster_id, name: getOwnerName(ros.roster_id), health: a.healthScore || 0 });
                                     }
                                 } catch(e) {}
                             });

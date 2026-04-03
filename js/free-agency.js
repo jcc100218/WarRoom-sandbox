@@ -108,7 +108,7 @@
 
         // Compute roster needs for recommendations
         const assess = useMemo(() => typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null, [myRoster]);
-        const peaks = {QB:[27,33],RB:[22,26],WR:[24,29],TE:[25,30],DL:[24,29],LB:[23,28],DB:[24,29]};
+        const peaks = window.App?.peakWindows || {QB:[23,39],RB:[21,31],WR:[21,33],TE:[21,34],DL:[26,33],LB:[26,32],DB:[21,34]};
         const budget = currentLeague?.settings?.waiver_budget || myRoster?.settings?.waiver_budget || 0;
         const spent = myRoster?.settings?.waiver_budget_used || 0;
         const remaining = Math.max(0, budget - spent);
