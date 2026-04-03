@@ -2128,8 +2128,7 @@
                       {(() => {
                         const rPlayers = roster?.players || [];
                         const scored = rPlayers.map(pid => ({ pid, dhq: window.App?.LI?.playerScores?.[pid] || 0, meta: window.App?.LI?.playerMeta?.[pid] }));
-                        const eliteThr = 7000;
-                        const eliteCount = scored.filter(x => x.dhq >= eliteThr).length;
+                        const eliteCount = typeof window.App?.countElitePlayers === 'function' ? window.App.countElitePlayers(scored.map(x => x.pid)) : scored.filter(x => x.dhq >= 7000).length;
                         const ages = scored.map(x => x.meta?.age).filter(a2 => a2 && a2 > 18 && a2 < 45);
                         const avgAge = ages.length > 0 ? (ages.reduce((s,a2) => s + a2, 0) / ages.length).toFixed(1) : '\u2014';
                         // Positional needs: positions where team is below league avg investment
@@ -2957,7 +2956,7 @@
                 const stratParts = [];
                 stratParts.push(tier === 'ELITE' ? 'Championship-caliber roster.' : tier === 'CONTENDER' ? 'Legitimate contender.' : tier === 'CROSSROADS' ? 'At a crossroads \u2014 decide: push or rebuild.' : 'Rebuilding phase.');
                 if (needs.length) stratParts.push('Weakest at ' + needs.map(n => n.pos).join(', ') + '.');
-                if (elites < 2) stratParts.push('Need more elite assets (7000+ DHQ).');
+                if (elites < 2) stratParts.push('Need more elite assets (top 5 at position).');
                 if (sellNow.length) stratParts.push('Move ' + sellNow.map(s => s.p.last_name || s.p.full_name?.split(' ').pop()).join(', ') + ' before further decline.');
 
                 // Top 3 moves
@@ -3318,7 +3317,7 @@
                               <div style={{ marginTop: '6px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                                 <span style={{ fontSize: '0.72rem', fontWeight: 700, fontFamily: 'Oswald', padding: '2px 10px', borderRadius: '10px', background: r.rec.includes('SELL') ? 'rgba(231,76,60,0.15)' : r.rec.includes('BUY') ? 'rgba(46,204,113,0.15)' : 'rgba(212,175,55,0.12)', color: r.rec.includes('SELL') ? '#E74C3C' : r.rec.includes('BUY') ? '#2ECC71' : 'var(--gold)', letterSpacing: '0.04em' }}>{r.rec}</span>
                                 <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 10px', borderRadius: '10px', background: dhqBg(r.dhq), color: dhqCol(r.dhq) }}>
-                                  {r.dhq >= 7000 ? 'Elite' : r.dhq >= 4000 ? 'Starter' : r.dhq >= 2000 ? 'Depth' : 'Stash'} {'\u00B7'} {r.dhq.toLocaleString()} DHQ
+                                  {(typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(r.pid) : r.dhq >= 7000) ? 'Elite' : r.dhq >= 4000 ? 'Starter' : r.dhq >= 2000 ? 'Depth' : 'Stash'} {'\u00B7'} {r.dhq.toLocaleString()} DHQ
                                 </span>
                                 {r.peakYrsLeft > 0 && <span style={{ fontSize: '0.72rem', padding: '2px 10px', borderRadius: '10px', background: r.peakPhase === 'PRE' ? 'rgba(46,204,113,0.1)' : 'rgba(212,175,55,0.08)', color: r.peakPhase === 'PRE' ? '#2ECC71' : 'var(--gold)' }}>{r.peakYrsLeft}yr peak left</span>}
                               </div>
