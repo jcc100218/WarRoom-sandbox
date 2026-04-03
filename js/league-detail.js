@@ -5789,7 +5789,7 @@
                 )}
                 </div>{/* end marginLeft wrapper */}
 
-            {selectedPlayerPid && <PlayerInlineCard
+            {selectedPlayerPid && typeof window.openFWPlayerModal !== 'function' && <PlayerInlineCard
                 pid={selectedPlayerPid}
                 playersData={playersData}
                 statsData={statsData}
