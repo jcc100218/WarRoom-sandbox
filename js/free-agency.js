@@ -309,6 +309,194 @@
                             <button onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(faSelectedPid); }} style={{ width: '100%', padding: '8px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Bebas Neue', fontSize: '0.9rem', cursor: 'pointer' }}>FULL PLAYER CARD</button>
                         </div>}
                     </div>
+
+                    {/* ── RECOMMENDED MOVES — drop-for-add pairs ── */}
+                    {(() => {
+                        const drops = (myRoster?.players || [])
+                            .filter(pid => !(myRoster.starters || []).includes(pid))
+                            .map(pid => ({ pid, p: playersData[pid], dhq: window.App?.LI?.playerScores?.[pid] || 0, pos: normPos(playersData[pid]?.position) }))
+                            .filter(d => d.p && d.dhq < 2000)
+                            .sort((a, b) => a.dhq - b.dhq).slice(0, 5);
+                        const pairs = [];
+                        drops.forEach(drop => {
+                            const upgrade = availablePlayers.find(a => a.pos === drop.pos && a.dhq > drop.dhq + 500 && !pairs.some(p => p.add.pid === a.pid));
+                            if (upgrade) {
+                                const addFaab = faabSuggest(upgrade.dhq, upgrade.pos);
+                                pairs.push({ drop, add: upgrade, faab: addFaab, gain: upgrade.dhq - drop.dhq });
+                            }
+                        });
+                        if (!pairs.length) return null;
+                        return React.createElement('div', { style: { marginTop: '20px' } },
+                            React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: '#2ECC71', letterSpacing: '0.06em', marginBottom: '4px' } }, 'RECOMMENDED MOVES'),
+                            React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Drop + add pairs that upgrade your roster'),
+                            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
+                                ...pairs.slice(0, 4).map((pair, i) =>
+                                    React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'rgba(46,204,113,0.04)', border: '1px solid rgba(46,204,113,0.15)', borderRadius: '8px' } },
+                                        React.createElement('div', { style: { flex: 1 } },
+                                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' } },
+                                                React.createElement('span', { style: { fontSize: '0.78rem', color: '#E74C3C', fontWeight: 700 } }, '\u2212 ' + (pair.drop.p.full_name || 'Unknown')),
+                                                React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, pair.drop.pos + ' \u00B7 ' + pair.drop.dhq.toLocaleString() + ' DHQ')
+                                            ),
+                                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
+                                                React.createElement('span', { style: { fontSize: '0.78rem', color: '#2ECC71', fontWeight: 700 } }, '+ ' + (pair.add.p.full_name || 'Unknown')),
+                                                React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, pair.add.pos + ' \u00B7 ' + pair.add.dhq.toLocaleString() + ' DHQ')
+                                            )
+                                        ),
+                                        React.createElement('div', { style: { textAlign: 'right', flexShrink: 0 } },
+                                            React.createElement('div', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Oswald', color: '#2ECC71' } }, '+' + pair.gain.toLocaleString()),
+                                            pair.faab && React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--gold)' } }, '$' + pair.faab.lo + '-' + pair.faab.hi)
+                                        )
+                                    )
+                                )
+                            )
+                        );
+                    })()}
+
+                    {/* ── DROP CANDIDATES — lowest-value rostered players ── */}
+                    {myRoster?.players?.length > 0 && (() => {
+                        const dropCandidates = (myRoster.players || [])
+                            .map(pid => {
+                                const p = playersData[pid];
+                                if (!p) return null;
+                                const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+                                const pos = normPos(p.position) || p.position;
+                                const meta = window.App?.LI?.playerMeta?.[pid];
+                                const peakYrs = meta?.peakYrsLeft || 0;
+                                const isStarter = (myRoster.starters || []).includes(pid);
+                                if (isStarter) return null;
+                                return { pid, p, dhq, pos, peakYrs, name: p.full_name || 'Unknown', age: p.age || 0 };
+                            })
+                            .filter(Boolean)
+                            .sort((a, b) => a.dhq - b.dhq)
+                            .slice(0, 5);
+                        if (!dropCandidates.length) return null;
+                        return React.createElement('div', { style: { marginTop: '20px' } },
+                            React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: '#E74C3C', letterSpacing: '0.06em', marginBottom: '8px' } }, 'DROP CANDIDATES'),
+                            React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Lowest-value bench players — cut to make room for upgrades'),
+                            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
+                                ...dropCandidates.map(d =>
+                                    React.createElement('div', { key: d.pid, onClick: () => { if (window._wrSelectPlayer) window._wrSelectPlayer(d.pid); }, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(231,76,60,0.04)', border: '1px solid rgba(231,76,60,0.15)', borderRadius: '8px', cursor: 'pointer' } },
+                                        React.createElement('img', { src: 'https://sleepercdn.com/content/nfl/players/' + d.pid + '.jpg', style: { width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }, onError: e => { e.target.style.display = 'none'; } }),
+                                        React.createElement('div', { style: { flex: 1 } },
+                                            React.createElement('div', { style: { fontSize: '0.84rem', fontWeight: 600, color: 'var(--white)' } }, d.name),
+                                            React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, d.pos + ' \u00B7 ' + (d.p.team || 'FA') + ' \u00B7 Age ' + (d.age || '?'))
+                                        ),
+                                        React.createElement('div', { style: { textAlign: 'right' } },
+                                            React.createElement('div', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Oswald', color: d.dhq > 0 ? 'var(--silver)' : '#E74C3C' } }, d.dhq > 0 ? d.dhq.toLocaleString() : 'No value'),
+                                            React.createElement('div', { style: { fontSize: '0.68rem', color: d.peakYrs <= 0 ? '#E74C3C' : 'var(--silver)' } }, d.peakYrs > 0 ? d.peakYrs + 'yr peak' : 'Past peak')
+                                        )
+                                    )
+                                )
+                            )
+                        );
+                    })()}
+
+                    {/* ── LEAGUE FAAB TRACKER ── */}
+                    {hasFAAB && React.createElement('div', { style: { marginTop: '20px' } },
+                        React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' } }, 'LEAGUE FAAB TRACKER'),
+                        React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'See who can outbid you \u2014 and who\u2019s tapped out'),
+                        React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px' } },
+                            ...(currentLeague.rosters || []).map(r => {
+                                const user = (currentLeague.users || []).find(u => u.user_id === r.owner_id);
+                                const name = user?.display_name || user?.username || ('Team ' + r.roster_id);
+                                const rBudget = currentLeague?.settings?.waiver_budget || 0;
+                                const rSpent = r.settings?.waiver_budget_used || 0;
+                                const rRemaining = Math.max(0, rBudget - rSpent);
+                                const pct = rBudget > 0 ? Math.round(rRemaining / rBudget * 100) : 0;
+                                const col = pct > 50 ? '#2ECC71' : pct > 25 ? '#F0A500' : '#E74C3C';
+                                const isMe = r.roster_id === myRoster?.roster_id;
+                                return React.createElement('div', { key: r.roster_id, style: { background: isMe ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)', border: '1px solid ' + (isMe ? 'rgba(212,175,55,0.3)' : 'rgba(255,255,255,0.06)'), borderRadius: '8px', padding: '8px 10px' } },
+                                    React.createElement('div', { style: { fontSize: '0.76rem', fontWeight: isMe ? 700 : 500, color: isMe ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '4px' } }, name + (isMe ? ' (you)' : '')),
+                                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
+                                        React.createElement('div', { style: { flex: 1, height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' } },
+                                            React.createElement('div', { style: { height: '100%', width: pct + '%', background: col, borderRadius: '3px' } })
+                                        ),
+                                        React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, fontFamily: 'Oswald', color: col, minWidth: '32px', textAlign: 'right' } }, '$' + rRemaining)
+                                    )
+                                );
+                            }).sort((a, b) => {
+                                const aMe = a.key === myRoster?.roster_id;
+                                return aMe ? -1 : 0;
+                            })
+                        )
+                    )}
+
+                    {/* ── ROSTER CHURN ALERTS ── */}
+                    {(() => {
+                        const recentDrops = [];
+                        const transactions = window.S?.transactions || {};
+                        const curWeek = window.S?.currentWeek || 1;
+                        for (let w = curWeek; w >= Math.max(1, curWeek - 2); w--) {
+                            (transactions['w' + w] || []).forEach(t => {
+                                if (t.type !== 'free_agent' && t.type !== 'waiver') return;
+                                Object.keys(t.drops || {}).forEach(pid => {
+                                    const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+                                    if (dhq >= 1500) {
+                                        const dropper = (currentLeague.users || []).find(u => {
+                                            const r = (currentLeague.rosters || []).find(r2 => t.roster_ids?.includes(r2.roster_id) && r2.owner_id === u.user_id);
+                                            return !!r;
+                                        });
+                                        recentDrops.push({ pid, dhq, name: playersData[pid]?.full_name || 'Unknown', pos: normPos(playersData[pid]?.position), week: w, droppedBy: dropper?.display_name || 'Unknown' });
+                                    }
+                                });
+                            });
+                        }
+                        if (!recentDrops.length) return null;
+                        return React.createElement('div', { style: { marginTop: '20px' } },
+                            React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: '#F0A500', letterSpacing: '0.06em', marginBottom: '4px' } }, 'ROSTER CHURN ALERTS'),
+                            React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Startable players dropped in the last 2 weeks'),
+                            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
+                                ...recentDrops.slice(0, 6).map(d =>
+                                    React.createElement('div', { key: d.pid, onClick: () => { if (window._wrSelectPlayer) window._wrSelectPlayer(d.pid); }, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(240,165,0,0.04)', border: '1px solid rgba(240,165,0,0.15)', borderRadius: '8px', cursor: 'pointer' } },
+                                        React.createElement('div', { style: { flex: 1 } },
+                                            React.createElement('div', { style: { fontSize: '0.84rem', fontWeight: 600, color: 'var(--white)' } }, d.name),
+                                            React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, d.pos + ' \u00B7 DHQ ' + d.dhq.toLocaleString() + ' \u00B7 Dropped by ' + d.droppedBy + ' \u00B7 Week ' + d.week)
+                                        ),
+                                        React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, color: '#F0A500' } }, 'GRAB')
+                                    )
+                                )
+                            )
+                        );
+                    })()}
+
+                    {/* ── BIDDING STRATEGY ── */}
+                    {hasFAAB && recommendations.length > 0 && React.createElement('div', { style: { marginTop: '20px' } },
+                        React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' } }, 'BIDDING STRATEGY'),
+                        React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Competitor-aware bid recommendations for your top targets'),
+                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
+                            ...recommendations.slice(0, 4).map(r => {
+                                if (!r.faab) return null;
+                                let topCompetitor = null;
+                                (currentLeague.rosters || []).forEach(ros => {
+                                    if (ros.roster_id === myRoster?.roster_id) return;
+                                    const cnt = (ros.players || []).filter(pid => normPos(playersData[pid]?.position) === r.pos).length;
+                                    const reqCount = (currentLeague.roster_positions || []).filter(s => normPos(s) === r.pos || s === 'FLEX').length;
+                                    if (cnt < reqCount) {
+                                        const rBudget2 = currentLeague?.settings?.waiver_budget || 0;
+                                        const rSpent2 = ros.settings?.waiver_budget_used || 0;
+                                        const rRem = Math.max(0, rBudget2 - rSpent2);
+                                        const user2 = (currentLeague.users || []).find(u => u.user_id === ros.owner_id);
+                                        if (!topCompetitor || rRem > topCompetitor.remaining) {
+                                            topCompetitor = { name: user2?.display_name || 'Unknown', remaining: rRem, rosterId: ros.roster_id };
+                                        }
+                                    }
+                                });
+                                const strategyBid = topCompetitor && topCompetitor.remaining > r.faab.sug ? Math.min(remaining, Math.round(topCompetitor.remaining * 0.6)) : r.faab.sug;
+                                const strategy = topCompetitor
+                                    ? (topCompetitor.remaining > r.faab.hi ? topCompetitor.name + ' has $' + topCompetitor.remaining + ' and needs ' + r.pos + '. Bid $' + strategyBid + ' to beat them.' : 'Low threat \u2014 bid $' + r.faab.sug + ' (standard)')
+                                    : 'No competition \u2014 bid minimum $' + r.faab.lo;
+                                return React.createElement('div', { key: r.pid, style: { padding: '10px 14px', background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px' } },
+                                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' } },
+                                        React.createElement('span', { style: { fontSize: '0.84rem', fontWeight: 700, color: 'var(--white)' } }, r.p.full_name || 'Unknown'),
+                                        React.createElement('span', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Oswald', color: 'var(--gold)' } }, '$' + strategyBid)
+                                    ),
+                                    React.createElement('div', { style: { fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.5 } }, strategy)
+                                );
+                            }).filter(Boolean)
+                        )
+                    )}
+
+                    <div style={{ textAlign: 'center', padding: '12px', fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.4, marginTop: '16px' }}>Switch to Analyst view for full free agent list and filters</div>
                 </div>
             );
         }
@@ -328,169 +516,53 @@
                         <div style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>of ${budget} remaining</div>
                     </div>}
 
-                    {/* Position Needs */}
+                    {/* Position Needs — Enhanced Grid with Rostered Players */}
                     {assess && <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px', padding: '16px' }}>
                         <div style={{ fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.08em', marginBottom: '10px' }}>ROSTER NEEDS</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '8px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
                             {Object.entries(assess.posAssessment || {}).sort((a,b) => {
                                 const ord = {deficit:0, thin:1, ok:2, surplus:3};
                                 return (ord[a[1].status]||2) - (ord[b[1].status]||2);
                             }).map(([pos, data]) => {
                                 const status = data.status || 'ok';
-                                const col = status === 'surplus' ? '#2ECC71' : status === 'ok' ? 'var(--silver)' : status === 'thin' ? '#F0A500' : '#E74C3C';
+                                const gradeCol = status === 'surplus' ? '#2ECC71' : status === 'ok' ? 'var(--silver)' : status === 'thin' ? '#F0A500' : '#E74C3C';
                                 const grade = status === 'surplus' ? 'A' : status === 'ok' ? 'B' : status === 'thin' ? 'C' : 'D';
-                                return <div key={pos} style={{ textAlign: 'center', padding: '8px 4px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid ' + col + '30' }}>
-                                    <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.2rem', color: col }}>{grade}</div>
-                                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)', fontWeight: 600 }}>{pos}</div>
-                                    <div style={{ fontSize: '0.7rem', color: col, opacity: 0.8 }}>{status}</div>
+                                const myRosterPids = myRoster?.players || [];
+                                const playersAtPos = myRosterPids
+                                    .filter(pid => normPos(playersData[pid]?.position) === pos)
+                                    .map(pid => {
+                                        const p = playersData[pid];
+                                        const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+                                        const [, pHi] = peaks[pos] || [24, 29];
+                                        const peakYrs = Math.max(0, pHi - (p?.age || 25));
+                                        const abbr = (p?.first_name?.[0] || '?') + '. ' + (p?.last_name || 'Unknown');
+                                        return { pid, abbr, dhq, peakYrs };
+                                    })
+                                    .sort((a, b) => b.dhq - a.dhq);
+                                const dhqColor = (v) => v >= 7000 ? '#2ECC71' : v >= 4000 ? '#3498DB' : v >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)';
+                                const peakColor = (y) => y >= 4 ? '#2ECC71' : y >= 1 ? 'var(--gold)' : '#E74C3C';
+                                return <div key={pos} style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '10px', marginBottom: '0' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                        <span style={{ fontFamily: 'Oswald', fontSize: '0.82rem', fontWeight: 700, color: gradeCol }}>{pos}</span>
+                                        <span style={{ fontSize: '0.72rem', color: gradeCol, fontWeight: 700 }}>{grade} · {data.nflStarters}/{data.minQuality || data.startingReq}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                        {playersAtPos.slice(0, 4).map(pl =>
+                                            <div key={pl.pid} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                                                <span style={{ color: 'var(--white)', fontWeight: 500 }}>{pl.abbr}</span>
+                                                <span style={{ display: 'flex', gap: '8px' }}>
+                                                    <span style={{ color: dhqColor(pl.dhq), fontFamily: 'Oswald', fontWeight: 700 }}>{pl.dhq > 0 ? pl.dhq.toLocaleString() : '\u2014'}</span>
+                                                    <span style={{ color: peakColor(pl.peakYrs) }}>{pl.peakYrs}yr</span>
+                                                </span>
+                                            </div>
+                                        )}
+                                        {playersAtPos.length === 0 && <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.4 }}>No players</div>}
+                                    </div>
                                 </div>;
                             })}
                         </div>
                     </div>}
                 </div>
-
-                {/* ── RECOMMENDATIONS ── */}
-                {recommendations.length > 0 && <div style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
-                    <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: 'var(--gold)', letterSpacing: '0.08em', marginBottom: '12px' }}>RECOMMENDED TARGETS</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
-                        {recommendations.map(r => {
-                            const posCol = posColors[r.pos] || 'var(--silver)';
-                            const dhqCol = r.dhq >= 7000 ? '#2ECC71' : r.dhq >= 4000 ? '#3498DB' : r.dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)';
-                            return <div key={r.pid} onClick={() => { if (typeof window.openFWPlayerModal === 'function') { window.openFWPlayerModal(r.pid, playersData, statsData, currentLeague?.scoring_settings); } else { setFaSelectedPid(r.pid); } }} style={{ background: faSelectedPid===r.pid?'rgba(212,175,55,0.08)':'rgba(255,255,255,0.02)', border: '1px solid '+(faSelectedPid===r.pid?'var(--gold)':'rgba(212,175,55,0.15)'), borderLeft: '3px solid ' + posCol, borderRadius: '8px', padding: '12px', cursor: 'pointer', transition: 'background 0.12s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.06)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                                    <img className={r.peakYrs >= 4 ? 'wr-ring wr-ring-pre' : r.peakYrs >= 1 ? 'wr-ring wr-ring-prime' : 'wr-ring wr-ring-post'} src={'https://sleepercdn.com/content/nfl/players/' + r.pid + '.jpg'} style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid ' + posCol + '40' }} onError={e => e.target.style.display = 'none'} />
-                                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.p.full_name || 'Unknown'}</div>
-                                        <div style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>{r.pos} · {r.p.team || 'FA'} · {r.p.age || '?'}yr</div>
-                                    </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                        <div style={{ fontSize: '0.95rem', fontWeight: 800, fontFamily: 'Oswald', color: dhqCol }}>{r.dhq.toLocaleString()}</div>
-                                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>DHQ</div>
-                                    </div>
-                                </div>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                    {r.ppg > 0 && <span style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>{r.ppg} PPG</span>}
-                                    <span style={{ fontSize: '0.74rem', color: '#2ECC71' }}>{r.peakYrs}yr peak</span>
-                                    {r.need && <span style={{ fontSize: '0.72rem', color: '#E74C3C', fontWeight: 700 }}>fills {r.need.pos} {r.need.urgency}</span>}
-                                    {r.faab && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--gold)', background: 'rgba(212,175,55,0.1)', padding: '1px 6px', borderRadius: '3px' }}>{'$' + r.faab.lo + '-' + r.faab.hi}</span>}
-                                    {r.faab && <span style={{ fontSize: '0.68rem', color: r.faab.confCol }}>{r.faab.conf}</span>}
-                                </div>
-                            </div>;
-                        })}
-                    </div>
-                </div>}
-
-                {/* ── DROP CANDIDATES — lowest-value rostered players ── */}
-                {myRoster?.players?.length > 0 && (() => {
-                    const dropCandidates = (myRoster.players || [])
-                        .map(pid => {
-                            const p = playersData[pid];
-                            if (!p) return null;
-                            const dhq = window.App?.LI?.playerScores?.[pid] || 0;
-                            const pos = normPos(p.position) || p.position;
-                            const meta = window.App?.LI?.playerMeta?.[pid];
-                            const peakYrs = meta?.peakYrsLeft || 0;
-                            const isStarter = (myRoster.starters || []).includes(pid);
-                            // Skip starters — only suggest bench/taxi drops
-                            if (isStarter) return null;
-                            return { pid, p, dhq, pos, peakYrs, name: p.full_name || 'Unknown', age: p.age || 0 };
-                        })
-                        .filter(Boolean)
-                        .sort((a, b) => a.dhq - b.dhq)
-                        .slice(0, 5);
-                    if (!dropCandidates.length) return null;
-                    return React.createElement('div', { style: { marginBottom: '20px' } },
-                        React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1rem', color: '#E74C3C', letterSpacing: '0.06em', marginBottom: '8px' } }, 'DROP CANDIDATES'),
-                        React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Lowest-value bench players — cut to make room for upgrades'),
-                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
-                            ...dropCandidates.map(d =>
-                                React.createElement('div', { key: d.pid, onClick: () => { if (window._wrSelectPlayer) window._wrSelectPlayer(d.pid); }, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(231,76,60,0.04)', border: '1px solid rgba(231,76,60,0.15)', borderRadius: '8px', cursor: 'pointer' } },
-                                    React.createElement('img', { src: 'https://sleepercdn.com/content/nfl/players/' + d.pid + '.jpg', style: { width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }, onError: e => { e.target.style.display = 'none'; } }),
-                                    React.createElement('div', { style: { flex: 1 } },
-                                        React.createElement('div', { style: { fontSize: '0.84rem', fontWeight: 600, color: 'var(--white)' } }, d.name),
-                                        React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, d.pos + ' \u00B7 ' + (d.p.team || 'FA') + ' \u00B7 Age ' + (d.age || '?'))
-                                    ),
-                                    React.createElement('div', { style: { textAlign: 'right' } },
-                                        React.createElement('div', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Oswald', color: d.dhq > 0 ? 'var(--silver)' : '#E74C3C' } }, d.dhq > 0 ? d.dhq.toLocaleString() : 'No value'),
-                                        React.createElement('div', { style: { fontSize: '0.68rem', color: d.peakYrs <= 0 ? '#E74C3C' : 'var(--silver)' } }, d.peakYrs > 0 ? d.peakYrs + 'yr peak' : 'Past peak')
-                                    )
-                                )
-                            )
-                        )
-                    );
-                })()}
-
-                {/* ── DROP-FOR-ADD PAIRS — combine drop + pickup into actionable moves ── */}
-                {(() => {
-                    const drops = (myRoster?.players || [])
-                        .filter(pid => !(myRoster.starters || []).includes(pid))
-                        .map(pid => ({ pid, p: playersData[pid], dhq: window.App?.LI?.playerScores?.[pid] || 0, pos: normPos(playersData[pid]?.position) }))
-                        .filter(d => d.p && d.dhq < 2000)
-                        .sort((a, b) => a.dhq - b.dhq).slice(0, 5);
-                    const pairs = [];
-                    drops.forEach(drop => {
-                        const upgrade = availablePlayers.find(a => a.pos === drop.pos && a.dhq > drop.dhq + 500 && !pairs.some(p => p.add.pid === a.pid));
-                        if (upgrade) {
-                            const addFaab = faabSuggest(upgrade.dhq, upgrade.pos);
-                            pairs.push({ drop, add: upgrade, faab: addFaab, gain: upgrade.dhq - drop.dhq });
-                        }
-                    });
-                    if (!pairs.length) return null;
-                    return React.createElement('div', { style: { marginBottom: '20px' } },
-                        React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1rem', color: '#2ECC71', letterSpacing: '0.06em', marginBottom: '4px' } }, 'RECOMMENDED MOVES'),
-                        React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Drop + add pairs that upgrade your roster'),
-                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
-                            ...pairs.slice(0, 4).map((pair, i) =>
-                                React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'rgba(46,204,113,0.04)', border: '1px solid rgba(46,204,113,0.15)', borderRadius: '8px' } },
-                                    React.createElement('div', { style: { flex: 1 } },
-                                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' } },
-                                            React.createElement('span', { style: { fontSize: '0.78rem', color: '#E74C3C', fontWeight: 700 } }, '\u2212 ' + (pair.drop.p.full_name || 'Unknown')),
-                                            React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, pair.drop.pos + ' \u00B7 ' + pair.drop.dhq.toLocaleString() + ' DHQ')
-                                        ),
-                                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
-                                            React.createElement('span', { style: { fontSize: '0.78rem', color: '#2ECC71', fontWeight: 700 } }, '+ ' + (pair.add.p.full_name || 'Unknown')),
-                                            React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, pair.add.pos + ' \u00B7 ' + pair.add.dhq.toLocaleString() + ' DHQ')
-                                        )
-                                    ),
-                                    React.createElement('div', { style: { textAlign: 'right', flexShrink: 0 } },
-                                        React.createElement('div', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Oswald', color: '#2ECC71' } }, '+' + pair.gain.toLocaleString()),
-                                        pair.faab && React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--gold)' } }, '$' + pair.faab.lo + '-' + pair.faab.hi)
-                                    )
-                                )
-                            )
-                        )
-                    );
-                })()}
-
-                {/* ── LEAGUE FAAB TRACKER — every team's remaining budget ── */}
-                {hasFAAB && React.createElement('div', { style: { marginBottom: '20px' } },
-                    React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' } }, 'LEAGUE FAAB TRACKER'),
-                    React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'See who can outbid you \u2014 and who\u2019s tapped out'),
-                    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px' } },
-                        ...(currentLeague.rosters || []).map(r => {
-                            const user = (currentLeague.users || []).find(u => u.user_id === r.owner_id);
-                            const name = user?.display_name || user?.username || ('Team ' + r.roster_id);
-                            const rBudget = currentLeague?.settings?.waiver_budget || 0;
-                            const rSpent = r.settings?.waiver_budget_used || 0;
-                            const rRemaining = Math.max(0, rBudget - rSpent);
-                            const pct = rBudget > 0 ? Math.round(rRemaining / rBudget * 100) : 0;
-                            const col = pct > 50 ? '#2ECC71' : pct > 25 ? '#F0A500' : '#E74C3C';
-                            const isMe = r.roster_id === myRoster?.roster_id;
-                            return React.createElement('div', { key: r.roster_id, style: { background: isMe ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)', border: '1px solid ' + (isMe ? 'rgba(212,175,55,0.3)' : 'rgba(255,255,255,0.06)'), borderRadius: '8px', padding: '8px 10px' } },
-                                React.createElement('div', { style: { fontSize: '0.76rem', fontWeight: isMe ? 700 : 500, color: isMe ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '4px' } }, name + (isMe ? ' (you)' : '')),
-                                React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
-                                    React.createElement('div', { style: { flex: 1, height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' } },
-                                        React.createElement('div', { style: { height: '100%', width: pct + '%', background: col, borderRadius: '3px' } })
-                                    ),
-                                    React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, fontFamily: 'Oswald', color: col, minWidth: '32px', textAlign: 'right' } }, '$' + rRemaining)
-                                )
-                            );
-                        }).sort((a, b) => {
-                            const aMe = a.key === myRoster?.roster_id;
-                            return aMe ? -1 : 0;
-                        })
-                    )
-                )}
 
                 {/* ── WAIVER PRIORITY BOARD — full ranked pickup list ── */}
                 {React.createElement('div', { style: { marginBottom: '20px' } },
@@ -523,84 +595,8 @@
                     )
                 )}
 
-                {/* ── ROSTER CHURN ALERTS — recently dropped startable players ── */}
-                {(() => {
-                    const recentDrops = [];
-                    const transactions = window.S?.transactions || {};
-                    const curWeek = window.S?.currentWeek || 1;
-                    for (let w = curWeek; w >= Math.max(1, curWeek - 2); w--) {
-                        (transactions['w' + w] || []).forEach(t => {
-                            if (t.type !== 'free_agent' && t.type !== 'waiver') return;
-                            Object.keys(t.drops || {}).forEach(pid => {
-                                const dhq = window.App?.LI?.playerScores?.[pid] || 0;
-                                if (dhq >= 1500) {
-                                    const dropper = (currentLeague.users || []).find(u => {
-                                        const r = (currentLeague.rosters || []).find(r2 => t.roster_ids?.includes(r2.roster_id) && r2.owner_id === u.user_id);
-                                        return !!r;
-                                    });
-                                    recentDrops.push({ pid, dhq, name: playersData[pid]?.full_name || 'Unknown', pos: normPos(playersData[pid]?.position), week: w, droppedBy: dropper?.display_name || 'Unknown' });
-                                }
-                            });
-                        });
-                    }
-                    if (!recentDrops.length) return null;
-                    return React.createElement('div', { style: { marginBottom: '20px' } },
-                        React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1rem', color: '#F0A500', letterSpacing: '0.06em', marginBottom: '4px' } }, 'ROSTER CHURN ALERTS'),
-                        React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Startable players dropped in the last 2 weeks'),
-                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
-                            ...recentDrops.slice(0, 6).map(d =>
-                                React.createElement('div', { key: d.pid, onClick: () => { if (window._wrSelectPlayer) window._wrSelectPlayer(d.pid); }, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(240,165,0,0.04)', border: '1px solid rgba(240,165,0,0.15)', borderRadius: '8px', cursor: 'pointer' } },
-                                    React.createElement('div', { style: { flex: 1 } },
-                                        React.createElement('div', { style: { fontSize: '0.84rem', fontWeight: 600, color: 'var(--white)' } }, d.name),
-                                        React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, d.pos + ' \u00B7 DHQ ' + d.dhq.toLocaleString() + ' \u00B7 Dropped by ' + d.droppedBy + ' \u00B7 Week ' + d.week)
-                                    ),
-                                    React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, color: '#F0A500' } }, 'GRAB')
-                                )
-                            )
-                        )
-                    );
-                })()}
-
-                {/* ── FAAB BIDDING INTELLIGENCE — competitor-aware strategy ── */}
-                {hasFAAB && recommendations.length > 0 && React.createElement('div', { style: { marginBottom: '20px' } },
-                    React.createElement('div', { style: { fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' } }, 'BIDDING STRATEGY'),
-                    React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Competitor-aware bid recommendations for your top targets'),
-                    React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
-                        ...recommendations.slice(0, 4).map(r => {
-                            if (!r.faab) return null;
-                            // Find the richest competitor who needs this position
-                            let topCompetitor = null;
-                            (currentLeague.rosters || []).forEach(ros => {
-                                if (ros.roster_id === myRoster?.roster_id) return;
-                                const cnt = (ros.players || []).filter(pid => normPos(playersData[pid]?.position) === r.pos).length;
-                                const reqCount = (currentLeague.roster_positions || []).filter(s => normPos(s) === r.pos || s === 'FLEX').length;
-                                if (cnt < reqCount) {
-                                    const rBudget2 = currentLeague?.settings?.waiver_budget || 0;
-                                    const rSpent2 = ros.settings?.waiver_budget_used || 0;
-                                    const rRem = Math.max(0, rBudget2 - rSpent2);
-                                    const user2 = (currentLeague.users || []).find(u => u.user_id === ros.owner_id);
-                                    if (!topCompetitor || rRem > topCompetitor.remaining) {
-                                        topCompetitor = { name: user2?.display_name || 'Unknown', remaining: rRem, rosterId: ros.roster_id };
-                                    }
-                                }
-                            });
-                            const strategyBid = topCompetitor && topCompetitor.remaining > r.faab.sug ? Math.min(remaining, Math.round(topCompetitor.remaining * 0.6)) : r.faab.sug;
-                            const strategy = topCompetitor
-                                ? (topCompetitor.remaining > r.faab.hi ? topCompetitor.name + ' has $' + topCompetitor.remaining + ' and needs ' + r.pos + '. Bid $' + strategyBid + ' to beat them.' : 'Low threat \u2014 bid $' + r.faab.sug + ' (standard)')
-                                : 'No competition \u2014 bid minimum $' + r.faab.lo;
-                            return React.createElement('div', { key: r.pid, style: { padding: '10px 14px', background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px' } },
-                                React.createElement('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' } },
-                                    React.createElement('span', { style: { fontSize: '0.84rem', fontWeight: 700, color: 'var(--white)' } }, r.p.full_name || 'Unknown'),
-                                    React.createElement('span', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Oswald', color: 'var(--gold)' } }, '$' + strategyBid)
-                                ),
-                                React.createElement('div', { style: { fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.5 } }, strategy)
-                            );
-                        }).filter(Boolean)
-                    )
-                )}
-
-                {/* ── POSITION FILTER + FULL LIST (Analyst only, or always if no recs) ── */}
-                {(viewMode !== 'command' || recommendations.length === 0) && <React.Fragment><div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {/* ── POSITION FILTER + FULL LIST ── */}
+                <React.Fragment><div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <span style={{ fontFamily: 'Bebas Neue', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginRight: '8px' }}>ALL FREE AGENTS</span>
                     {['', 'QB', 'RB', 'WR', 'TE', 'K', 'DL', 'LB', 'DB'].map(pos =>
                         <button key={pos} onClick={() => setFaFilter(pos)} style={{ padding: '5px 12px', fontSize: '0.76rem', fontFamily: 'Oswald', textTransform: 'uppercase', background: faFilter === pos ? 'var(--gold)' : 'rgba(255,255,255,0.04)', color: faFilter === pos ? 'var(--black)' : 'var(--silver)', border: '1px solid ' + (faFilter === pos ? 'var(--gold)' : 'rgba(255,255,255,0.08)'), borderRadius: '4px', cursor: 'pointer' }}>{pos || 'All'}</button>
@@ -650,10 +646,7 @@
                             </div>;
                         })}
                     </div>
-                </div></React.Fragment>}
-
-                {/* Command mode hint */}
-                {viewMode === 'command' && recommendations.length > 0 && <div style={{ textAlign: 'center', padding: '12px', fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.4 }}>Switch to Analyst view for the full free agent list</div>}
+                </div></React.Fragment>
 
                 {/* ── RIGHT: PLAYER DETAIL PANEL ── */}
                 {faSelectedPid && selPlayer && <div style={{ position: 'fixed', right: 0, top: 0, bottom: 0, width: '380px', background: 'linear-gradient(135deg, var(--off-black), var(--charcoal))', borderLeft: '2px solid var(--gold)', zIndex: 200, overflowY: 'auto', padding: '20px', boxShadow: '-8px 0 32px rgba(0,0,0,0.5)' }}>
