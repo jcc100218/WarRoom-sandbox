@@ -4106,16 +4106,18 @@
                             const w = r.winnerProfile;
                             const l = r.leagueProfile;
                             const m = r.myProfile;
-                            // Fixed elite threshold: 7000+ DHQ = league-winning asset
-                            const eliteThreshold = 7000;
+                            // Elite = top 5 at position
                             const playerScores = window.App?.LI?.playerScores || {};
                             const SS = window.S || window.App?.S;
                             const allRosters = SS?.rosters || [];
                             const winnerIds = new Set(d.winners || []);
+                            const hasEliteFn = typeof window.App?.countElitePlayers === 'function';
                             function countElite(rosterList) {
                                 if (!rosterList.length) return 0;
                                 let total = 0;
-                                rosterList.forEach(ros => { total += (ros.players || []).filter(pid => (playerScores[pid] || 0) >= eliteThreshold).length; });
+                                rosterList.forEach(ros => {
+                                    total += hasEliteFn ? window.App.countElitePlayers(ros.players || []) : (ros.players || []).filter(pid => (playerScores[pid] || 0) >= 7000).length;
+                                });
                                 return +(total / rosterList.length).toFixed(1);
                             }
                             const wElite = countElite(allRosters.filter(ros => winnerIds.has(ros.roster_id)));
@@ -4258,7 +4260,7 @@
                                 insights.push({
                                     color: badColor,
                                     title: 'Elite Player Deficit',
-                                    text: 'You need ' + Math.abs(eliteDiff).toFixed(1) + ' more elite players (DHQ ' + Math.round(eliteThreshold).toLocaleString() + '+) to match winners.',
+                                    text: 'You need ' + Math.abs(eliteDiff).toFixed(1) + ' more elite players (top 5 at position) to match winners.',
                                 });
                             }
                             if (m.avgBenchQuality < w.avgBenchQuality * 0.75) {
@@ -4357,12 +4359,12 @@
                                     </div>
                                     {/* Elite Count */}
                                     <div style={kpiCardStyle}>
-                                        <div style={kpiLabelStyle}>Elite Players <span title="Number of players on your roster with 7,000+ DHQ — league-winning caliber assets that anchor championship teams." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                                        <div style={kpiLabelStyle}>Elite Players <span title="Players ranked top 5 at their position across all league rosters." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
                                         <div style={kpiNumberStyle}>{mElite}</div>
                                         <div style={kpiDeltaStyle(mElite >= wElite)}>
                                             {mElite >= wElite ? '= ' : '\u25BC '}{mElite >= wElite ? 'above' : Math.abs(mElite - wElite).toFixed(1) + ' below'} winners ({wElite})
                                         </div>
-                                        <div style={{ fontSize: '0.65rem', color: 'var(--silver)', opacity: 0.5, marginTop: '4px' }}>Threshold: {Math.round(eliteThreshold).toLocaleString()}+ DHQ</div>
+                                        <div style={{ fontSize: '0.65rem', color: 'var(--silver)', opacity: 0.5, marginTop: '4px' }}>Top 5 at position</div>
                                     </div>
                                     {/* Compete Window */}
                                     <div style={kpiCardStyle}>
