@@ -741,8 +741,24 @@
                     setAllRosters(rosters);
                     setLeagueInfo(info);
                     // Load player names in background — large payload, non-blocking
-                    fetchPlayers().then(p => setPlayersData(p)).catch(() => {});
+                    fetchPlayers().then(p => { setPlayersData(p); if (window.S) window.S.players = p; }).catch(() => {});
                     setStatsData(stats);
+
+                    // Bridge data for dhqContext() — enables full league format, quality gates, team mode
+                    if (!window.S) window.S = {};
+                    window.S.players = _wrPlayersCache || {};
+                    window.S.rosters = rosters || [];
+                    window.S.leagues = [{ league_id: leagueId, name: info?.name, scoring_settings: info?.scoring_settings, roster_positions: info?.roster_positions, settings: info?.settings }];
+                    window.S.currentLeagueId = leagueId;
+                    window.S.season = info?.season || SEASON;
+                    window.S.myRosterId = myR?.roster_id;
+                    window.S.playerStats = {};
+                    for (const [pid, s] of Object.entries(stats || {})) {
+                        const scoring = info?.scoring_settings || {};
+                        const pts = typeof calcPoints === 'function' ? calcPoints(s, scoring) : (s.pts_half_ppr ?? null);
+                        const gp = s.gp || s.gms_active || 0;
+                        window.S.playerStats[pid] = { prevTotal: pts ? Math.round(pts * 10) / 10 : 0, prevAvg: gp > 0 ? Math.round(pts / gp * 10) / 10 : 0 };
+                    }
 
                     // Load targets: start from cache, then merge cloud data.
                     // Clear the ref first so the save effect won't fire with stale data.
@@ -1047,6 +1063,10 @@
                 const leagueName = leagueInfo?.name || 'Fantasy League';
                 const rosterPositions = leagueInfo?.roster_positions || [];
 
+                // Team assessment for mode-aware AI recommendations
+                const teamAssess = typeof window.assessTeamFromGlobal === 'function'
+                    ? window.assessTeamFromGlobal(myRoster?.roster_id) : null;
+
                 const myRosterSummary = (myRoster?.players || []).map(id => {
                     const p = playersData[id];
                     if (!p) return null;
@@ -1059,7 +1079,9 @@
                         pts: rawPts ? Number(rawPts).toFixed(1) : null,
                         gp: s?.gp || null,
                         avg: (rawPts && s?.gp) ? (rawPts / s.gp).toFixed(1) : null,
+                        age: p.age ?? null,
                         yrsExp: p.years_exp ?? null,
+                        dhq: window.App?.LI?.playerScores?.[id] || 0,
                         isStarter: (myRoster.starters || []).includes(id),
                         isTaxi: (myRoster.taxi || []).includes(id),
                     };
@@ -1072,6 +1094,7 @@
                     })
                     .slice(0, 60)
                     .map(fa => {
+                        const p = playersData[fa.id];
                         const s = statsData[fa.id];
                         const rawPts = calcRawPts(s);
                         return {
@@ -1079,6 +1102,8 @@
                             pts: rawPts ? Number(rawPts).toFixed(1) : null,
                             gp: s?.gp || null,
                             avg: (rawPts && s?.gp) ? (rawPts / s.gp).toFixed(1) : null,
+                            age: p?.age ?? null,
+                            dhq: window.App?.LI?.playerScores?.[fa.id] || 0,
                             yrsExp: fa.yrsExp, isRookie: fa.yrsExp === 0,
                         };
                     });
@@ -1092,6 +1117,15 @@
                     faabBudget: finalBalance, startingBudget,
                     faabMinBid: leagueInfo?.settings?.waiver_budget_min || 0,
                     myRoster: myRosterSummary, rosterPositions,
+                    // League format fields for AI context
+                    scoringSettings: leagueInfo?.scoring_settings || {},
+                    scoring_settings: leagueInfo?.scoring_settings || {},
+                    // Team mode fields for AI context
+                    teamTier: teamAssess?.tier || '',
+                    teamWindow: teamAssess?.window || '',
+                    healthScore: teamAssess?.healthScore || 0,
+                    tier: teamAssess?.tier || '',
+                    tradeWindow: teamAssess?.window || '',
                     topFreeAgents: topFAs, availableRookies,
                     question: aiChatInput,
                 };
@@ -1101,8 +1135,8 @@
                 setAiLoading(true); setAiError(null); setAiAnalysis(null);
                 try {
                     const ctx = buildFAContext();
-                    const dhqSystem = (typeof DHQ_IDENTITY !== 'undefined') ? DHQ_IDENTITY : '';
-                    const enrichedCtx = dhqSystem ? { ...ctx, system: dhqSystem } : ctx;
+                    const dhqEnrichment = (typeof dhqContext === 'function') ? dhqContext(false) : null;
+                    const enrichedCtx = dhqEnrichment ? { ...ctx, _dhqContext: dhqEnrichment } : ctx;
                     const result = await window.OD.callAI({ type: aiMode, context: enrichedCtx });
                     setAiAnalysis(result.analysis);
                 } catch(e) {

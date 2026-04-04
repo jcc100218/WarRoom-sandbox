@@ -370,8 +370,26 @@
                     setMyRoster(myR); setAllRosters(rosters);
                     setLeagueInfo(info); setStatsData(stats);
                     setTradedPicks(Array.isArray(picks) ? picks : []);
+
+                    // Bridge data for dhqContext() — enables full league format, quality gates, team mode
+                    if (!window.S) window.S = {};
+                    window.S.players = {};
+                    window.S.rosters = rosters || [];
+                    window.S.leagues = [{ league_id: leagueId, name: info?.name, scoring_settings: info?.scoring_settings, roster_positions: info?.roster_positions, settings: info?.settings }];
+                    window.S.currentLeagueId = leagueId;
+                    window.S.season = info?.season || STATS_YEAR;
+                    window.S.myRosterId = myR?.roster_id;
+                    window.S.tradedPicks = Array.isArray(picks) ? picks : [];
+                    window.S.playerStats = {};
+                    for (const [pid, s] of Object.entries(stats || {})) {
+                        const scoring = info?.scoring_settings || {};
+                        const pts = typeof calcPoints === 'function' ? calcPoints(s, scoring) : (s.pts_half_ppr ?? null);
+                        const gp = s.gp || s.gms_active || 0;
+                        window.S.playerStats[pid] = { prevTotal: pts ? Math.round(pts * 10) / 10 : 0, prevAvg: gp > 0 ? Math.round(pts / gp * 10) / 10 : 0 };
+                    }
+
                     // Load player names in background — large payload, non-blocking
-                    fetchPlayers().then(p => setPlayersData(p)).catch(() => {});
+                    fetchPlayers().then(p => { setPlayersData(p); if (window.S) window.S.players = p; }).catch(() => {});
                 } catch (e) {
                     console.error('League load failed:', e);
                     setErrMsg('Failed to load league data. Check your connection and try again.');
@@ -502,11 +520,25 @@
                 // Standard pick count = DRAFT_ROUNDS * PICK_HORIZON if no trades happened
                 const standardTotal = DRAFT_ROUNDS * PICK_HORIZON;
 
+                // Team assessment for mode-aware AI
+                const teamAssess = typeof window.assessTeamFromGlobal === 'function'
+                    ? window.assessTeamFromGlobal(myRoster?.roster_id) : null;
+
                 return {
                     leagueName: leagueInfo?.name || 'Fantasy League',
                     myOwner: sleeperUsername,
                     faabBudget: 0, startingBudget: 0,
                     myRoster: myRosterSummary, rosterPositions,
+                    // League format fields for AI context
+                    scoringSettings: leagueInfo?.scoring_settings || {},
+                    scoring_settings: leagueInfo?.scoring_settings || {},
+                    roster_positions: leagueInfo?.roster_positions || [],
+                    // Team mode fields for AI context
+                    teamTier: teamAssess?.tier || '',
+                    teamWindow: teamAssess?.window || '',
+                    healthScore: teamAssess?.healthScore || 0,
+                    tier: teamAssess?.tier || '',
+                    tradeWindow: teamAssess?.window || '',
                     topFreeAgents: [], availableRookies,
                     myDraftPicks: myPicks,
                     standardPickTotal: standardTotal,
@@ -518,8 +550,8 @@
                 setAiLoading(true); setAiError(null); setAiAnalysis(null);
                 try {
                     const ctx = buildContext();
-                    const dhqSystem = (typeof DHQ_IDENTITY !== 'undefined') ? DHQ_IDENTITY : '';
-                    const enrichedCtx = dhqSystem ? { ...ctx, system: dhqSystem } : ctx;
+                    const dhqEnrichment = (typeof dhqContext === 'function') ? dhqContext(false) : null;
+                    const enrichedCtx = dhqEnrichment ? { ...ctx, _dhqContext: dhqEnrichment } : ctx;
                     const result = await window.OD.callAI({ type: aiMode, context: enrichedCtx });
                     setAiAnalysis(result.analysis);
                 } catch(e) {

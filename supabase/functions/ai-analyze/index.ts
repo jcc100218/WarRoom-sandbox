@@ -53,20 +53,202 @@ async function checkRateLimit(identifier: string): Promise<{ allowed: boolean; r
     }
 }
 
+// ── League Format Detection ──────────────────────────────────────────────────
+
+interface LeagueFormat {
+    isSuperFlex: boolean;
+    isTEP: boolean;       // TE Premium (bonus rec for TE)
+    isIDP: boolean;
+    idpSlots: number;     // actual IDP-designated slots (DL, LB, DB, etc.)
+    numQBSlots: number;   // starting QB + SUPER_FLEX slots that accept QB
+    numTESlots: number;   // starting TE + FLEX slots
+    numRBSlots: number;
+    numWRSlots: number;
+    rosterSize: number;
+    benchSpots: number;
+    starterCount: number;
+    hasK: boolean;
+    hasDST: boolean;
+    scoringType: string;  // 'ppr' | 'half_ppr' | 'std' | 'custom'
+    tePremiumBonus: number; // extra PPR bonus for TE (e.g. 0.5 means 1.5 PPR for TE)
+}
+
+function detectLeagueFormat(ctx: any): LeagueFormat {
+    const rp: string[] = ctx.rosterPositions || ctx.roster_positions || [];
+    const scoring = ctx.scoringSettings || ctx.scoring_settings || {};
+
+    const sfSlots = rp.filter((s: string) => s === 'SUPER_FLEX').length;
+    const qbSlots = rp.filter((s: string) => s === 'QB').length + sfSlots;
+    const rbSlots = rp.filter((s: string) => s === 'RB').length;
+    const wrSlots = rp.filter((s: string) => s === 'WR').length;
+    const teSlots = rp.filter((s: string) => s === 'TE').length;
+    const flexSlots = rp.filter((s: string) => s === 'FLEX' || s === 'REC_FLEX' || s === 'WRRB_FLEX').length;
+    const idpSlots = rp.filter((s: string) => ['IDP_FLEX', 'DL', 'LB', 'DB', 'DE', 'CB', 'S'].includes(s)).length;
+    const benchSpots = rp.filter((s: string) => s === 'BN').length;
+    const starterSlots = rp.filter((s: string) => s !== 'BN' && s !== 'IR' && s !== 'TAXI').length;
+
+    // TE Premium detection: check if TE gets extra receiving bonus
+    const recBonus = scoring.rec || 0;
+    const teBonusRec = scoring.bonus_rec_te || scoring.rec_te || 0;
+    const tePremiumBonus = teBonusRec > 0 ? teBonusRec : 0;
+    const isTEP = tePremiumBonus > 0;
+
+    // Scoring type detection
+    let scoringType = 'std';
+    if (recBonus >= 1) scoringType = 'ppr';
+    else if (recBonus >= 0.5) scoringType = 'half_ppr';
+    else if (recBonus > 0) scoringType = 'custom';
+
+    return {
+        isSuperFlex: sfSlots > 0,
+        isTEP,
+        isIDP: idpSlots > 0,
+        idpSlots,
+        numQBSlots: qbSlots,
+        numTESlots: teSlots,
+        numRBSlots: rbSlots,
+        numWRSlots: wrSlots,
+        rosterSize: rp.length,
+        benchSpots,
+        starterCount: starterSlots,
+        hasK: rp.includes('K'),
+        hasDST: rp.includes('DEF'),
+        scoringType,
+        tePremiumBonus,
+    };
+}
+
+function buildLeagueFormatBlock(fmt: LeagueFormat): string {
+    const lines: string[] = [];
+
+    if (fmt.isSuperFlex) {
+        lines.push(`⚡ SUPERFLEX LEAGUE — ${fmt.numQBSlots} QB-eligible slots. QBs are the most valuable position. A team without 2 starting-caliber QBs has a CRITICAL deficit that overrides all other needs.`);
+        lines.push(`  → QB scarcity multiplier: 1.8x. Every QB valuation, trade offer, and FAAB bid must reflect this premium.`);
+        lines.push(`  → A team with only 1 startable QB should treat acquiring a second QB as their #1 priority above ALL other positions.`);
+    }
+
+    if (fmt.isTEP) {
+        lines.push(`⚡ TE PREMIUM LEAGUE — TEs receive +${fmt.tePremiumBonus} bonus PPR (total: ${(fmt.tePremiumBonus + (fmt.scoringType === 'ppr' ? 1 : fmt.scoringType === 'half_ppr' ? 0.5 : 0)).toFixed(1)} PPR for TE). Elite TEs (top 5) are premium assets worth significantly more than standard leagues.`);
+        lines.push(`  → TE scarcity multiplier: 1.5x. Do NOT treat TEs as interchangeable depth pieces.`);
+    }
+
+    if (fmt.isIDP) {
+        lines.push(`⚡ IDP LEAGUE — ${fmt.idpSlots} defensive starter slots. LB/DL/DB have real fantasy value. Defensive studs (top-5 at their IDP position) are tradeable assets.`);
+    }
+
+    if (fmt.scoringType === 'ppr') {
+        lines.push(`📊 FULL PPR scoring — high-volume pass catchers (slot WRs, receiving RBs, pass-catching TEs) carry premium value over pure rushers.`);
+    } else if (fmt.scoringType === 'half_ppr') {
+        lines.push(`📊 HALF PPR scoring — balanced value between volume receivers and efficient rushers.`);
+    }
+
+    // Positional scarcity context based on roster construction
+    const rbDemand = fmt.numRBSlots + Math.floor(fmt.starterCount * 0.3); // RBs fill FLEX too
+    if (rbDemand >= 3) {
+        lines.push(`🔴 RB SCARCITY — ${fmt.numRBSlots} dedicated RB slots plus FLEX competition means startable RBs are at a premium. Do NOT recommend trading away RB depth lightly.`);
+    }
+
+    return lines.length > 0
+        ? `\n═══ LEAGUE FORMAT CONTEXT (critically important — adjust ALL valuations accordingly) ═══\n${lines.join('\n')}\n═══════════════════════════════════════════════════════════════════════════════════════\n`
+        : '';
+}
+
+// ── Team Mode Context ────────────────────────────────────────────────────────
+
+function buildTeamModeBlock(ctx: any): string {
+    const tier = ctx.teamTier || ctx.tier || '';
+    const window = ctx.teamWindow || ctx.tradeWindow || '';
+    const healthScore = ctx.healthScore || 0;
+
+    if (!tier && !window) return '';
+
+    const lines: string[] = [];
+    lines.push(`\n═══ TEAM COMPETITIVE MODE (critically important — drives ALL recommendations) ═══`);
+
+    const mode = tier.toUpperCase();
+    if (mode === 'REBUILDING' || window === 'REBUILDING') {
+        lines.push(`🔨 THIS TEAM IS IN REBUILD MODE (Health: ${healthScore}/100)`);
+        lines.push(`REBUILD RULES — strictly enforce these:`);
+        lines.push(`  1. PRIORITIZE YOUTH: Target players aged 24 and under. Players over 28 are sell candidates, not buy targets.`);
+        lines.push(`  2. ACCUMULATE DRAFT PICKS: Every trade recommendation should seek to acquire future draft capital. Early-round picks (1st-2nd) are the #1 currency.`);
+        lines.push(`  3. DO NOT RECOMMEND aging veterans — even if they fill a positional need. A rebuilding team does NOT need a 30-year-old WR2 for "depth."`);
+        lines.push(`  4. SELL declining assets aggressively: Any player past peak with 2+ years of decline should be moved for picks or young talent.`);
+        lines.push(`  5. FAAB RESTRAINT: Only spend FAAB on young upside plays (age ≤25) or injury replacements for trade-value players. Do NOT recommend bidding on replacement-level veterans.`);
+        lines.push(`  6. PATIENCE > DEPTH: A rebuild team should NOT be told to "add depth." They should be told to stockpile assets and wait.`);
+    } else if (mode === 'ELITE' || mode === 'CONTENDER' || window === 'CONTENDING') {
+        lines.push(`🏆 THIS TEAM IS CONTENDING (${mode} tier, Health: ${healthScore}/100)`);
+        lines.push(`CONTENDER RULES — strictly enforce these:`);
+        lines.push(`  1. WIN-NOW ASSETS: Prioritize proven producers who can contribute THIS season. Age matters less than immediate output.`);
+        lines.push(`  2. FILL GAPS: Identify the weakest starting position and fix it. A contender with a QB2 problem should solve it NOW.`);
+        lines.push(`  3. TRADE FUTURE PICKS FOR PRESENT TALENT: Contenders should be willing to move 2nd/3rd round picks for upgrades.`);
+        lines.push(`  4. DEPTH MATTERS for contenders — but only QUALITY depth (top-24 at position, minimum). Do NOT recommend adding low-end bench players.`);
+        lines.push(`  5. FAAB AGGRESSION on difference-makers: If a player would start, bid aggressively. If they'd be WR5 on the bench, skip them.`);
+    } else if (mode === 'CROSSROADS' || window === 'TRANSITIONING') {
+        lines.push(`⚖️ THIS TEAM IS AT A CROSSROADS (Health: ${healthScore}/100)`);
+        lines.push(`CROSSROADS RULES:`);
+        lines.push(`  1. EVALUATE the core: Can this team compete in 1-2 years with targeted upgrades, or should they sell and rebuild?`);
+        lines.push(`  2. DO NOT half-commit: Either push to contend (trade picks for upgrades) or commit to rebuild (trade vets for picks/youth).`);
+        lines.push(`  3. Players aged 27-29 with declining production are the priority sell candidates.`);
+        lines.push(`  4. FAAB: Moderate spending. Target young upside + immediate starters only. Skip replacement-level additions.`);
+    }
+
+    lines.push(`═══════════════════════════════════════════════════════════════════════════════════════\n`);
+    return lines.join('\n');
+}
+
+// ── Minimum Quality Thresholds ──────────────────────────────────────────────
+
+function buildQualityThresholdBlock(): string {
+    return `
+═══ MINIMUM QUALITY THRESHOLDS (apply to ALL FA/FAAB/waiver recommendations) ═══
+⛔ DO NOT recommend adding or bidding on players who meet ANY of these criteria:
+  • DHQ below 500 (replacement-level talent — not worth a roster spot in competitive leagues)
+  • PPG below 5.0 in their most recent season with 6+ games played
+  • Players with no NFL stats in the last 2 seasons (unless they are rookies)
+  • Veterans (age 27+) with declining trend who would not crack the starting lineup
+
+✅ ONLY recommend FAAB spending when the player would:
+  • Start or be the first backup at a position of need, OR
+  • Be a high-upside young player (age ≤25) worth a speculative hold, OR
+  • Replace an injured starter (emergency depth pickup)
+
+💰 FAAB DISCIPLINE:
+  • "Depth for depth's sake" is NEVER a valid reason to spend FAAB
+  • A $1 bid on a bad player is still a wasted roster spot
+  • If no quality targets exist at a position, say "HOLD YOUR FAAB" — do not invent targets
+  • Remaining FAAB is a weapon for mid-season breakouts and injuries — preserve it
+═══════════════════════════════════════════════════════════════════════════════════════
+`;
+}
+
 // ── Prompt builders ───────────────────────────────────────────────────────────
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(ctx?: any): string {
+    const leagueFmt = ctx ? detectLeagueFormat(ctx) : null;
+    const fmtBlock = leagueFmt ? buildLeagueFormatBlock(leagueFmt) : '';
+    const modeBlock = ctx ? buildTeamModeBlock(ctx) : '';
+    const qualityBlock = buildQualityThresholdBlock();
+
     return `You are an elite dynasty fantasy football analyst with deep expertise in player values, team-building strategy, and trade negotiation psychology. You analyze leagues with the precision of a sports analytics team combined with the strategic instinct of a seasoned GM.
 
 You have access to live data: Sleeper rosters and standings, FantasyCalc dynasty player values, and behavioral profiles of each owner (their DNA/trading personality derived from actual trade history).
-
+${fmtBlock}${modeBlock}${qualityBlock}
 Your analysis must be:
 - Specific and data-driven — name owners, cite records, reference actual roster compositions
 - Actionable — concrete recommendations an owner can act on today
 - Psychologically sharp — factor in owner DNA and negotiation leverage
 - Confident and direct — write like a seasoned scout, not a chatbot
+- CONTEXTUALLY AWARE — every recommendation must respect the team's competitive mode (rebuild/contend/crossroads) and the league's format (superflex/TEP/IDP/scoring type)
 
-Format with **bold headers** for each section. Keep total response under 1200 words.`;
+CRITICAL RULES:
+1. Never recommend a rebuilding team acquire aging veterans for "depth"
+2. Never recommend spending FAAB on replacement-level players (DHQ < 500, PPG < 5.0)
+3. In superflex leagues, ALWAYS flag QB needs as the top priority if a team lacks 2 starters
+4. In TE premium leagues, value elite TEs 1.5x higher than standard leagues
+5. "Add depth" is only valid advice for CONTENDING teams at positions where the depth player would actually start in case of injury to a top-24 player
+
+Format with **bold headers** for each section. Keep total response under 1200 words.`
+    + (ctx?._dhqContext ? '\n\n--- WAR ROOM CONTEXT ---\n' + ctx._dhqContext : '');
 }
 
 function formatTeamsForPrompt(teams: any[]): string {
@@ -79,18 +261,21 @@ function formatTeamsForPrompt(teams: any[]): string {
 }
 
 function buildLeaguePrompt(ctx: any): string {
+    const fmt = detectLeagueFormat(ctx);
+    const fmtBlock = buildLeagueFormatBlock(fmt);
+
     return `Analyze this dynasty fantasy football league.
 
 **League:** ${ctx.leagueName} | Season: ${ctx.season} | ${ctx.teams.length} teams
 **My Team:** ${ctx.myOwner}
-
+${fmtBlock}
 **TEAM DATA:**
 ${formatTeamsForPrompt(ctx.teams)}
 
 Provide:
-**LEAGUE LANDSCAPE** — 3-4 sentence overview of competitive balance
+**LEAGUE LANDSCAPE** — 3-4 sentence overview of competitive balance${fmt.isSuperFlex ? '. Note which teams have QB advantages/deficits in this superflex format.' : ''}
 **POWER RANKINGS** — Top 3 teams and specifically why they're winning
-**REBUILDERS TO WATCH** — Teams in rebuild mode with the most upside
+**REBUILDERS TO WATCH** — Teams in rebuild mode with the most upside. Emphasize their youth and draft capital, not veteran depth.
 **DANGER ZONE** — Teams in trouble and why
 **KEY STORYLINES** — 2-3 compelling narratives in this league right now
 **CHAMPIONSHIP WINDOW** — Who wins this league over the next 1-3 years and why`;
@@ -101,7 +286,7 @@ function buildTeamPrompt(ctx: any): string {
     const isMyTeam = t.isMyTeam === true;
 
     const rosterStr = (t.roster || []).map((p: any) =>
-        `  ${p.pos} | ${p.name} (${p.team}) | Value: ${p.value}${p.isElite ? ' ★ELITE' : ''}`
+        `  ${p.pos} | ${p.name} (${p.team}) | Value: ${p.value}${p.isElite ? ' ★ELITE' : ''}${p.age ? ` | Age ${p.age}` : ''}`
     ).join('\n');
 
     // Build detailed pick breakdown with per-year flagging
@@ -124,15 +309,31 @@ function buildTeamPrompt(ctx: any): string {
         .map((p: any) => `${p.name} (${p.pos}, ${p.value})`)
         .join(', ');
 
+    // League format context
+    const fmt = detectLeagueFormat(ctx);
+    const fmtBlock = buildLeagueFormatBlock(fmt);
+    const modeBlock = buildTeamModeBlock({ teamTier: t.tier, teamWindow: t.tradeWindow || t.window, healthScore: t.healthScore });
+
+    // Superflex QB audit
+    let sfQBNote = '';
+    if (fmt.isSuperFlex) {
+        const qbs = (t.roster || []).filter((p: any) => p.pos === 'QB');
+        const startableQBs = qbs.filter((p: any) => p.value >= 2000).length;
+        if (startableQBs < fmt.numQBSlots) {
+            sfQBNote = `\n⚠️ SUPERFLEX QB CRISIS: This team has only ${startableQBs} startable QB(s) for ${fmt.numQBSlots} QB-eligible slots. QB acquisition MUST be the #1 recommendation regardless of other needs.\n`;
+        }
+    }
+
     const negotiationSection = isMyTeam
         ? `**MY NEGOTIATION STRATEGY** — I am ${t.owner}. Based on my ${t.dna} DNA and current roster situation, how should I approach trade negotiations? What leverage do I have, what should I lead with, and what traps should I avoid?`
         : `**NEGOTIATION PLAYBOOK** — ${ctx.myOwner ? `I am ${ctx.myOwner} looking to trade with ${t.owner}.` : ''} Based on ${t.owner}'s ${t.dna} DNA profile, how should I approach negotiating with this owner? What buttons to push, what to avoid, how to frame offers?`;
 
     const tradeMovesSection = isMyTeam
-        ? `**TOP RECOMMENDED MOVES** — 2-3 specific, value-balanced trades I (${t.owner}) should pursue to improve my team. For each: name the player I want to acquire, what I should offer from MY OWN roster in return, and why the other owner says yes.`
+        ? `**TOP RECOMMENDED MOVES** — 2-3 specific, value-balanced trades I (${t.owner}) should pursue to improve my team. For each: name the player I want to acquire, what I should offer from MY OWN roster in return, and why the other owner says yes. Trades MUST align with my team mode: ${t.tier === 'REBUILDING' ? 'target youth and picks, sell aging assets' : t.tier === 'ELITE' || t.tier === 'CONTENDER' ? 'target win-now upgrades, willing to move future picks' : 'either push to contend or commit to rebuild — no half-measures'}.`
         : `**TOP RECOMMENDED MOVES** — I am ${ctx.myOwner || 'the logged-in owner'}. Give me 2-3 specific players I should target from ${t.owner}'s roster. For each: (1) name the ${t.owner} player I want, (2) describe what I should offer FROM MY OWN ASSETS — NOT ${t.owner}'s players, (3) explain why ${t.owner} would accept. CRITICAL: I am making the offer. Do NOT suggest ${t.owner} trade their own players to themselves.`;
 
     return `Provide a comprehensive scouting report on **${t.owner}**'s team in ${ctx.leagueName}.${isMyTeam ? ' This is MY OWN team — give me honest self-assessment and first-person strategic advice.' : ` I am ${ctx.myOwner || 'the logged-in owner'} scouting this team for trade opportunities.`}
+${fmtBlock}${modeBlock}${sfQBNote}
 
 **TEAM OVERVIEW:** ${t.record} | ${t.tier} | Health: ${t.healthScore}/100 | ${t.weeklyPts} pts/wk | Posture: ${t.posture}
 **OWNER DNA:** ${t.dna}${t.dnaDescription ? ` — ${t.dnaDescription}` : ''}
@@ -200,19 +401,41 @@ Identify my top 3 trading partners and one sleeper pick:
 
 function buildFATargetsPrompt(ctx: any): string {
     const rosterStr = (ctx.myRoster || []).map((p: any) =>
-        `  ${p.pos} ${p.name} (${p.team}) | ${p.pts ? `${p.pts}pts` : 'no stats'} | Yr ${p.yrsExp ?? '?'}${p.isStarter ? ' [STARTER]' : p.isTaxi ? ' [TAXI]' : ''}`
+        `  ${p.pos} ${p.name} (${p.team}) | ${p.pts ? `${p.pts}pts` : 'no stats'} | Age ${p.age ?? '?'} | Yr ${p.yrsExp ?? '?'}${p.isStarter ? ' [STARTER]' : p.isTaxi ? ' [TAXI]' : ''}${p.dhq ? ` | DHQ ${p.dhq}` : ''}`
     ).join('\n');
 
     const faStr = (ctx.topFreeAgents || []).slice(0, 50).map((fa: any) =>
-        `  ${fa.pos} ${fa.name} (${fa.team || 'FA'}) | ${fa.pts ? `${fa.pts}pts` : '—'} | ${fa.gp ? `${fa.gp}gp` : ''} | ${fa.avg ? `${fa.avg}avg` : ''} | Yr ${fa.yrsExp ?? '?'}${fa.isRookie ? ' [ROOKIE]' : ''}`
+        `  ${fa.pos} ${fa.name} (${fa.team || 'FA'}) | ${fa.pts ? `${fa.pts}pts` : '—'} | ${fa.gp ? `${fa.gp}gp` : ''} | ${fa.avg ? `${fa.avg}avg` : ''} | Age ${fa.age ?? '?'} | Yr ${fa.yrsExp ?? '?'}${fa.isRookie ? ' [ROOKIE]' : ''}${fa.dhq ? ` | DHQ ${fa.dhq}` : ''}`
     ).join('\n');
 
     const rosterPositions = (ctx.rosterPositions || []).filter((p: string) => p !== 'BN' && p !== 'IR').join(', ');
 
-    return `Build a free agency action plan for **${ctx.myOwner}** in **${ctx.leagueName}**.
+    // Detect league format for context
+    const fmt = detectLeagueFormat(ctx);
+    const fmtBlock = buildLeagueFormatBlock(fmt);
 
+    // Team mode context
+    const teamMode = ctx.teamTier || ctx.tier || 'UNKNOWN';
+    const teamWindow = ctx.teamWindow || ctx.tradeWindow || '';
+    const healthScore = ctx.healthScore || 0;
+    const modeBlock = buildTeamModeBlock(ctx);
+
+    // Count QBs on roster for superflex urgency
+    let qbCount = 0;
+    let qbWarning = '';
+    if (fmt.isSuperFlex) {
+        qbCount = (ctx.myRoster || []).filter((p: any) => p.pos === 'QB' && p.isStarter).length;
+        if (qbCount < fmt.numQBSlots) {
+            qbWarning = `\n⚠️ CRITICAL: This team has only ${qbCount} starting QB(s) in a ${fmt.numQBSlots}-QB-slot league. QB acquisition is the #1 PRIORITY. Any available QB with DHQ > 1000 should be the first recommendation.`;
+        }
+    }
+
+    return `Build a free agency action plan for **${ctx.myOwner}** in **${ctx.leagueName}**.
+${fmtBlock}${modeBlock}
+**TEAM STATUS:** ${teamMode} tier | Health: ${healthScore}/100 | Window: ${teamWindow || 'Unknown'}
 **REMAINING FAAB:** $${ctx.faabBudget} of $${ctx.startingBudget}${ctx.faabMinBid > 0 ? `\n**MINIMUM BID:** $${ctx.faabMinBid} (league rule — never suggest below this)` : ''}
 **STARTING LINEUP SPOTS:** ${rosterPositions}
+${qbWarning}
 
 **MY CURRENT ROSTER:**
 ${rosterStr || 'No roster data'}
@@ -220,14 +443,24 @@ ${rosterStr || 'No roster data'}
 **TOP AVAILABLE FREE AGENTS:**
 ${faStr || 'No FA data'}
 
+FAAB RECOMMENDATION RULES (strictly enforce):
+1. QUALITY FLOOR: Do NOT recommend any player with DHQ < 500 or season PPG < 5.0 (with 6+ games). "Just for depth" is NOT a valid reason.
+2. TEAM MODE MATTERS:
+   - REBUILDING teams: Only recommend young upside plays (age ≤25) or injury emergency pickups. Do NOT suggest veteran depth adds.
+   - CONTENDING teams: Recommend players who would immediately start or be first-in-line backup. Skip low-end bench filler.
+   - CROSSROADS teams: Target young starters only. No speculative depth.
+3. FAAB PRESERVATION: If fewer than 3 quality targets exist, explicitly say "HOLD YOUR FAAB for mid-season opportunities." Do NOT pad the list with marginal players.
+4. If the available player pool is weak, SAY SO. "There are no impactful additions available right now" is a valid and HELPFUL answer.
+
 Provide:
-**ROSTER AUDIT** — 2-3 sentences: current strengths and the biggest gaps to address
-**TOP FA TARGETS** — 5-7 specific free agents I should pursue, each with:
+**ROSTER AUDIT** — 2-3 sentences: current strengths and the biggest gaps to address, framed for the team's competitive mode
+**TOP FA TARGETS** — Up to 5-7 specific free agents I should pursue (ONLY those meeting quality thresholds), each with:
   - Why they fit my roster (positional need, age profile, upside)
-  - Suggested FAAB bid ($X–$Y range)
+  - Suggested FAAB bid ($X–$Y range) — proportional to impact and remaining budget
   - Priority tier (must-win bid / competitive / speculative)
-**BUDGET STRATEGY** — How to allocate the $${ctx.faabBudget} remaining across positions
-**WAIVER WIRE APPROACH** — Aggressive or patient? Any positional runs to expect?`;
+  - If fewer than 3 quality targets exist, stop and say so. Do NOT recommend bad players to fill the list.
+**BUDGET STRATEGY** — How to allocate the $${ctx.faabBudget} remaining. Include explicit "save X% for mid-season" guidance.
+**WAIVER WIRE APPROACH** — Aggressive or patient? Tied to team mode: rebuilders should be patient, contenders should be targeted.`;
 }
 
 function buildRookiesPrompt(ctx: any): string {
@@ -269,8 +502,13 @@ function buildRookiesPrompt(ctx: any): string {
         pickSummary = `${statusNote}\n${pickLines}`;
     }
 
-    return `Provide a rookie draft strategy for **${ctx.myOwner}** in **${ctx.leagueName}**.
+    // League format context
+    const fmt = detectLeagueFormat(ctx);
+    const fmtBlock = buildLeagueFormatBlock(fmt);
+    const modeBlock = buildTeamModeBlock(ctx);
 
+    return `Provide a rookie draft strategy for **${ctx.myOwner}** in **${ctx.leagueName}**.
+${fmtBlock}${modeBlock}
 **STARTING LINEUP SPOTS:** ${rosterPositions}
 
 **DRAFT PICK STATUS:**
@@ -422,8 +660,13 @@ function buildFAChatPrompt(ctx: any): string {
         `  ${fa.pos} ${fa.name} (${fa.team || 'FA'}) | ${fa.pts ? `${fa.pts}pts` : '—'} | Yr ${fa.yrsExp ?? '?'}${fa.isRookie ? ' [ROOKIE]' : ''}`
     ).join('\n');
 
-    return `You are advising **${ctx.myOwner}** on their free agency strategy in **${ctx.leagueName}**.
+    const fmt = detectLeagueFormat(ctx);
+    const fmtBlock = buildLeagueFormatBlock(fmt);
+    const modeBlock = buildTeamModeBlock(ctx);
 
+    return `You are advising **${ctx.myOwner}** on their free agency strategy in **${ctx.leagueName}**.
+${fmtBlock}${modeBlock}
+**TEAM STATUS:** ${ctx.teamTier || 'Unknown'} tier | Health: ${ctx.healthScore || '?'}/100
 **REMAINING FAAB:** $${ctx.faabBudget} of $${ctx.startingBudget}${ctx.faabMinBid > 0 ? `\n**MINIMUM BID:** $${ctx.faabMinBid} (league rule — never suggest below this)` : ''}
 
 **MY ROSTER:**
@@ -431,6 +674,8 @@ ${rosterStr || 'No roster data'}
 
 **TOP AVAILABLE FREE AGENTS:**
 ${faStr || 'No FA data'}
+
+Remember: Never recommend spending FAAB on replacement-level players. Quality over quantity.
 
 **Question:** ${ctx.question}`;
 }
@@ -562,7 +807,7 @@ Deno.serve(async (req) => {
             max_tokens: isMockDraft ? 16000 : 8192,
             system: isMockDraft
                 ? 'You are a dynasty fantasy football draft simulator. Output ONLY a raw JSON array. No markdown, no code fences, no backticks, no prose before or after. Start your response with [ and end with ]. Never repeat a player. Track all prior picks carefully so each player is selected at most once.'
-                : buildSystemPrompt(),
+                : buildSystemPrompt(context),
             messages: [{ role: 'user', content: userPrompt }],
         });
 

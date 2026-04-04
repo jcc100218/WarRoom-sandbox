@@ -3295,7 +3295,16 @@ function TradeCalculator() {
                 isMyTeam:    a.rosterId === myRosterId,
             }));
 
-            const base = { leagueName: leagueInfo?.name || 'Unknown League', season: leagueInfo?.season || SEASON, myOwner: myAssessment?.ownerName };
+            const base = {
+                leagueName: leagueInfo?.name || 'Unknown League',
+                season: leagueInfo?.season || SEASON,
+                myOwner: myAssessment?.ownerName,
+                // League format fields for AI context
+                rosterPositions: leagueInfo?.roster_positions || [],
+                roster_positions: leagueInfo?.roster_positions || [],
+                scoringSettings: leagueInfo?.scoring_settings || {},
+                scoring_settings: leagueInfo?.scoring_settings || {},
+            };
 
             if (aiMode === 'league') {
                 return { ...base, teams: teamSummaries };
@@ -3348,8 +3357,8 @@ function TradeCalculator() {
             setAiAnalysis(null);
             try {
                 const ctx = buildContext();
-                const dhqSystem = (typeof DHQ_IDENTITY !== 'undefined') ? DHQ_IDENTITY : '';
-                const enrichedCtx = dhqSystem ? { ...ctx, system: dhqSystem } : ctx;
+                const dhqEnrichment = (typeof dhqContext === 'function') ? dhqContext(false) : null;
+                const enrichedCtx = dhqEnrichment ? { ...ctx, _dhqContext: dhqEnrichment } : ctx;
                 const result = await window.OD.callAI({ type: aiMode, context: enrichedCtx });
                 setAiAnalysis(result.analysis);
                 // Persist to Supabase
