@@ -36,7 +36,7 @@
 
         // ── VIEW MODE — Command (decisions) vs Analyst (deep data) ──
         const [viewMode, setViewMode] = useState(() => {
-            try { return localStorage.getItem('wr_view_mode') || 'command'; } catch(e) { return 'command'; }
+            try { return localStorage.getItem('wr_view_mode') || 'analyst'; } catch(e) { return 'analyst'; }
         });
         const isCommand = viewMode === 'command';
         const isAnalyst = viewMode === 'analyst';
@@ -774,6 +774,7 @@
         }
         const [reconPanelOpen, setReconPanelOpen] = useState(false);
         const [showNotifications, setShowNotifications] = useState(false);
+        const [showAlerts, setShowAlerts] = useState(false);
         const [sidebarOpen, setSidebarOpen] = useState(false);
         const [gmStrategyOpen, setGmStrategyOpen] = useState(false);
         const [gmStrategy, setGmStrategy] = useState(() => {
@@ -4038,8 +4039,8 @@
                     const sevColor = (sev) => sev === 'high' || sev === 'critical' ? badColor : sev === 'medium' ? warnColor : goodColor;
                     const pctFmt = (v) => Math.round((v || 0) * 100) + '%';
                     const numFmt = (v) => v != null ? (typeof v === 'number' ? v.toLocaleString() : v) : '\u2014';
-                    // ── FLASH BRIEF: decision briefing ──
-                    if (isCommand) {
+                    // ── ALERTS: Flash Brief diagnosis (collapsible) ──
+                    if (showAlerts) {
                         const d = analyticsData;
                         const scores = window.App?.LI?.playerScores || {};
                         const myPids = myRoster?.players || [];
@@ -4087,7 +4088,10 @@
 
                         return (
                             <div style={{ padding: '24px 32px', maxWidth: '1000px', margin: '0 auto' }} className="wr-fade-in">
-                                <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.4rem', color: 'var(--gold)', letterSpacing: '0.05em', marginBottom: '12px' }}>FLASH BRIEF</div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                    <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.4rem', color: 'var(--gold)', letterSpacing: '0.05em' }}>ALERTS & ACTIONS</div>
+                                    <button onClick={() => setShowAlerts(false)} style={{ padding: '4px 12px', fontSize: '0.72rem', fontFamily: 'Oswald', background: 'none', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer' }}>{'\u2190'} Back to Analytics</button>
+                                </div>
 
                                 {/* Team Diagnosis — compact horizontal strip */}
                                 {(() => { const tCol = tier === 'ELITE' ? '#D4AF37' : tier === 'CONTENDER' ? '#2ECC71' : tier === 'CROSSROADS' ? '#F0A500' : tier === 'REBUILDING' ? '#E74C3C' : 'var(--silver)'; return (
@@ -4240,7 +4244,10 @@
 
                     return (
                     <div style={{ padding: '16px' }}>
-                        <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.4rem', color: 'var(--gold)', letterSpacing: '0.05em', marginBottom: '4px' }}>LEAGUE ANALYTICS</div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <div style={{ fontFamily: 'Bebas Neue, cursive', fontSize: '1.4rem', color: 'var(--gold)', letterSpacing: '0.05em' }}>LEAGUE ANALYTICS</div>
+                            <button onClick={() => setShowAlerts(true)} style={{ padding: '4px 12px', fontSize: '0.72rem', fontFamily: 'Oswald', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer' }}>Alerts & Actions</button>
+                        </div>
                         <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '16px' }}>Winners = playoff bracket champions, runner-ups, and semi-finalists when available. Falls back to top 3 by record in the current season.</div>
 
                         {/* Sub-tab navigation */}
