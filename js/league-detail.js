@@ -383,8 +383,8 @@
         const [visibleCols, setVisibleCols] = useState(() => {
             try {
                 const saved = localStorage.getItem('wr_roster_cols');
-                return saved ? JSON.parse(saved) : ['pos','age','dhq','peak','trend','action','yrsExp','posRankLg','starterSzn','acquired','acquiredDate'];
-            } catch(e) { return ['pos','age','dhq','peak','trend','action','yrsExp','posRankLg','starterSzn','acquired','acquiredDate']; }
+                return saved ? JSON.parse(saved) : ['pos','age','dhq','ppg','trend','action'];
+            } catch(e) { return ['pos','age','dhq','ppg','trend','action']; }
         });
         const [showColPicker, setShowColPicker] = useState(false);
         const [colPreset, setColPreset] = useState('dynasty');
@@ -1125,6 +1125,7 @@
                                 console.log('[War Room] DHQ engine loaded:', Object.keys(window.App.LI?.playerScores || {}).length, 'players valued');
                                 setDhqStatus({ loading: false, step: 'Complete!', progress: 100 });
                                 setStatsData(prev => ({...prev})); // force re-render
+                                setTimeRecomputeTs(Date.now()); // refresh KPIs and rankings
                             } catch(e) {
                                 console.warn('[War Room] DHQ engine error:', e);
                                 setDhqStatus({ loading: false, step: 'Error: ' + e.message, progress: 0 });
@@ -3372,7 +3373,7 @@
                         onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = 'rgba(212,175,55,0.06)'; }}
                         onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = idx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent'; }}>
                         {/* Frozen player info */}
-                        <div style={{ width: '220px', flexShrink: 0, height: '32px', display: 'flex', alignItems: 'center', gap: '6px', padding: '0 6px', borderRight: '2px solid rgba(212,175,55,0.15)', borderLeft: '3px solid ' + statusCol(r.section) }}>
+                        <div style={{ width: '220px', flexShrink: 0, height: '38px', display: 'flex', alignItems: 'center', gap: '6px', padding: '0 6px', borderRight: '2px solid rgba(212,175,55,0.15)', borderLeft: '3px solid ' + statusCol(r.section) }}>
                           <div className={'wr-ring wr-ring-' + r.pos} style={{ width: '26px', height: '26px', flexShrink: 0 }}><img src={'https://sleepercdn.com/content/nfl/players/thumb/'+r.pid+'.jpg'} alt="" onError={e=>e.target.style.display='none'} style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover' }} /></div>
                           <div style={{ overflow: 'hidden', flex: 1 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -3384,7 +3385,7 @@
                           <span style={{ fontSize: '0.68rem', color: 'var(--gold)', opacity: 0.4 }}>{isExpanded ? '\u25B2' : '\u25BC'}</span>
                         </div>
                         {/* Data columns */}
-                        <div style={{ flex: 1, display: 'flex', height: '32px', overflowX: 'auto' }}>
+                        <div style={{ flex: 1, display: 'flex', height: '38px', overflowX: 'auto' }}>
                           {visibleCols.map(colKey => ROSTER_COLUMNS[colKey] ? renderCell(colKey, r) : null)}
                         </div>
                       </div>
