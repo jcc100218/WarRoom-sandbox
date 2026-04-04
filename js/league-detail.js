@@ -2726,8 +2726,9 @@
             const peakYrsLeft = age ? Math.max(0, pHi - age) : 0;
 
             const _pidElite = typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(pid) : dhq >= 7000;
-            // Recommendation for MY roster — no BUY (you already own them)
-            const rec = peakYrsLeft <= 0 && trend <= -10 ? 'SELL NOW' : peakYrsLeft <= 0 ? 'SELL' : peakYrsLeft <= 2 && trend >= 15 ? 'SELL HIGH' : peakYrsLeft <= 2 ? 'SELL' : _pidElite && peakYrsLeft >= 3 ? 'HOLD CORE' : peakYrsLeft >= 4 && dhq < 4000 ? 'STASH' : 'HOLD';
+            // Recommendation for MY roster — shared getPlayerAction() with simplified fallback
+            const pa = typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
+            const rec = pa ? pa.label : (peakYrsLeft <= 0 ? 'Sell' : _pidElite && peakYrsLeft >= 3 ? 'Hold Core' : peakYrsLeft >= 4 && dhq < 4000 ? 'Stash' : 'Hold');
 
             return { pid, p, pos, dhq, age, curPPG, prevPPG, effectivePPG, effectiveGP, prevGP, durabilityGP, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, rec, curGP, meta, injury: p.injury_status };
           }).filter(Boolean);
@@ -2793,7 +2794,7 @@
               case 'action': {
                 const ann = getPlayerAnnotation(r.pid);
                 return <div key={colKey} style={{...base, flexDirection:'column', gap:'2px', alignItems:'center'}} title={ann?.text || ''}>
-                  <span style={{ fontSize:'0.74rem',fontWeight:700,padding:'3px 8px',borderRadius:'4px',background:r.rec==='BUY'?'rgba(46,204,113,0.18)':r.rec==='HOLD'?'rgba(212,175,55,0.15)':'rgba(231,76,60,0.15)',color:r.rec==='BUY'?'#2ECC71':r.rec==='HOLD'?'var(--gold)':'#E74C3C',border:'1px solid '+(r.rec==='BUY'?'rgba(46,204,113,0.3)':r.rec==='HOLD'?'rgba(212,175,55,0.3)':'rgba(231,76,60,0.3)') }}>{r.rec}</span>
+                  <span style={{ fontSize:'0.74rem',fontWeight:700,padding:'3px 8px',borderRadius:'4px',background:/sell/i.test(r.rec)?'rgba(231,76,60,0.15)':/buy|build|core/i.test(r.rec)?'rgba(46,204,113,0.18)':'rgba(212,175,55,0.15)',color:/sell/i.test(r.rec)?'#E74C3C':/buy|build|core/i.test(r.rec)?'#2ECC71':'var(--gold)',border:'1px solid '+(/sell/i.test(r.rec)?'rgba(231,76,60,0.3)':/buy|build|core/i.test(r.rec)?'rgba(46,204,113,0.3)':'rgba(212,175,55,0.3)') }}>{r.rec}</span>
                 </div>;
               }
               case 'gp': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.74rem' }}>{r.effectiveGP > 0 ? r.effectiveGP : '\u2014'}{r.curGP === 0 && r.prevGP > 0 ? '*' : ''}</span></div>;
@@ -2819,7 +2820,7 @@
                 return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.72rem' }}>{h ? Math.floor(h/12)+"'"+h%12+'"' : '\u2014'}</span></div>;
               }
               case 'weight': return <div key={colKey} style={{...base}}><span style={{ color: 'var(--silver)', fontSize: '0.72rem' }}>{r.p.weight || '\u2014'}</span></div>;
-              case 'depthChart': return <div key={colKey} style={{...base}}><span style={{ color: r.p.depth_chart_order ? 'var(--silver)' : 'rgba(255,255,255,0.3)', fontSize: '0.72rem' }}>{r.p.depth_chart_order ? '#'+r.p.depth_chart_order : (r.section === 'ir' ? 'IR' : (!r.p.team || r.p.team === 'FA') ? 'FA' : 'N/A')}</span></div>;
+              case 'depthChart': return <div key={colKey} style={{...base}}><span style={{ color: r.p.depth_chart_order != null ? 'var(--silver)' : 'rgba(255,255,255,0.3)', fontSize: '0.72rem' }}>{r.p.depth_chart_order != null ? r.pos + (r.p.depth_chart_order + 1) : (r.section === 'ir' ? 'IR' : (!r.p.team || r.p.team === 'FA') ? 'FA' : 'N/A')}</span></div>;
               case 'slot': return <div key={colKey} style={{...base}}><span style={{ fontSize:'0.76rem',color:'var(--silver)',opacity:0.65,textTransform:'uppercase' }}>{r.section==='starter'?'STR':r.section==='ir'?'IR':r.section==='taxi'?'TAX':'BN'}</span></div>;
               case 'acquired': {
                 const acq = getAcquisitionInfo(r.pid, myRoster?.roster_id);
@@ -3343,9 +3344,10 @@
                   const peaks = window.App?.peakWindows || {QB:[23,39],RB:[21,31],WR:[21,33],TE:[21,34],DL:[26,33],LB:[26,32],DB:[21,34]};
                   const [pLo, pHi] = peaks[r.pos] || [24,29];
 
-                  const actionClass = r.rec === 'SELL NOW' || r.rec === 'SELL' ? 'wr-row-sell' :
-                    r.rec === 'SELL HIGH' ? 'wr-row-sell-high' :
-                    r.rec === 'HOLD CORE' ? 'wr-row-core' : '';
+                  const _recLower = (r.rec || '').toLowerCase();
+                  const actionClass = _recLower === 'sell now' || _recLower === 'sell' ? 'wr-row-sell' :
+                    _recLower === 'sell high' ? 'wr-row-sell-high' :
+                    _recLower === 'hold core' || _recLower === 'build around' ? 'wr-row-core' : '';
                   const ringClass = r.peakPhase === 'PRIME' || r.peakPhase === 'prime' || r.peakPhase === 'Peak' ? 'wr-ring wr-ring-prime' :
                     r.peakPhase === 'PRE' || r.peakPhase === 'pre' || r.peakPhase === 'Rising' ? 'wr-ring wr-ring-pre' :
                     r.peakPhase === 'POST' || r.peakPhase === 'post' || r.peakPhase === 'Veteran' ? 'wr-ring wr-ring-post' :
@@ -3429,10 +3431,15 @@
                               const dhqColor = r.dhq >= 7000 ? 'filled-green' : r.dhq >= 4000 ? 'filled' : 'filled-red';
                               return [
                                 { label: 'DHQ', val: r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014', col: dhqCol(r.dhq), gauge: true },
+                                { label: 'RANK', val: (() => {
+                                  const allAtPos = (currentLeague.rosters||[]).flatMap(ros=>(ros.players||[]).filter(pid2=>normPos(playersData[pid2]?.position)===r.pos)).map(pid2=>({pid:pid2,dhq:window.App?.LI?.playerScores?.[pid2]||0})).sort((a,b)=>b.dhq-a.dhq);
+                                  const rank = allAtPos.findIndex(x=>x.pid===r.pid)+1;
+                                  return rank > 0 ? r.pos + rank : '\u2014';
+                                })(), col: 'var(--gold)' },
                                 { label: 'PPG', val: r.effectivePPG || '\u2014', col: r.effectivePPG >= (posP75[r.pos]||10) ? '#2ECC71' : '#f0f0f3' },
-                                { label: 'PREV PPG', val: r.prevPPG || '\u2014', col: 'var(--silver)' },
                                 { label: 'GP', val: r.effectiveGP || '\u2014', col: r.effectiveGP >= 14 ? '#2ECC71' : r.effectiveGP >= 10 ? 'var(--silver)' : '#E74C3C' },
                                 { label: 'TREND', val: r.trend ? (r.trend > 0 ? '+' : '') + r.trend + '%' : '\u2014', col: r.trend >= 15 ? '#2ECC71' : r.trend <= -15 ? '#E74C3C' : 'var(--silver)' },
+                                { label: 'DEPTH', val: r.p.depth_chart_order != null ? r.pos + (r.p.depth_chart_order + 1) : '\u2014', col: r.p.depth_chart_order != null && r.p.depth_chart_order <= 1 ? '#2ECC71' : 'var(--silver)' },
                               ].map((s, i) => (
                                 <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '8px 6px', textAlign: 'center' }}>
                                   <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: s.col, letterSpacing: '-0.02em' }}>{s.val}</div>
@@ -3452,7 +3459,7 @@
                               <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>Slot </span><span style={{ color: 'var(--white)' }}>{r.section === 'starter' ? 'Starter' : r.section === 'ir' ? 'IR' : r.section === 'taxi' ? 'Taxi' : 'Bench'}</span></div>
                               <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>Exp </span><span style={{ color: 'var(--white)' }}>{r.p.years_exp || 0}yr</span></div>
                               {r.p.college && <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>College </span><span style={{ color: 'var(--white)' }}>{r.p.college}</span></div>}
-                              {r.p.depth_chart_order != null && <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>Depth </span><span style={{ color: r.p.depth_chart_order <= 1 ? '#2ECC71' : 'var(--white)' }}>#{r.p.depth_chart_order + 1} {r.p.depth_chart_position || ''}</span></div>}
+                              {r.p.depth_chart_order != null && <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>NFL Depth </span><span style={{ color: r.p.depth_chart_order <= 1 ? '#2ECC71' : 'var(--white)' }}>{r.pos + (r.p.depth_chart_order + 1)}</span></div>}
                             </div>
                           </div>
 
