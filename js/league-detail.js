@@ -1952,8 +1952,8 @@
             <div style={{ padding: '16px' }}>
               <div style={{ fontFamily: 'Bebas Neue', fontSize: '1.6rem', color: 'var(--gold)', marginBottom: '2px' }}>LEAGUE MAP</div>
               <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' }}>Every team, asset, and competitive position in your league</div>
-              {/* Overview always visible at top */}
-              {(() => {
+              {/* Flash Brief: Overview | Analyst: Teams/Players/Picks */}
+              {isCommand && (() => {
                 // Assess all teams
                 const allAssessments = (typeof window.assessAllTeamsFromGlobal === 'function' ? window.assessAllTeamsFromGlobal() : [])
                   .filter(a => a && a.rosterId);
@@ -2139,13 +2139,13 @@
                 );
               })()}
 
-              {/* Sub-tabs for detailed views */}
-              <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
+              {/* Analyst mode: Teams / All Players / Draft Picks */}
+              {!isCommand && <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
                 <button onClick={() => setLeagueSubView('teams')} style={sortBtnStyle(leagueSubView === 'teams')}>Teams</button>
                 <button onClick={() => setLeagueSubView('players')} style={sortBtnStyle(leagueSubView === 'players')}>All Players</button>
                 <button onClick={() => setLeagueSubView('picks')} style={sortBtnStyle(leagueSubView === 'picks')}>Draft Picks</button>
-              </div>
-              {leagueSubView === 'teams' && (<div>
+              </div>}
+              {!isCommand && leagueSubView === 'teams' && (<div>
               <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
                 <button onClick={() => setLeagueSort('wins')} style={sortBtnStyle(leagueSort === 'wins')}>Wins</button>
                 <button onClick={() => setLeagueSort('dhq')} style={sortBtnStyle(leagueSort === 'dhq')}>DHQ Value</button>
@@ -2258,7 +2258,7 @@
                 })}
               </div>
               </div>)}
-              {leagueSubView === 'players' && (() => {
+              {!isCommand && leagueSubView === 'players' && (() => {
                 const posColors = window.App?.POS_COLORS || {QB:'#E74C3C',RB:'#2ECC71',WR:'#3498DB',TE:'#F0A500',K:'#9B59B6',DL:'#E67E22',LB:'#1ABC9C',DB:'#E91E63'};
                 const allPlayers = [];
                 (currentLeague.rosters || []).forEach(r => {
@@ -2329,7 +2329,7 @@
                     </div>
                 );
               })()}
-              {leagueSubView === 'picks' && (() => {
+              {!isCommand && leagueSubView === 'picks' && (() => {
     const tradedPicks = window.S?.tradedPicks || [];
     const leagueSeason = parseInt(currentLeague.season || activeYear);
     const draftRounds = currentLeague.settings?.draft_rounds || 5;
