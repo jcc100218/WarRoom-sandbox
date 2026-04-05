@@ -358,9 +358,9 @@
         }
 
         function LeagueSelector({ onSelect, accent }) {
-            const accentColor = accent === 'purple' ? '#7c6bf8' : 'var(--gold)';
-            const accentBg = accent === 'purple' ? 'rgba(124,107,248,0.08)' : 'rgba(212,175,55,0.08)';
-            const accentBorder = accent === 'purple' ? 'rgba(124,107,248,0.3)' : 'rgba(212,175,55,0.3)';
+            const accentColor = 'var(--gold)';
+            const accentBg = 'rgba(212,175,55,0.08)';
+            const accentBorder = 'rgba(212,175,55,0.3)';
             if (!sleeperUsername) return null;
             if (loading) return <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--silver)', fontSize: '0.82rem' }}>Loading leagues...</div>;
             if (error) return <div style={{ padding: '0.75rem', textAlign: 'center', color: '#E74C3C', fontSize: '0.82rem' }}>{error}</div>;
@@ -514,17 +514,17 @@
                     </div>
 
                     {/* ──── Card 2: ReconAI ──── */}
-                    <div className="product-card accent-purple">
+                    <div className="product-card accent-scout">
                         <div className="product-card-header">
-                            <div className="product-card-icon purple">
+                            <div className="product-card-icon gold">
                                 <svg viewBox="0 0 32 32" width="22" height="22" fill="none">
-                                    <circle cx="16" cy="16" r="8" stroke="#e0d4ff" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.6"/>
-                                    <circle cx="16" cy="16" r="4" stroke="#e0d4ff" strokeWidth="1.5"/>
-                                    <circle cx="16" cy="16" r="1.5" fill="#e0d4ff"/>
+                                    <circle cx="16" cy="16" r="8" stroke="var(--black)" strokeWidth="1.5" strokeDasharray="3 2" opacity="0.6"/>
+                                    <circle cx="16" cy="16" r="4" stroke="var(--black)" strokeWidth="1.5"/>
+                                    <circle cx="16" cy="16" r="1.5" fill="var(--black)"/>
                                 </svg>
                             </div>
                             <div>
-                                <div className="product-card-title">WAR ROOM <span style={{ color: '#7c6bf8' }}>SCOUT</span></div>
+                                <div className="product-card-title">WAR ROOM <span style={{ color: 'var(--gold)' }}>SCOUT</span></div>
                                 <div className="product-card-subtitle">Your AI front office</div>
                             </div>
                         </div>
@@ -536,7 +536,7 @@
                             {!sleeperUsername ? (
                                 <div style={{ padding: '1rem 0', textAlign: 'center' }}>
                                     <div style={{ fontSize: '0.82rem', color: 'var(--silver)', marginBottom: '12px' }}>Connect your Sleeper account to unlock War Room Scout</div>
-                                    <a href={RECONAI_BASE} target="_blank" rel="noopener noreferrer" className="hub-cta ghost-purple" style={{ textDecoration: 'none' }}>Open War Room Scout Directly</a>
+                                    <a href={RECONAI_BASE} target="_blank" rel="noopener noreferrer" className="hub-cta ghost-scout" style={{ textDecoration: 'none' }}>Open War Room Scout Directly</a>
                                 </div>
                             ) : (
                                 <>
@@ -544,11 +544,11 @@
                                         setReconLeagueId(league.id);
                                         WrStorage.set(WR_KEYS.LAST_LEAGUE_ID, league.id);
                                         WrStorage.set(WR_KEYS.LAST_LEAGUE_NAME, league.name);
-                                    }} accent="purple" />
-                                    <a href={reconUrl(reconLeagueId || lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta purple" style={{ textDecoration: 'none' }}>ENTER WAR ROOM SCOUT</a>
+                                    }} accent="gold" />
+                                    <a href={reconUrl(reconLeagueId || lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta scout" style={{ textDecoration: 'none' }}>ENTER WAR ROOM SCOUT</a>
                                     {resumeLeague && (
                                         <div className="hub-cta-row">
-                                            <a href={reconUrl(lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta ghost-purple" style={{ textDecoration: 'none' }}>Open {lastLeagueName}</a>
+                                            <a href={reconUrl(lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta ghost-scout" style={{ textDecoration: 'none' }}>Open {lastLeagueName}</a>
                                         </div>
                                     )}
                                 </>

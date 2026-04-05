@@ -294,7 +294,7 @@ function MyTeamTab({
       case 'slot': return <div key={colKey} style={{...base}}><span style={{ fontSize:'0.76rem',color:'var(--silver)',opacity:0.65,textTransform:'uppercase' }}>{r.section==='starter'?'STR':r.section==='ir'?'IR':r.section==='taxi'?'TAX':'BN'}</span></div>;
       case 'acquired': {
         const acq = getAcquisitionInfo(r.pid, myRoster?.roster_id);
-        const col = acq.method === 'Drafted' ? '#a78bfa' : acq.method === 'Traded' ? '#F0A500' : acq.method === 'Waiver' ? '#2ECC71' : acq.method === 'FA' ? '#1ABC9C' : 'var(--silver)';
+        const col = acq.method === 'Drafted' ? 'var(--gold)' : acq.method === 'Traded' ? '#F0A500' : acq.method === 'Waiver' ? '#2ECC71' : acq.method === 'FA' ? '#1ABC9C' : 'var(--silver)';
         return <div key={colKey} style={{...base}}><span style={{ fontSize: '0.7rem', fontWeight: 600, color: col }}>{acq.method}{acq.cost ? ' ' + acq.cost : ''}</span></div>;
       }
       case 'acquiredDate': {

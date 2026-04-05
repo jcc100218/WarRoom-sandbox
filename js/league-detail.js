@@ -2375,7 +2375,7 @@
                               <span style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.65, minWidth: '40px' }}>{timeAgo(txn.created)}</span>
                               <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '1px 6px', borderRadius: '3px',
                                 background: txn.type === 'trade' ? 'rgba(124,107,248,0.2)' : txn.type === 'waiver' ? 'rgba(52,211,153,0.2)' : txn.type === 'free_agent' ? 'rgba(59,130,246,0.2)' : 'rgba(248,113,113,0.2)',
-                                color: txn.type === 'trade' ? '#a78bfa' : txn.type === 'waiver' ? '#34d399' : txn.type === 'free_agent' ? '#60a5fa' : '#f87171'
+                                color: txn.type === 'trade' ? 'var(--gold)' : txn.type === 'waiver' ? '#34d399' : txn.type === 'free_agent' ? '#60a5fa' : '#f87171'
                               }}>{(txn.type === 'free_agent' ? 'FA' : txn.type || '').toUpperCase()}</span>
                               <span style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{getOwnerName(txn.roster_ids?.[0])}</span>
                               {txn.type === 'trade' && txn.roster_ids?.[1] && (
@@ -2396,7 +2396,7 @@
                               ))}
                               {txn.settings?.waiver_bid > 0 && <span style={{ color: '#F0A500', marginLeft: '4px' }}>${txn.settings.waiver_bid}</span>}
                               {txn.type === 'trade' && txn.draft_picks?.length > 0 && (
-                                <span style={{ color: '#a78bfa', fontSize: '0.78rem', marginLeft: '6px' }}>
+                                <span style={{ color: 'var(--gold)', fontSize: '0.78rem', marginLeft: '6px' }}>
                                   +{txn.draft_picks.length} pick{txn.draft_picks.length !== 1 ? 's' : ''}
                                 </span>
                               )}

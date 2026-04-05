@@ -278,7 +278,7 @@
                                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                                             {yearPicks.map((pk, i) => (
                                                 <div key={i} style={{ padding: '4px 8px', borderRadius: '4px', background: pk.own ? 'rgba(212,175,55,0.08)' : 'rgba(124,107,248,0.1)', border: '1px solid ' + (pk.own ? 'rgba(212,175,55,0.25)' : 'rgba(124,107,248,0.25)'), fontSize: '0.76rem' }}>
-                                                    <span style={{ fontWeight: 700, color: pk.own ? 'var(--gold)' : '#a78bfa' }}>R{pk.round}</span>
+                                                    <span style={{ fontWeight: 700, color: pk.own ? 'var(--gold)' : 'var(--gold)' }}>R{pk.round}</span>
                                                     {!pk.own && <span style={{ fontSize: '0.78rem', color: 'var(--silver)', marginLeft: '4px' }}>(acq)</span>}
                                                 </div>
                                             ))}

@@ -936,7 +936,7 @@
                                                                         </div>
                                                                     ))}
                                                                     {(mySide.picks || []).map((pk, pi) => (
-                                                                        <div key={'pk'+pi} style={{ fontSize:'0.76rem', color:'#a78bfa' }}>{pk.season} Round {pk.round}</div>
+                                                                        <div key={'pk'+pi} style={{ fontSize:'0.76rem', color:'var(--gold)' }}>{pk.season} Round {pk.round}</div>
                                                                     ))}
                                                                 </div>
                                                                 <div>
@@ -950,7 +950,7 @@
                                                                         </div>
                                                                     ))}
                                                                     {(theirSide.picks || []).map((pk, pi) => (
-                                                                        <div key={'tpk'+pi} style={{ fontSize:'0.76rem', color:'#a78bfa' }}>{pk.season} Round {pk.round}</div>
+                                                                        <div key={'tpk'+pi} style={{ fontSize:'0.76rem', color:'var(--gold)' }}>{pk.season} Round {pk.round}</div>
                                                                     ))}
                                                                 </div>
                                                             </div>

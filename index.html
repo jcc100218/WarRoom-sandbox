@@ -271,12 +271,12 @@
         border-color: rgba(212, 175, 55, 0.35);
         box-shadow: 0 4px 24px rgba(212, 175, 55, 0.1);
     }
-    .product-card.accent-purple {
-        border-color: rgba(124, 107, 248, 0.2);
+    .product-card.accent-scout {
+        border-color: rgba(212, 175, 55, 0.2);
     }
-    .product-card.accent-purple:hover {
-        border-color: rgba(124, 107, 248, 0.45);
-        box-shadow: 0 4px 24px rgba(124, 107, 248, 0.12);
+    .product-card.accent-scout:hover {
+        border-color: rgba(212, 175, 55, 0.45);
+        box-shadow: 0 4px 24px rgba(212, 175, 55, 0.12);
     }
 
     @keyframes hubFadeIn {
@@ -304,9 +304,9 @@
         background: linear-gradient(135deg, var(--gold), var(--dark-gold));
         box-shadow: 0 3px 12px rgba(212, 175, 55, 0.25);
     }
-    .product-card-icon.purple {
-        background: linear-gradient(135deg, #7c6bf8, #5b4cc4);
-        box-shadow: 0 3px 12px rgba(124, 107, 248, 0.25);
+    .product-card-icon.scout {
+        background: linear-gradient(135deg, var(--gold), var(--dark-gold));
+        box-shadow: 0 3px 12px rgba(212, 175, 55, 0.25);
     }
 
     .product-card-title {
@@ -367,8 +367,8 @@
         cursor: pointer;
         transition: all 0.15s;
     }
-    .accent-purple .hub-league-item {
-        border-color: rgba(124,107,248,0.15);
+    .accent-scout .hub-league-item {
+        border-color: rgba(212,175,55,0.15);
     }
 
     .hub-year-row {
@@ -416,11 +416,11 @@
         color: var(--black);
     }
     .hub-cta.gold:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(212,175,55,0.25); }
-    .hub-cta.purple {
-        background: linear-gradient(135deg, #7c6bf8, #9b8afb);
-        color: var(--white);
+    .hub-cta.scout {
+        background: linear-gradient(135deg, var(--gold), var(--dark-gold));
+        color: var(--black);
     }
-    .hub-cta.purple:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(124,107,248,0.3); }
+    .hub-cta.scout:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(212,175,55,0.3); }
     .hub-cta.ghost {
         background: transparent;
         color: var(--gold);
@@ -431,16 +431,16 @@
         font-weight: 600;
     }
     .hub-cta.ghost:hover { border-color: var(--gold); background: rgba(212,175,55,0.06); }
-    .hub-cta.ghost-purple {
+    .hub-cta.ghost-scout {
         background: transparent;
-        color: #7c6bf8;
-        border: 1px solid rgba(124,107,248,0.3);
+        color: var(--gold);
+        border: 1px solid rgba(212,175,55,0.3);
         font-size: 0.85rem;
         padding: 8px;
         font-family: 'Inter', sans-serif;
         font-weight: 600;
     }
-    .hub-cta.ghost-purple:hover { border-color: #7c6bf8; background: rgba(124,107,248,0.06); }
+    .hub-cta.ghost-scout:hover { border-color: var(--gold); background: rgba(212,175,55,0.06); }
 
     .hub-cta-row {
         display: flex;

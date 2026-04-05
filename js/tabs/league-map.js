@@ -635,7 +635,7 @@ function LeagueMapTab({
                                     background: s.finish === 'Champion' ? 'rgba(212,175,55,0.15)' : s.finish === 'Runner-Up' ? 'rgba(192,192,192,0.15)' : s.finish === 'Semi-Finals' ? 'rgba(205,127,50,0.15)' : s.finish === 'Playoffs' ? 'rgba(46,204,113,0.1)' : 'rgba(255,255,255,0.04)',
                                     color: s.finish === 'Champion' ? '#D4AF37' : s.finish === 'Runner-Up' ? '#C0C0C0' : s.finish === 'Semi-Finals' ? '#CD7F32' : s.finish === 'Playoffs' ? '#2ECC71' : 'var(--silver)'
                                 }}>{s.finish}</span>
-                                {s.hadFirstPick && <span style={{ fontSize: '0.7rem', color: '#a78bfa', fontWeight: 600 }}>#1 Overall Pick</span>}
+                                {s.hadFirstPick && <span style={{ fontSize: '0.7rem', color: 'var(--gold)', fontWeight: 600 }}>#1 Overall Pick</span>}
                             </div>
                         ))}
                     </div>
@@ -718,7 +718,7 @@ function LeagueMapTab({
                 <span style={{ color: 'var(--silver)' }}>{r.p.age || '\u2014'}</span>
                 <span style={{ fontWeight: 700, fontFamily: 'Inter, sans-serif', color: r.dhq >= 7000 ? '#2ECC71' : r.dhq >= 4000 ? '#3498DB' : r.dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span>
                 <span style={{ color: 'var(--silver)' }}>{r.ppg || '\u2014'}</span>
-                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: r.acq.method === 'Drafted' ? '#a78bfa' : r.acq.method === 'Traded' ? '#F0A500' : r.acq.method === 'Waiver' ? '#2ECC71' : r.acq.method === 'FA' ? '#1ABC9C' : 'var(--silver)' }}>{r.acq.method}{r.acq.cost ? ' ' + r.acq.cost : ''}</span>
+                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: r.acq.method === 'Drafted' ? 'var(--gold)' : r.acq.method === 'Traded' ? '#F0A500' : r.acq.method === 'Waiver' ? '#2ECC71' : r.acq.method === 'FA' ? '#1ABC9C' : 'var(--silver)' }}>{r.acq.method}{r.acq.cost ? ' ' + r.acq.cost : ''}</span>
                 <span style={{ fontSize: '0.56rem', color: 'var(--silver)', opacity: 0.65 }}>{r.acq.date}</span>
               </div>
             ))}
