@@ -139,6 +139,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
     // AI daily limit for scout tier
     function canUseAI() {
+        // If server AI is available (authenticated user), let the Edge Function handle rate limiting
+        if (typeof hasServerAI === 'function' && hasServerAI()) return true;
         const tier = getUserTier();
         if (tier !== 'scout') return true;
         const key = WR_KEYS.AI_DAILY(new Date().toISOString().split('T')[0]);
