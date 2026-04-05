@@ -151,6 +151,11 @@
 
             try {
                 const user = await fetchSleeperUser(sleeperUsername);
+                if (!user) {
+                    setError("Couldn't find that Sleeper username — check spelling and try again");
+                    setLoading(false);
+                    return;
+                }
                 setSleeperUser(user);
 
                 const leagues = await fetchUserLeagues(user.user_id, selectedYear);

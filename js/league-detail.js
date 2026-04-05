@@ -2011,8 +2011,9 @@
                     {/* Nav items — grouped */}
                     {[
                         { label: 'Brief', tab: 'brief' },
+                        { label: 'Dashboard', tab: 'dashboard' },
                         { section: 'STRATEGY' },
-                        { label: 'Dashboard', tab: 'analytics' },
+                        { label: 'Analytics', tab: 'analytics' },
                         { label: 'My Roster', tab: 'myteam' },
                         { section: 'MARKET' },
                         { label: 'Trade Center', tab: 'trades' },
@@ -2102,53 +2103,6 @@
                         {timeYear} SEASON
                     </div>
                 </header>
-
-                {/* Year / Stats Toggle Bar */}
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.45rem 1rem',
-                    background: 'var(--black)',
-                    borderBottom: '2px solid rgba(212, 175, 55, 0.15)',
-                    flexWrap: 'wrap'
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.2rem',
-                        background: 'var(--off-black)',
-                        borderRadius: '6px',
-                        padding: '0.15rem',
-                        border: '1px solid rgba(212, 175, 55, 0.2)'
-                    }}>
-                        {['2023', '2024', '2025', '2026'].map(year => (
-                            <div
-                                key={year}
-                                style={{
-                                    padding: '0.2rem 0.55rem',
-                                    borderRadius: '4px',
-                                    fontSize: '0.78rem',
-                                    fontWeight: '700',
-                                    fontFamily: 'Oswald, sans-serif',
-                                    color: String(year) === String(timeYear) ? 'var(--black)' : 'var(--silver)',
-                                    background: String(year) === String(timeYear) ? 'var(--gold)' : 'transparent',
-                                    cursor: String(year) === String(timeYear) ? 'default' : 'pointer',
-                                    opacity: String(year) === String(timeYear) ? 1 : 0.4,
-                                    transition: 'all 0.2s'
-                                }}
-                                onClick={() => switchYear(year)}
-                            >
-                                {year}
-                            </div>
-                        ))}
-                    </div>
-                    <div style={{ color: 'rgba(212,175,55,0.3)', fontSize: '0.8rem' }}>|</div>
-                    <div style={{ color: 'var(--silver)', fontSize: '0.78rem', fontFamily: 'Oswald, sans-serif', opacity: 0.7 }}>
-                        Half PPR · {standings.length} Teams
-                    </div>
-                </div>
 
                 {/* Load stage progress indicator */}
                 {loadStage && (
@@ -2268,37 +2222,6 @@
                     setReconPanelOpen={setReconPanelOpen}
                     sendReconMessage={sendReconMessage}
                 />}
-
-                            {/* 8. Draft Countdown */}
-                            {briefDraftInfo?.start_time && briefDraftInfo.status === 'pre_draft' && (() => {
-                                const diff = briefDraftInfo.start_time - Date.now();
-                                if (diff <= 0) return null;
-                                const days = Math.floor(diff / 86400000);
-                                const hours = Math.floor((diff % 86400000) / 3600000);
-                                return <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 14px', background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', marginBottom: '12px' }}>
-                                    <span style={{ fontFamily: 'Bebas Neue', fontSize: '1.1rem', color: 'var(--gold)' }}>{days}D {hours}H</span>
-                                    <span style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>until draft · {new Date(briefDraftInfo.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                                </div>;
-                            })()}
-
-                            {/* 9. Draft Class Preview */}
-                            <div style={{ padding: '8px 14px', background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', marginBottom: '12px' }}>
-                                <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.5 }}>Draft class intel available via the AI advisor.</div>
-                                <button onClick={() => { if (typeof setReconPanelOpen === 'function') setReconPanelOpen(true); if (typeof sendReconMessage === 'function') sendReconMessage('What are the strongest position groups in the upcoming rookie draft class?'); }} style={{ marginTop: '6px', padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'Oswald', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer' }}>Ask Alex about draft class</button>
-                            </div>
-
-                            {/* 10. Your Power Rank */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 14px', background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px' }}>
-                                <span style={{ fontFamily: 'Bebas Neue', fontSize: '1.3rem', color: 'var(--gold)' }}>#{myRank}</span>
-                                <div>
-                                    <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--white)' }}>Power Ranking</div>
-                                    <div style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{tier} · {myRank} of {rankedTeams.length}</div>
-                                </div>
-                                <button onClick={() => setActiveTab('league')} style={{ marginLeft: 'auto', fontSize: '0.68rem', fontFamily: 'Oswald', color: 'var(--gold)', background: 'none', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer' }}>View All</button>
-                            </div>
-                        </div>
-                    );
-                })()}
 
                 {/* Tab Content Routing */}
                 {activeTab === 'trades' ? (
