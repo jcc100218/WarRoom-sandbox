@@ -2,6 +2,9 @@
 // app.js — OwnerDashboard (root component) + ReactDOM.render
 // Must load LAST — depends on all other modules.
 // ══════════════════════════════════════════════════════════════════
+    const WR_KEYS  = window.App.WR_KEYS;
+    const WrStorage = window.App.WrStorage;
+
     // Main Dashboard
     function OwnerDashboard() {
         const [showSettings, setShowSettings] = useState(false);
@@ -22,7 +25,7 @@
             if (window.OD?.loadDisplayName) {
                 window.OD.loadDisplayName().then(name => {
                     if (name) { setCustomDisplayName(name); localStorage.setItem('od_display_name', name); }
-                }).catch(() => {});
+                }).catch(err => window.wrLog('app.loadDisplayName', err));
             }
         }, []);
         const leagueMates = React.useMemo(() => {
@@ -127,8 +130,8 @@
         }
 
         // ── Shared helpers ──
-        const lastLeagueId = localStorage.getItem('wr_last_league_id');
-        const lastLeagueName = localStorage.getItem('wr_last_league_name');
+        const lastLeagueId = WrStorage.get(WR_KEYS.LAST_LEAGUE_ID);
+        const lastLeagueName = WrStorage.get(WR_KEYS.LAST_LEAGUE_NAME);
         const displayName = sleeperUser
             ? (customDisplayName || sleeperUser.display_name || sleeperUser.username || sleeperUsername).toUpperCase()
             : (customDisplayName || 'COMMANDER').toUpperCase();
@@ -188,8 +191,8 @@
         function handleSelectLeague(league) {
             setActiveLeagueId(league.id);
             setSelectedLeague(league);
-            localStorage.setItem('wr_last_league_id', league.id);
-            localStorage.setItem('wr_last_league_name', league.name);
+            WrStorage.set(WR_KEYS.LAST_LEAGUE_ID, league.id);
+            WrStorage.set(WR_KEYS.LAST_LEAGUE_NAME, league.name);
         }
 
         const resumeLeague = sleeperLeagues.find(l => l.id === lastLeagueId);
@@ -250,7 +253,7 @@
                                     <input id="wr-sleeper-input" placeholder="Enter your Sleeper username" onKeyDown={e => { if (e.key === 'Enter') { const v = e.target.value.trim(); if (v) { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:v})); window.location.reload(); } } }} />
                                     <button className="hub-cta gold" onClick={() => { const v = document.getElementById('wr-sleeper-input')?.value?.trim(); if (v) { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:v})); window.location.reload(); } }}>CONNECT SLEEPER ACCOUNT</button>
                                     <div style={{ marginTop: '8px' }}>
-                                        <button className="hub-cta ghost" onClick={() => { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:'jcc100218'})); localStorage.setItem('wr_demo_mode', '1'); window.location.reload(); }}>Explore Demo League</button>
+                                        <button className="hub-cta ghost" onClick={() => { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:'jcc100218'})); WrStorage.set(WR_KEYS.DEMO_MODE, '1'); window.location.reload(); }}>Explore Demo League</button>
                                     </div>
                                 </div>
                             ) : (
@@ -296,8 +299,8 @@
                                 <>
                                     <LeagueSelector onSelect={(league) => {
                                         setReconLeagueId(league.id);
-                                        localStorage.setItem('wr_last_league_id', league.id);
-                                        localStorage.setItem('wr_last_league_name', league.name);
+                                        WrStorage.set(WR_KEYS.LAST_LEAGUE_ID, league.id);
+                                        WrStorage.set(WR_KEYS.LAST_LEAGUE_NAME, league.name);
                                     }} accent="purple" />
                                     <a href={reconUrl(reconLeagueId || lastLeagueId)} target="_blank" rel="noopener noreferrer" className="hub-cta purple" style={{ textDecoration: 'none' }}>ENTER RECONAI</a>
                                     {resumeLeague && (
@@ -312,6 +315,14 @@
 
                 </div>
 
+                {/* ── Notes from the Front — Field Log feed ── */}
+                <div style={{ padding: '0 12px' }}>
+                    <FieldLogPanel
+                        leagues={sleeperLeagues}
+                        onOpenLeague={handleSelectLeague}
+                    />
+                </div>
+
                 {showSettings && (
                     <SettingsModal
                         onClose={() => setShowSettings(false)}
@@ -324,6 +335,136 @@
                     />
                 )}
 
+            </div>
+        );
+    }
+
+    // ── Notes from the Front — Field Log feed from Scout sessions ──
+    const FL_CAT_COLORS = {
+        trade: '#D4AF37', roster: '#2ECC71', draft: '#3498DB',
+        waivers: '#9B59B6', research: '#E67E22', note: '#808080',
+    };
+    const FL_CAT_ICONS = {
+        trade: '🔄', roster: '📋', draft: '🎯', waivers: '📡', research: '🔍', note: '📝',
+    };
+
+    function FieldLogPanel({ leagues, onOpenLeague }) {
+        const [entries, setEntries] = useState(null); // null = loading
+        const [syncing, setSyncing] = useState(false);
+        const [lastRefresh, setLastRefresh] = useState(0);
+
+        useEffect(() => {
+            if (!window.OD?.loadFieldLog) { setEntries([]); return; }
+            window.OD.loadFieldLog(null, 60)
+                .then(data => setEntries(data || []))
+                .catch(() => setEntries([]));
+        }, [lastRefresh]);
+
+        const grouped = useMemo(() => {
+            if (!entries?.length) return [];
+            const groups = {};
+            entries.forEach(e => {
+                const d = new Date(e.ts);
+                const key = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                if (!groups[key]) groups[key] = { label: key, ts: e.ts, items: [] };
+                groups[key].items.push(e);
+            });
+            return Object.values(groups).sort((a, b) => b.ts - a.ts);
+        }, [entries]);
+
+        async function handleManualSync() {
+            if (!window.OD?.syncPendingFieldLog) return;
+            setSyncing(true);
+            await window.OD.syncPendingFieldLog().catch(() => {});
+            setLastRefresh(Date.now());
+            setSyncing(false);
+        }
+
+        const pendingCount = (entries || []).filter(e => e.syncStatus === 'pending' || e.syncStatus === 'failed').length;
+
+        return (
+            <div className="product-card" style={{ gridColumn: '1 / -1' }}>
+                {/* Header */}
+                <div className="product-card-header" style={{ marginBottom: '0.75rem' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(124,107,248,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+                        📋
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <div className="product-card-title">NOTES FROM THE FRONT</div>
+                        <div className="product-card-subtitle">Intel logged in your Scout sessions</div>
+                    </div>
+                    <button onClick={handleManualSync} disabled={syncing}
+                        title="Pull latest Scout entries from the field"
+                        style={{ flexShrink: 0, background: 'none', border: '1px solid rgba(124,107,248,0.4)', borderRadius: 6, color: '#7c6bf8', fontSize: '0.72rem', padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, opacity: syncing ? 0.5 : 1 }}>
+                        {syncing ? '↻ Syncing…' : '↻ Refresh'}
+                    </button>
+                </div>
+
+                {/* Body */}
+                {entries === null ? (
+                    <div style={{ padding: '1rem 0', textAlign: 'center', color: 'var(--silver)', fontSize: '0.78rem' }}>Loading field log…</div>
+                ) : entries.length === 0 ? (
+                    <div style={{ padding: '1.5rem 0', textAlign: 'center' }}>
+                        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📋</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.6 }}>
+                            No field log entries yet. Actions you take in ReconAI Scout — trade scenarios, draft targets, waiver bids — will appear here automatically after syncing.
+                        </div>
+                    </div>
+                ) : (
+                    <div style={{ maxHeight: '340px', overflowY: 'auto', paddingRight: '2px' }}>
+                        {grouped.map(group => (
+                            <div key={group.label} style={{ marginBottom: '14px' }}>
+                                <div style={{ fontSize: '0.64rem', fontWeight: 700, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 0 5px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: '6px', opacity: 0.7 }}>
+                                    {group.label}
+                                </div>
+                                {group.items.map((entry, idx) => {
+                                    const timeStr = new Date(entry.ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                                    const catColor = FL_CAT_COLORS[entry.category] || '#808080';
+                                    const targetLeague = entry.leagueId ? leagues.find(l => l.id === entry.leagueId) : null;
+                                    return (
+                                        <div key={entry.id || idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                            <span style={{ fontSize: '0.88rem', flexShrink: 0, marginTop: '1px' }}>{entry.icon || FL_CAT_ICONS[entry.category] || '📋'}</span>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--white)', lineHeight: 1.35 }}>{entry.text}</div>
+                                                {entry.players?.length > 0 && (
+                                                    <div style={{ fontSize: '0.68rem', color: '#7c6bf8', marginTop: '2px' }}>
+                                                        {entry.players.map(p => p.name || p).join(', ')}
+                                                    </div>
+                                                )}
+                                                {entry.context && (
+                                                    <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginTop: '2px', fontStyle: 'italic', opacity: 0.8, lineHeight: 1.3 }}>{entry.context}</div>
+                                                )}
+                                                <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginTop: '3px', flexWrap: 'wrap' }}>
+                                                    <span style={{ fontSize: '0.64rem', color: catColor, fontWeight: 700, textTransform: 'uppercase' }}>{entry.category}</span>
+                                                    <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.4 }}>·</span>
+                                                    <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.6 }}>{timeStr}</span>
+                                                    {targetLeague && <>
+                                                        <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.4 }}>·</span>
+                                                        <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.7 }}>{targetLeague.name}</span>
+                                                    </>}
+                                                </div>
+                                            </div>
+                                            {targetLeague && onOpenLeague && (
+                                                <button onClick={() => onOpenLeague(targetLeague, entry.category)}
+                                                    title={`Open ${targetLeague.name} in War Room`}
+                                                    style={{ flexShrink: 0, background: 'none', border: '1px solid rgba(212,175,55,0.35)', borderRadius: 4, color: 'var(--gold)', fontSize: '0.62rem', padding: '2px 7px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, marginTop: '1px' }}>
+                                                    OPEN →
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Footer: pending count */}
+                {entries !== null && pendingCount > 0 && (
+                    <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.7 }}>
+                        {pendingCount} entries pending sync from Scout. Open ReconAI to push them.
+                    </div>
+                )}
             </div>
         );
     }
