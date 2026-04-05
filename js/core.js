@@ -319,7 +319,11 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         setSession(key, value) {
             try {
                 sessionStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
-            } catch(e) { wrLog('storage.setSession:' + key, e); }
+            } catch(e) {
+                if (e.name === 'QuotaExceededError') {
+                    try { sessionStorage.clear(); sessionStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value)); } catch(e2) { /* give up silently */ }
+                } else { wrLog('storage.setSession:' + key, e); }
+            }
         },
         removeSession(key) {
             try { sessionStorage.removeItem(key); } catch(e) { wrLog('storage.removeSession:' + key, e); }
