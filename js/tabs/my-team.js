@@ -59,6 +59,12 @@ function MyTeamTab({
 
   function calcRawPts(s) { return window.App.calcRawPts(s, currentLeague?.scoring_settings); }
 
+  function getPlayerName(playerId) {
+    const player = playersData[playerId];
+    if (!player) return `Player ${playerId}`;
+    return player.full_name || `${player.first_name || ''} ${player.last_name || ''}`.trim() || `Player ${playerId}`;
+  }
+
   // ── filteredAndSortedRows (formerly a sibling function of renderMyTeamTab) ──
   function filteredAndSortedRows(rows) {
     const offPos = new Set(['QB','RB','WR','TE','K']);
