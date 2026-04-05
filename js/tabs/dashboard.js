@@ -26,7 +26,7 @@ function DashboardPanel({
     return (
         <React.Fragment>
             <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px',
+                display: 'grid', gridTemplateColumns: selectedKpis.length <= 4 ? 'repeat(4, 1fr)' : selectedKpis.length <= 6 ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)', gap: '10px',
                 padding: '16px 24px', background: 'var(--black)',
                 borderBottom: '1px solid rgba(212,175,55,0.15)'
             }}>

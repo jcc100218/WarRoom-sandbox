@@ -91,13 +91,15 @@ function FlashBriefPanel({
                 <span style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>FAAB remaining of ${budget}</span>
             </div>}
 
-            {/* 7. Roster Churn Alerts */}
+            {/* 7. Alex Alerts — churn + league activity */}
             {(() => {
-                const recentDrops = [];
+                const alerts = [];
+                // Churn alerts: high-value drops in last 3 weeks
                 const transactions = window.S?.transactions || {};
+                const txnsFlat = Array.isArray(transactions) ? transactions : Object.values(transactions).flat();
                 const curWeek = window.S?.currentWeek || 1;
                 for (let w = curWeek; w >= Math.max(1, curWeek - 2); w--) {
-                    (transactions['w' + w] || []).forEach(t => {
+                    ((transactions['w' + w]) || []).forEach(t => {
                         if (t.type !== 'free_agent' && t.type !== 'waiver') return;
                         Object.keys(t.drops || {}).forEach(pid => {
                             const dhq = scores[pid] || 0;
@@ -106,20 +108,17 @@ function FlashBriefPanel({
                                     const r = (currentLeague.rosters || []).find(r2 => t.roster_ids?.includes(r2.roster_id) && r2.owner_id === u.user_id);
                                     return !!r;
                                 });
-                                recentDrops.push({ pid, dhq, name: playersData[pid]?.full_name || 'Unknown', pos: playersData[pid]?.position, week: w, droppedBy: dropper?.display_name || 'Unknown' });
+                                const dropDate = t.created ? new Date(t.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : `Week ${w}`;
+                                alerts.push({ pid, dhq, name: playersData[pid]?.full_name || 'Unknown', pos: playersData[pid]?.position, date: dropDate, text: `${playersData[pid]?.full_name || 'Unknown'} (${playersData[pid]?.position}, DHQ ${dhq.toLocaleString()}) dropped by ${dropper?.display_name || 'Unknown'}` });
                             }
                         });
                     });
                 }
-                if (!recentDrops.length) return null;
+                if (!alerts.length) return null;
                 return <div style={{ marginBottom: '12px' }}>
-                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', color: '#F0A500', letterSpacing: '0.04em', marginBottom: '6px' }}>CHURN ALERTS</div>
-                    {recentDrops.slice(0, 3).map(d =>
-                        <div key={d.pid} onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(d.pid); }} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', background: 'rgba(240,165,0,0.04)', border: '1px solid rgba(240,165,0,0.12)', borderRadius: '6px', marginBottom: '4px', cursor: 'pointer', fontSize: '0.78rem' }}>
-                            <span style={{ color: 'var(--white)', fontWeight: 600 }}>{d.name}</span>
-                            <span style={{ color: 'var(--silver)', fontSize: '0.72rem' }}>{d.pos} · DHQ {d.dhq.toLocaleString()} · Dropped by {d.droppedBy}</span>
-                        </div>
-                    )}
+                    <GMMessage compact>
+                        {'Alerts: ' + alerts.slice(0, 3).map(a => a.date + ' — ' + a.text).join('. ')}
+                    </GMMessage>
                 </div>;
             })()}
 

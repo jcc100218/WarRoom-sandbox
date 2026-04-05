@@ -34,7 +34,7 @@
         const [currentLeague, setCurrentLeague] = useState(league);
         const [activeYear, setActiveYear] = useState(league.season);
         const [trending, setTrending] = useState({ adds: [], drops: [] });
-        const [activeTab, setActiveTab] = useState('analytics');
+        const [activeTab, setActiveTab] = useState('brief');
         const [tradeSubTab, setTradeSubTab] = useState(null); // when set, TradeCalcTab opens this sub-tab
         const [selectedPlayerPid, setSelectedPlayerPid] = useState(null);
 
