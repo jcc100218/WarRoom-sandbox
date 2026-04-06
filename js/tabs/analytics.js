@@ -906,7 +906,7 @@ function AnalyticsPanel({
         })()}
 
         {/* ═══ PLAYOFF HISTORY ═══ */}
-        {analyticsTab === 'playoffs' && (() => {
+        {analyticsTab === 'playoffs' && (() => { try {
             const championships = window.App?.LI?.championships || {};
             const seasons = Object.entries(championships).sort(([a],[b]) => b.localeCompare(a));
             if (!seasons.length) return <div style={{ ...aCardStyle, color: 'var(--silver)', textAlign: 'center', padding: '40px' }}>No championship history available yet.</div>;
@@ -1070,7 +1070,7 @@ function AnalyticsPanel({
                 })()}
             </React.Fragment>
             );
-        })()}
+        } catch(e) { console.warn('[WarRoom] Playoffs render error:', e); return <div style={{ padding: '24px', textAlign: 'center', color: 'var(--silver)' }}>Playoff data could not be rendered. Check console for details.</div>; } })()}
 
         {/* ═══ TIMELINE ═══ */}
         {analyticsTab === 'timeline' && (() => {
