@@ -52,8 +52,10 @@ function MyTeamTab({
   // Misc
   timeRecomputeTs,
   setTimeRecomputeTs,
-  getAcquisitionInfo,
+  getAcquisitionInfo: getAcquisitionInfoProp,
 }) {
+  // Fallback if prop not passed — prevents crash
+  const getAcquisitionInfo = typeof getAcquisitionInfoProp === 'function' ? getAcquisitionInfoProp : () => ({ method: 'Unknown', date: '', cost: '' });
   const _seasonCtx = React.useContext(window.App.SeasonContext) || {};
   const _sPlayerStats = _seasonCtx.playerStats || window.S?.playerStats || {};
   const _sTradedPicks = _seasonCtx.tradedPicks !== undefined ? _seasonCtx.tradedPicks : (window.S?.tradedPicks || []);
