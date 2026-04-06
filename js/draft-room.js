@@ -15,7 +15,7 @@
         const draftRounds = currentLeague.settings?.draft_rounds || 5;
         const tradedPicks = window.S?.tradedPicks || [];
         const [draftSort, setDraftSort] = useState({ key: 'dhq', dir: -1 });
-        const [draftView, setDraftView] = useState('command'); // 'command' | 'board'
+        const [draftView, setDraftView] = useState('command'); // 'command' | 'board' | 'mock'
         const [draftInfo, setDraftInfo] = useState(null);
         const [boardData, setBoardData] = useState(() => WrStorage.get(WR_KEYS.BIGBOARD(currentLeague.id || ''), null));
         const [draftedPids, setDraftedPids] = useState(new Set());
@@ -224,6 +224,7 @@
                 <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px' }}>
                     <button style={navBtn('command')} onClick={() => setDraftView('command')}>Flash Brief</button>
                     <button style={navBtn('board')} onClick={() => setDraftView('board')}>Big Board</button>
+                    <button style={{...navBtn('mock'), background: activeView === 'mock' ? 'var(--gold)' : 'transparent', color: activeView === 'mock' ? 'var(--black)' : 'var(--gold)', border: activeView === 'mock' ? '2px solid var(--gold)' : '2px solid rgba(212,175,55,0.3)'}} onClick={() => setDraftView('mock')}>Mock Draft</button>
                 </div>
 
                 {/* ═══════════════════ VIEW 1: FLASH BRIEF ═══════════════════ */}
@@ -809,6 +810,16 @@
                     </div>
                     );
                 })()}
+
+                {/* ═══════════════════ VIEW 3: MOCK DRAFT ═══════════════════ */}
+                {activeView === 'mock' && (
+                    <MockDraftPanel
+                        playersData={playersData}
+                        myRoster={myRoster}
+                        currentLeague={currentLeague}
+                        draftRounds={draftRounds}
+                    />
+                )}
 
             </div>
         );
