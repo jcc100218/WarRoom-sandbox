@@ -39,13 +39,23 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
             .sort((a, b) => b.val - a.val);
     }, [playerMeta, scores, playersData]);
 
-    // ── Build Draft Order (snake) ──
+    // ── Build Draft Order (snake, respecting traded picks) ──
     const buildPickOrder = () => {
         const order = [...rosters].sort((a, b) => (a.settings?.wins || 0) - (b.settings?.wins || 0));
+        const tradedPicks = S.tradedPicks || [];
+        const curSeason = String(currentLeague?.season || new Date().getFullYear());
         const picks = [];
         for (let rd = 1; rd <= draftRounds; rd++) {
             const rdOrder = rd % 2 === 1 ? [...order] : [...order].reverse();
-            rdOrder.forEach((r, i) => picks.push({ round: rd, pick: i + 1, overall: picks.length + 1, rosterId: r.roster_id }));
+            rdOrder.forEach((r, i) => {
+                // Check if this pick was traded — owner_id is the current owner
+                const traded = tradedPicks.find(tp =>
+                    String(tp.season) === curSeason && tp.round === rd &&
+                    tp.roster_id === r.roster_id && tp.owner_id !== r.roster_id
+                );
+                const actualOwner = traded ? traded.owner_id : r.roster_id;
+                picks.push({ round: rd, pick: i + 1, overall: picks.length + 1, rosterId: actualOwner, originalRosterId: r.roster_id });
+            });
         }
         return picks;
     };
@@ -299,6 +309,14 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
     const cardStyle = { background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '10px', padding: '14px 16px', marginBottom: '12px' };
     const goldLabel = { fontSize: '0.72rem', color: 'var(--gold)', fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '8px' };
 
+    // Full-screen wrapper for live/multisim/results modes
+    const fullScreen = mode === 'live' || mode === 'results' || mode === 'multisim';
+    const wrapStyle = fullScreen ? { position: 'fixed', inset: 0, zIndex: 900, background: 'var(--black)', overflowY: 'auto', padding: '20px' } : {};
+    const exitBtn = fullScreen ? React.createElement('button', {
+        onClick: () => setMode('setup'),
+        style: { position: 'fixed', top: '16px', right: '16px', zIndex: 910, background: 'var(--charcoal)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '8px', padding: '6px 14px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: '0.78rem', fontWeight: 600 }
+    }, '✕ Exit Draft') : null;
+
     // ── SETUP ──
     if (mode === 'setup') {
         return React.createElement('div', null,
@@ -341,7 +359,13 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
         const analytics = isMyPick ? getPickAnalytics(current.overall, current.round, pool) : null;
         const tradeOptions = isMyPick ? getTradeScenarios(currentIdx, pickOrder, pool) : [];
 
-        return React.createElement('div', { style: { display: 'grid', gridTemplateColumns: isMyPick ? '1fr 340px' : '1fr', gap: '16px' } },
+        return React.createElement('div', { style: { ...wrapStyle } },
+            exitBtn,
+            // Progress bar
+            React.createElement('div', { style: { height: '3px', background: 'rgba(212,175,55,0.1)', borderRadius: '2px', marginBottom: '16px', overflow: 'hidden' } },
+                React.createElement('div', { style: { height: '100%', width: `${Math.round(currentIdx / pickOrder.length * 100)}%`, background: 'var(--gold)', borderRadius: '2px', transition: 'width 0.3s ease' } })
+            ),
+            React.createElement('div', { style: { display: 'grid', gridTemplateColumns: isMyPick ? '1fr 340px' : '1fr', gap: '16px' } },
             // Left: Draft board
             React.createElement('div', null,
                 // Current pick header
@@ -431,13 +455,15 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
                     ))
                 ),
             ),
-        );
+            ), // close grid
+        ); // close wrapStyle
     }
 
     // ── MULTI-SIM RESULTS ──
     if (mode === 'multisim' && simResults) {
         const { prospectRanges, myPickData, numSims } = simResults;
-        return React.createElement('div', null,
+        return React.createElement('div', { style: wrapStyle },
+            exitBtn,
             React.createElement('div', { style: { ...cardStyle, textAlign: 'center' } },
                 React.createElement('div', { style: { fontSize: '1.2rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Rajdhani, sans-serif', marginBottom: '4px' } }, `${numSims} SIMULATIONS COMPLETE`),
                 React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', marginBottom: '12px' } }, `${prospectRanges.length} prospects analyzed across ${teams} teams`),
@@ -492,7 +518,8 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
     // ── RESULTS / POST-DRAFT ──
     if (mode === 'results' && draftState) {
         const grades = gradeMyPicks(draftState.picks);
-        return React.createElement('div', null,
+        return React.createElement('div', { style: wrapStyle },
+            exitBtn,
             // Grade header
             React.createElement('div', { style: { ...cardStyle, textAlign: 'center' } },
                 React.createElement('div', { style: { fontSize: '3rem', fontWeight: 800, color: 'var(--gold)', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 } }, grades.grade),
