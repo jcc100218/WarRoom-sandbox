@@ -228,15 +228,15 @@
 
                     {/* ══ ALEX TAB — Coaching Style + Avatar ══ */}
                     {settingsTab === 'alex' && (() => {
-                        const styles = window.ALEX_STYLES || {};
-                        const currentStyle = localStorage.getItem('wr_alex_style') || 'default';
+                        const styles = window.ALEX_STYLES || { default: { name: 'Default', tone: 'Confident but not arrogant. Direct, data-driven, with personality.' }, general: { name: 'The General', tone: 'Intense, demanding, motivational. Short powerful sentences.' }, enthusiast: { name: 'The Enthusiast', tone: 'Excitable, passionate, full of energy. Uses vivid football jargon.' }, bayou: { name: 'The Bayou', tone: 'Folksy, raw, passionate. Southern warmth and earthiness.' }, wit: { name: 'The Wit', tone: 'Sarcastic, confident, clever. Sharp tongue and sharper mind.' }, closer: { name: 'The Closer', tone: 'Direct, emphatic, no-nonsense. Every sentence is declarative.' }, strategist: { name: 'The Strategist', tone: 'Calculated, competitive, analytical. Cold precision.' } };
+                        const [currentStyle, setCurrentStyleLocal] = React.useState(localStorage.getItem('wr_alex_style') || 'default');
                         return (<>
                         <div style={sectionStyle}>
                             <div style={sectionTitle}>COMMUNICATION STYLE</div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginBottom: '0.75rem' }}>Choose how Alex communicates. This affects all AI responses — briefings, chat, trade analysis, draft scouting.</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {Object.entries(styles).map(([key, style]) => (
-                                    <button key={key} onClick={() => { localStorage.setItem('wr_alex_style', key); setSettingsTab('alex'); }}
+                                    <button key={key} onClick={() => { localStorage.setItem('wr_alex_style', key); setCurrentStyleLocal(key); }}
                                         style={{
                                             padding: '12px 14px', textAlign: 'left',
                                             background: currentStyle === key ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.02)',
