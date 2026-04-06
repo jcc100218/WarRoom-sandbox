@@ -407,19 +407,21 @@ function MyTeamTab({
         const avgPeak = rows.filter(r => r.isStarter && r.peakYrsLeft > 0).reduce((s, r) => s + r.peakYrsLeft, 0) / (rows.filter(r => r.isStarter && r.peakYrsLeft > 0).length || 1);
         const competeWindow = Math.round(avgPeak);
 
-        // Pick capital
-        const pickCapital = (() => {
-          let val = 0;
+        // Pick capital — count of total picks owned (not DHQ value)
+        const pickCount = (() => {
+          let count = 0;
           const draftRounds = currentLeague.settings?.draft_rounds || 5;
           const leagueSeason = parseInt(currentLeague.season) || new Date().getFullYear();
           for (let yr = leagueSeason; yr <= leagueSeason + 2; yr++) for (let rd = 1; rd <= draftRounds; rd++) {
-            const pv = typeof getIndustryPickValue === 'function' ? getIndustryPickValue(rd, Math.ceil(totalTeams / 2), totalTeams) : window.App.PlayerValue?.getPickValue?.(yr, rd, totalTeams) ?? 0;
-            const ta = (_sTradedPicks).find(p => parseInt(p.season) === yr && p.round === rd && p.roster_id === myRoster?.roster_id && p.owner_id !== myRoster?.roster_id);
-            if (!ta) val += pv;
-            (_sTradedPicks).filter(p => parseInt(p.season) === yr && p.round === rd && p.owner_id === myRoster?.roster_id && p.roster_id !== myRoster?.roster_id).forEach(() => { val += pv; });
+            // Check if this pick was traded away
+            const tradedAway = (_sTradedPicks).find(p => parseInt(p.season) === yr && p.round === rd && p.roster_id === myRoster?.roster_id && p.owner_id !== myRoster?.roster_id);
+            if (!tradedAway) count++;
+            // Count picks acquired from other teams
+            (_sTradedPicks).filter(p => parseInt(p.season) === yr && p.round === rd && p.owner_id === myRoster?.roster_id && p.roster_id !== myRoster?.roster_id).forEach(() => { count++; });
           }
-          return val;
+          return count;
         })();
+        const expectedPicks = (currentLeague.settings?.draft_rounds || 5) * 3; // 3 years worth
 
         return <div style={{ marginBottom: '12px' }}>
           <GMMessage compact>
@@ -435,7 +437,7 @@ function MyTeamTab({
               { label: 'CONTENDER', value: '#' + contenderRank + '/' + totalTeams, color: contenderRank <= 3 ? '#2ECC71' : contenderRank <= 8 ? 'var(--gold)' : '#E74C3C' },
               { label: 'DYNASTY', value: '#' + dynastyRank + '/' + totalTeams, color: dynastyRank <= 3 ? '#2ECC71' : dynastyRank <= 8 ? 'var(--gold)' : '#E74C3C' },
               { label: 'WINDOW', value: competeWindow > 0 ? competeWindow + 'yr' : 'Now', color: competeWindow >= 3 ? '#2ECC71' : competeWindow >= 1 ? 'var(--gold)' : '#E74C3C' },
-              { label: 'PICK CAPITAL', value: Math.round(pickCapital / 1000) + 'K', color: pickCapital >= 20000 ? '#2ECC71' : pickCapital >= 10000 ? 'var(--gold)' : '#E74C3C' },
+              { label: 'PICKS', value: pickCount + ' picks', color: pickCount >= expectedPicks ? '#2ECC71' : pickCount >= expectedPicks * 0.6 ? 'var(--gold)' : '#E74C3C' },
             ].map((kpi, i) => <div key={i} style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
               <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.1rem', color: kpi.color }}>{kpi.value}</div>
               <div style={{ fontSize: '0.64rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{kpi.label}</div>

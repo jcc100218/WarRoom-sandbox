@@ -1286,7 +1286,7 @@
             const pn = pid => playersData[pid]?.full_name || pid;
 
             // Filter by team
-            const filteredTrades = inboxTeamFilter === 'all' ? recentTrades : recentTrades.filter(t => t.rids.includes(inboxTeamFilter));
+            const filteredTrades = inboxTeamFilter === 'all' ? recentTrades : recentTrades.filter(t => t.rids.some(rid => String(rid) === String(inboxTeamFilter)));
 
             return (
                 <div>
