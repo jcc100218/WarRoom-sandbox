@@ -26,7 +26,8 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
 
     // ── Build Prospect Pool ──
     const prospectPool = useMemo(() => {
-        return Object.entries(playerMeta)
+        // Primary: FC_ROOKIE tagged players from LeagueIntel
+        let pool = Object.entries(playerMeta)
             .filter(([pid, m]) => m.source === 'FC_ROOKIE' && (scores[pid] || 0) > 0)
             .map(([pid, m]) => {
                 const p = playersData?.[pid] || S.players?.[pid] || {};
@@ -35,8 +36,24 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
                     pos: m.pos || p.position || '?', team: p.team || '', college: p.college || '',
                     val: scores[pid] || 0, age: p.age || 21,
                 };
-            })
-            .sort((a, b) => b.val - a.val);
+            });
+        // Fallback: if no FC_ROOKIE data, use all young players (rookies/2nd year)
+        if (pool.length < 10) {
+            const allPlayers = playersData && Object.keys(playersData).length > 100 ? playersData : (S.players || {});
+            const rostered = new Set();
+            (S.rosters || []).forEach(r => (r.players || []).forEach(pid => rostered.add(String(pid))));
+            const fallback = Object.entries(allPlayers)
+                .filter(([pid, p]) => p && (p.years_exp <= 1 || (p.age && p.age <= 23)) && !rostered.has(pid) && p.position && ['QB','RB','WR','TE'].includes((p.position || '').toUpperCase()) && (scores[pid] || 0) > 0)
+                .map(([pid, p]) => ({
+                    pid, name: p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || pid,
+                    pos: (p.position || '').toUpperCase(), team: p.team || '', college: p.college || '',
+                    val: scores[pid] || 0, age: p.age || 21,
+                }));
+            // Merge, avoiding duplicates
+            const existingPids = new Set(pool.map(p => p.pid));
+            fallback.forEach(p => { if (!existingPids.has(p.pid)) pool.push(p); });
+        }
+        return pool.sort((a, b) => b.val - a.val);
     }, [playerMeta, scores, playersData]);
 
     // ── Build Draft Order (snake, respecting traded picks) ──
@@ -140,6 +157,10 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
     // START DRAFT
     // ══════════════════════════════════════════════════════════════
     const startDraft = () => {
+        if (prospectPool.length < 5) {
+            alert('Not enough prospect data to run a mock draft. League Intelligence may still be loading — wait a few seconds and try again.');
+            return;
+        }
         const pickOrder = buildPickOrder();
         setDraftState({
             pool: [...prospectPool],

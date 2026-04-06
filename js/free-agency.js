@@ -683,14 +683,13 @@
 
                 <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '10px', overflow: 'hidden' }}>
                     {/* Header */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 40px 34px 58px 44px 50px 44px', gap: '4px', padding: '8px 12px', background: 'rgba(212,175,55,0.06)', borderBottom: '2px solid rgba(212,175,55,0.2)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 40px 34px 58px 44px 44px', gap: '4px', padding: '8px 12px', background: 'rgba(212,175,55,0.06)', borderBottom: '2px solid rgba(212,175,55,0.2)' }}>
                         <span style={faHeaderStyle}></span>
                         <span style={faHeaderStyle} onClick={() => handleFaSort('name')}>Player{faSortIndicator('name')}</span>
                         <span style={faHeaderStyle} onClick={() => handleFaSort('pos')}>Pos{faSortIndicator('pos')}</span>
                         <span style={faHeaderStyle} onClick={() => handleFaSort('age')}>Age{faSortIndicator('age')}</span>
                         <span style={faHeaderStyle} onClick={() => handleFaSort('dhq')}>DHQ{faSortIndicator('dhq')}</span>
                         <span style={faHeaderStyle} onClick={() => handleFaSort('ppg')}>PPG{faSortIndicator('ppg')}</span>
-                        <span style={faHeaderStyle}>FAAB</span>
                         <span style={faHeaderStyle} onClick={() => handleFaSort('exp')}>Peak{faSortIndicator('exp')}</span>
                     </div>
                     {/* Body */}
@@ -707,7 +706,7 @@
                             const peakYrs = Math.max(0, pHi - (p.age || 25));
                             const peakLabel = peakYrs >= 4 ? 'Rising' : peakYrs >= 1 ? 'Prime' : 'Post';
                             const peakCol = peakYrs >= 4 ? '#2ECC71' : peakYrs >= 1 ? 'var(--gold)' : '#E74C3C';
-                            return <div key={pid} onClick={() => setFaSelectedPid(pid)} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 40px 34px 58px 44px 50px 44px', background: faSelectedPid===pid?'rgba(212,175,55,0.08)':'transparent', gap: '4px', padding: '7px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', alignItems: 'center', transition: 'background 0.1s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.05)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            return <div key={pid} onClick={() => setFaSelectedPid(pid)} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 40px 34px 58px 44px 44px', background: faSelectedPid===pid?'rgba(212,175,55,0.08)':'transparent', gap: '4px', padding: '7px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', alignItems: 'center', transition: 'background 0.1s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.05)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                                 <div className={'wr-ring wr-ring-' + pos} style={{ width: '26px', height: '26px', borderRadius: '50%', overflow: 'hidden', background: 'rgba(212,175,55,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                     <img src={'https://sleepercdn.com/content/nfl/players/' + pid + '.jpg'} alt="" style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} onError={e => { e.target.style.display='none'; const s=document.createElement('span'); s.style.cssText='font-size:10px;font-weight:700;color:var(--gold)'; s.textContent=((p.first_name||'?')[0]+(p.last_name||'?')[0]).toUpperCase(); e.target.after(s); }} />
                                 </div>
@@ -719,7 +718,6 @@
                                 <span style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{p.age || '\u2014'}</span>
                                 <span style={{ fontSize: '0.82rem', fontWeight: 700, fontFamily: 'Inter, sans-serif', color: dhqCol }}>{dhq > 0 ? dhq.toLocaleString() : '\u2014'}</span>
                                 <span style={{ fontSize: '0.78rem', color: ppg >= 10 ? '#2ECC71' : ppg >= 5 ? 'var(--silver)' : 'rgba(255,255,255,0.3)' }}>{ppg > 0 ? ppg : '\u2014'}</span>
-                                <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--gold)' }}>{faab ? '$' + faab.lo + '-' + faab.hi : '\u2014'}</span>
                                 <span style={{ fontSize: '0.74rem', color: peakCol, fontWeight: 600 }}>{peakLabel}</span>
                             </div>;
                         })}
