@@ -167,12 +167,20 @@
             if (!assess?.needs?.length) return [];
             const needPositions = assess.needs.slice(0, 3).map(n => n.pos);
 
-            // ── Minimum quality threshold: DHQ > 500 ──
+            // ── Dynamic DHQ floor: scales down if wire is thin ──
+            // Hard floor is 500, but if the best available at needed positions is below that,
+            // drop to 25% of the best available DHQ so we always show something.
+            const bestAvailDhq = availablePlayers
+                .filter(x => needPositions.includes(x.pos))
+                .reduce((m, x) => Math.max(m, x.dhq), 0);
+            const dynamicFloor = Math.min(500, Math.max(100, Math.round(bestAvailDhq * 0.25)));
+
+            // ── Minimum quality threshold: dynamic DHQ floor ──
             // ── Rebuild mode: age ≤ 25 unless DHQ > 2000 (genuinely good player) ──
             return availablePlayers
                 .filter(x => {
                     if (!needPositions.includes(x.pos)) return false;
-                    if (x.dhq < 500) return false; // Quality floor
+                    if (x.dhq < dynamicFloor) return false;
                     if (isRebuilding && (x.p.age || 30) > 25 && x.dhq < 2000) return false; // Rebuilders skip old low-value
                     return true;
                 })
@@ -217,9 +225,11 @@
             // Categorize recommendations into tiers
             const mustAdd = recommendations.filter(r => r.need?.urgency === 'deficit' && r.dhq >= 800).slice(0, 3);
             const strongBuys = recommendations.filter(r => r.need && !mustAdd.find(m => m.pid === r.pid) && r.dhq >= 500).slice(0, 4);
-            // Value plays: young upside — but still enforce quality floor (DHQ >= 500)
+            // Value plays / stash candidates: young upside picks.
+            // For non-FAAB leagues faab is always null — show stash candidates regardless.
+            const _vpFloor = hasFAAB ? 500 : 200;
             const valuePlays = availablePlayers
-                .filter(x => x.dhq >= 500 && x.dhq < 2000 && (x.p.age || 30) <= 25)
+                .filter(x => x.dhq >= _vpFloor && x.dhq < 2000 && (x.p.age || 30) <= 25)
                 .slice(0, 4)
                 .map(x => {
                     const st2 = statsData[x.pid] || {};
@@ -227,7 +237,7 @@
                     const fb = faabSuggest(x.dhq, x.pos, x.p.age);
                     return { ...x, ppg: ppg2, faab: fb };
                 })
-                .filter(x => x.faab !== null); // Respect mode-based filtering
+                .filter(x => hasFAAB ? x.faab !== null : true); // non-FAAB: always show
 
             // Market pressure
             const needCount = assess?.needs?.length || 0;
@@ -260,7 +270,7 @@
 
             return (
                 <div style={{ padding: '20px 24px', maxWidth: '1200px', margin: '0 auto' }} className="wr-fade-in">
-                    <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '16px' }}>WAIVER DECISIONS</div>
+                    <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '16px' }}>{hasFAAB ? 'WAIVER DECISIONS' : 'WAIVER WIRE TARGETS'}</div>
 
                     {/* Decision summary */}
                     <div style={{ display: 'grid', gridTemplateColumns: hasFAAB ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
@@ -283,21 +293,21 @@
                     <div style={{ display: 'grid', gridTemplateColumns: faSelectedPid ? '1fr 380px' : '1fr', gap: '20px' }}>
                         <div>
                             {mustAdd.length > 0 && <div style={{ marginBottom: '16px' }}>
-                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: '#E74C3C', letterSpacing: '0.06em', marginBottom: '8px' }}>MUST ADD</div>
+                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: '#E74C3C', letterSpacing: '0.06em', marginBottom: '8px' }}>{hasFAAB ? 'MUST ADD' : 'PRIORITY ADDS'}</div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                     {mustAdd.map(r => renderFaCard(r, 'must', '#E74C3C'))}
                                 </div>
                             </div>}
 
                             {strongBuys.length > 0 && <div style={{ marginBottom: '16px' }}>
-                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: '#2ECC71', letterSpacing: '0.06em', marginBottom: '8px' }}>STRONG BUYS</div>
+                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: '#2ECC71', letterSpacing: '0.06em', marginBottom: '8px' }}>{hasFAAB ? 'STRONG BUYS' : 'DEPTH OPTIONS'}</div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                     {strongBuys.map(r => renderFaCard(r, 'strong', '#2ECC71'))}
                                 </div>
                             </div>}
 
                             {valuePlays.length > 0 && <div style={{ marginBottom: '16px' }}>
-                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: '#3498DB', letterSpacing: '0.06em', marginBottom: '8px' }}>VALUE PLAYS</div>
+                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: '#3498DB', letterSpacing: '0.06em', marginBottom: '8px' }}>{hasFAAB ? 'VALUE PLAYS' : 'STASH CANDIDATES'}</div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                     {valuePlays.map(r => renderFaCard(r, 'value', '#3498DB'))}
                                 </div>

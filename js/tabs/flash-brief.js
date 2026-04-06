@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════════════════════
 // js/tabs/flash-brief.js — FlashBriefPanel: Two-box layout
 // Left: Alex Ingram's intelligence briefing with action buttons
-// Right: Field Notes from Scout (placeholder — next week)
+// Right: Field Notes from Scout
 // ══════════════════════════════════════════════════════════════════
 
 function FlashBriefPanel({

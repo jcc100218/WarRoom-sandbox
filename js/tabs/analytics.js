@@ -64,12 +64,53 @@ function AnalyticsPanel({
     const tableRowStyle = (i) => ({ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '8px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', ...(i === 0 ? { fontWeight: 700, color: 'var(--gold)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' } : { color: 'var(--silver)' }) });
     const d = analyticsData;
 
+    // ── Overview stats for the summary bar ──
+    const _overviewStats = (() => {
+        const allRosters = _SS.rosters || [];
+        const totalTeams = allRosters.length;
+        const myRid = String(_SS.myRosterId || myRoster?.roster_id || '');
+        const playerScores = window.App?.LI?.playerScores || {};
+        const allDhqs = allRosters.map(r => (r.players || []).reduce((s, pid) => s + (playerScores[pid] || 0), 0));
+        const myDhq = allRosters.find(r => String(r.roster_id) === myRid) ?
+            (allRosters.find(r => String(r.roster_id) === myRid).players || []).reduce((s, pid) => s + (playerScores[pid] || 0), 0) : 0;
+        const avgDhq = allDhqs.length ? Math.round(allDhqs.reduce((a, b) => a + b, 0) / allDhqs.length) : 0;
+        const myRoster2 = allRosters.find(r => String(r.roster_id) === myRid);
+        const wins = myRoster2?.settings?.wins || 0;
+        const losses = myRoster2?.settings?.losses || 0;
+        const winPct = (wins + losses) > 0 ? Math.round(wins / (wins + losses) * 100) : null;
+        const sorted = [...allRosters].sort((a, b) => {
+            const aw = a.settings?.wins || 0, bw = b.settings?.wins || 0;
+            if (bw !== aw) return bw - aw;
+            return (b.settings?.fpts || 0) - (a.settings?.fpts || 0);
+        });
+        const myRank = sorted.findIndex(r => String(r.roster_id) === myRid) + 1;
+        const dhqVsAvg = avgDhq > 0 ? Math.round((myDhq - avgDhq) / avgDhq * 100) : 0;
+        return { totalTeams, myRank, wins, losses, winPct, myDhq, avgDhq, dhqVsAvg };
+    })();
+
     return (
     <div style={{ padding: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
             <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em' }}>LEAGUE ANALYTICS</div>
         </div>
-        <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '16px' }}>Elite Tier Teams = playoff bracket champions, runner-ups, and semi-finalists when available. Falls back to top 3 by record in the current season.</div>
+
+        {/* Overview summary bar */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '14px' }}>
+            {[
+                { label: 'POWER RANK', val: _overviewStats.myRank ? `#${_overviewStats.myRank} of ${_overviewStats.totalTeams}` : '—', col: _overviewStats.myRank <= Math.ceil(_overviewStats.totalTeams / 3) ? '#2ECC71' : _overviewStats.myRank <= Math.ceil(_overviewStats.totalTeams * 2 / 3) ? '#F0A500' : '#E74C3C' },
+                { label: 'RECORD', val: _overviewStats.winPct !== null ? `${_overviewStats.wins}–${_overviewStats.losses}` : '—', sub: _overviewStats.winPct !== null ? `${_overviewStats.winPct}% win` : '', col: _overviewStats.winPct >= 60 ? '#2ECC71' : _overviewStats.winPct >= 40 ? '#F0A500' : '#E74C3C' },
+                { label: 'DHQ VS AVG', val: _overviewStats.avgDhq > 0 ? (_overviewStats.dhqVsAvg >= 0 ? `+${_overviewStats.dhqVsAvg}%` : `${_overviewStats.dhqVsAvg}%`) : '—', col: _overviewStats.dhqVsAvg >= 5 ? '#2ECC71' : _overviewStats.dhqVsAvg >= -5 ? '#F0A500' : '#E74C3C' },
+                { label: 'LEAGUE SIZE', val: _overviewStats.totalTeams ? `${_overviewStats.totalTeams} teams` : '—', col: 'var(--silver)' },
+            ].map(s => (
+                <div key={s.label} style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px', padding: '10px 12px' }}>
+                    <div style={{ fontSize: '0.64rem', color: 'var(--silver)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px', opacity: 0.7 }}>{s.label}</div>
+                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.1rem', fontWeight: 600, color: s.col }}>{s.val}</div>
+                    {s.sub && <div style={{ fontSize: '0.68rem', color: 'var(--silver)', marginTop: '2px', opacity: 0.7 }}>{s.sub}</div>}
+                </div>
+            ))}
+        </div>
+
+        <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '12px' }}>Elite Tier Teams = playoff bracket champions, runner-ups, and semi-finalists when available. Falls back to top 3 by record in the current season.</div>
 
         {/* Sub-tab navigation */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>

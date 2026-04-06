@@ -189,8 +189,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
     function handleLogout() {
         if (confirm('Are you sure you want to logout?')) {
-            localStorage.removeItem(AUTH_KEY);
-            localStorage.removeItem(SESSION_KEY);
+            localStorage.removeItem('od_auth_v1');
+            localStorage.removeItem('fw_session_v1');
             window.location.href = 'landing.html';
         }
     }
