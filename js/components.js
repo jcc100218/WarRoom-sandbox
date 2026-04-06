@@ -497,6 +497,8 @@
             }
             results.sort((a,b)=>Math.max(...b.trades.map(t=>t.likelihood))-Math.max(...a.trades.map(t=>t.likelihood)));
             setFinderResults(results);
+            const targetName = playersData[pid]?.full_name || pid;
+            window.wrLogAction?.('\uD83D\uDD0D', 'Ran trade finder targeting ' + targetName, 'trade', { players: [{ name: targetName, pid: pid }], actionType: 'trade-finder' });
         }
 
         // Auto-target from GENERATE TRADES button in Intelligence Briefing

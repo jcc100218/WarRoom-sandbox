@@ -96,6 +96,40 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         if (typeof console !== 'undefined') console.warn('[WarRoom]', context, err);
     }
     window.wrLog = wrLog; // expose for cross-module access
+
+    // ── Field Log Writer ───────────────────────────────────────────────────
+    // Mirrors Scout's addFieldLogEntry format so both apps write to the same
+    // localStorage key and Supabase table. Only logs deliberate user decisions.
+    const FL_LS_KEY = 'scout_field_log_v1';
+    function wrLogAction(icon, text, category, meta) {
+        try {
+            const entry = {
+                id: 'wrfl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                icon: icon || '📋',
+                text: text || '',
+                category: category || 'note',
+                ts: Date.now(),
+                syncStatus: 'pending',
+                source: 'warroom',
+                players: meta?.players || [],
+                context: meta?.context || null,
+                leagueId: meta?.leagueId || window.S?.currentLeagueId || null,
+                actionType: meta?.actionType || null,
+            };
+            // Append to localStorage
+            const raw = localStorage.getItem(FL_LS_KEY);
+            const log = raw ? JSON.parse(raw) : [];
+            log.unshift(entry);
+            // Keep max 200 entries locally
+            if (log.length > 200) log.length = 200;
+            localStorage.setItem(FL_LS_KEY, JSON.stringify(log));
+            // Async sync to Supabase (fire-and-forget)
+            if (window.OD?.saveFieldLogEntry) {
+                window.OD.saveFieldLogEntry(entry).catch(function(e) { wrLog('wrLogAction.sync', e); });
+            }
+        } catch (e) { wrLog('wrLogAction', e); }
+    }
+    window.wrLogAction = wrLogAction;
     // ──────────────────────────────────────────────────────────────────────────
 
     // ===== PRODUCT TIER SYSTEM =====

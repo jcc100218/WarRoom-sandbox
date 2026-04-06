@@ -25,6 +25,12 @@
                 .catch(function() { setEntries([]); });
         }, [lastRefresh]);
 
+        // Auto-refresh field log every 60 seconds
+        React.useEffect(function() {
+            var interval = setInterval(function() { setLastRefresh(Date.now()); }, 60000);
+            return function() { clearInterval(interval); };
+        }, []);
+
         var grouped = React.useMemo(function() {
             if (!entries || !entries.length) return [];
             var groups = {};
@@ -211,9 +217,18 @@
         const [sleeperLeagues, setSleeperLeagues] = useState([]);
         const [activeLeagueId, setActiveLeagueId] = useState(null);
         const [selectedLeague, setSelectedLeague] = useState(null);
+        // Lifted tab state for browser history navigation
+        const [activeTab, setActiveTab] = useState('brief');
+        const isNavigatingRef = React.useRef(false);
         // ESPN state
         const [espnLeagues, setEspnLeagues] = useState([]);
         const [espnConnecting, setEspnConnecting] = useState(false);
+        // MFL state
+        const [mflLeagues, setMflLeagues] = useState([]);
+        const [mflConnecting, setMflConnecting] = useState(false);
+        const [mflError, setMflError] = useState(null);
+        const [mflFranchises, setMflFranchises] = useState(null);
+        const [mflPendingResult, setMflPendingResult] = useState(null);
         const [espnError, setEspnError] = useState(null);
         // Display name state
         const [customDisplayName, setCustomDisplayName] = useState(() => {
@@ -316,7 +331,15 @@
                 <ErrorBoundary>
                     <LeagueDetail
                         league={selectedLeague}
-                        onBack={() => setSelectedLeague(null)}
+                        onBack={() => {
+                            setSelectedLeague(null);
+                            setActiveTab('brief');
+                            if (!isNavigatingRef.current) {
+                                history.pushState({ view: 'hub' }, '', window.location.pathname);
+                            }
+                        }}
+                        activeTab={activeTab}
+                        onTabChange={handleTabChange}
                         sleeperUserId={sleeperUser?.user_id}
                         onOpenSettings={() => setShowSettings(true)}
                     />
@@ -394,12 +417,55 @@
             );
         }
 
+        // ── Browser History Navigation ──
+        function buildHash(leagueId, tab) { return '#league=' + leagueId + '&tab=' + (tab || 'brief'); }
+        function parseHash(hash) {
+            const params = new URLSearchParams((hash || '').replace('#', ''));
+            return { leagueId: params.get('league'), tab: params.get('tab') || 'brief' };
+        }
+
         function handleSelectLeague(league) {
             setActiveLeagueId(league.id);
             setSelectedLeague(league);
+            setActiveTab('brief');
             WrStorage.set(WR_KEYS.LAST_LEAGUE_ID, league.id);
             WrStorage.set(WR_KEYS.LAST_LEAGUE_NAME, league.name);
+            if (!isNavigatingRef.current) {
+                history.pushState({ view: 'league', leagueId: league.id, tab: 'brief' }, '', buildHash(league.id, 'brief'));
+            }
         }
+
+        function handleTabChange(tab) {
+            setActiveTab(tab);
+            if (!isNavigatingRef.current && selectedLeague) {
+                history.pushState({ view: 'league', leagueId: selectedLeague.id, tab }, '', buildHash(selectedLeague.id, tab));
+            }
+        }
+
+        // popstate listener for back/forward navigation
+        React.useEffect(() => {
+            function onPopState(e) {
+                isNavigatingRef.current = true;
+                const state = e.state;
+                if (state && state.view === 'league' && state.leagueId) {
+                    // Find league in loaded leagues
+                    const allLeagues = [...sleeperLeagues, ...espnLeagues, ...mflLeagues];
+                    const league = allLeagues.find(l => l.id === state.leagueId);
+                    if (league) {
+                        setSelectedLeague(league);
+                        setActiveTab(state.tab || 'brief');
+                    }
+                } else {
+                    setSelectedLeague(null);
+                    setActiveTab('brief');
+                }
+                setTimeout(() => { isNavigatingRef.current = false; }, 0);
+            }
+            window.addEventListener('popstate', onPopState);
+            // Set initial state if none exists
+            if (!history.state) history.replaceState({ view: 'hub' }, '', window.location.pathname);
+            return () => window.removeEventListener('popstate', onPopState);
+        }, [sleeperLeagues, espnLeagues, mflLeagues]);
 
         async function handleESPNConnect(leagueId, espnS2, swid) {
             if (!leagueId) { setEspnError('Enter your ESPN league ID'); return; }
@@ -435,6 +501,61 @@
             } finally {
                 setEspnConnecting(false);
             }
+        }
+
+        async function handleMFLConnect(leagueId, year, apiKey) {
+            if (!leagueId) { setMflError('Enter your MFL League ID'); return; }
+            if (!window.MFL) { setMflError('MFL connector not loaded — refresh and try again'); return; }
+            setMflConnecting(true);
+            setMflError(null);
+            try {
+                const raw = await window.MFL.fetchLeague(leagueId, year, apiKey || null);
+                if (!raw?.leagueData?.league) throw new Error('Invalid MFL league data. Check your League ID and year.');
+                // Build crosswalk (empty Sleeper players — rebuilds when full DB loads)
+                const mflPlayerArr = raw.playersData?.players?.player || [];
+                const allMflPlayers = Array.isArray(mflPlayerArr) ? mflPlayerArr : [mflPlayerArr];
+                const crosswalk = window.MFL.buildCrosswalk({}, allMflPlayers, year);
+                const result = window.MFL.mapToSleeperState(raw, leagueId, year, crosswalk);
+                // Extract franchise list for picker
+                const franchises = raw.leagueData?.league?.franchises?.franchise || [];
+                const franchiseArr = Array.isArray(franchises) ? franchises : [franchises];
+                // Store credentials
+                localStorage.setItem('mfl_league_id', leagueId);
+                localStorage.setItem('mfl_year', String(year));
+                if (apiKey) localStorage.setItem('mfl_api_key', apiKey);
+                setMflPendingResult(result);
+                setMflFranchises(franchiseArr);
+            } catch (e) {
+                setMflError(e.message || 'MFL connection failed');
+            } finally {
+                setMflConnecting(false);
+            }
+        }
+
+        function finalizeMFLConnect(franchiseId) {
+            const result = mflPendingResult;
+            if (!result) return;
+            const league = {
+                id: result.league.league_id,
+                name: result.league.name,
+                season: result.league.season,
+                wins: 0, losses: 0, ties: 0,
+                rosters: result.rosters,
+                scoring_settings: result.league.scoring_settings,
+                roster_positions: result.league.roster_positions,
+                settings: result.league.settings || {},
+                users: result.leagueUsers,
+                _mfl: true,
+                _mflLeagueId: localStorage.getItem('mfl_league_id'),
+                _mflFranchiseId: franchiseId || null,
+            };
+            setMflLeagues(prev => {
+                const filtered = prev.filter(l => l._mflLeagueId !== league._mflLeagueId);
+                return [...filtered, league];
+            });
+            setMflFranchises(null);
+            setMflPendingResult(null);
+            handleSelectLeague(league);
         }
 
         const resumeLeague = sleeperLeagues.find(l => l.id === lastLeagueId);
@@ -533,20 +654,56 @@
                             </div>
                             <div>
                                 <div className="product-card-title">MFL</div>
-                                <div className="product-card-subtitle">MyFantasyLeague connector</div>
+                                <div className="product-card-subtitle">{mflLeagues.length > 0 ? mflLeagues.length + ' league' + (mflLeagues.length !== 1 ? 's' : '') + ' synced' : 'MyFantasyLeague connector'}</div>
                             </div>
                         </div>
                         <div className="product-card-body">
-                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginBottom: '8px' }}>Enter your MFL League ID and year to connect.</div>
-                            <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
-                                <input id="wr-mfl-id" placeholder="League ID" style={{ flex: 1, padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'Inter, sans-serif' }} />
-                                <input id="wr-mfl-year" placeholder="Year" defaultValue="2026" style={{ width: '70px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'Inter, sans-serif', textAlign: 'center' }} />
-                            </div>
-                            <button className="hub-cta gold" onClick={() => {
-                                const id = document.getElementById('wr-mfl-id')?.value?.trim();
-                                const yr = document.getElementById('wr-mfl-year')?.value?.trim() || '2026';
-                                if (id) { localStorage.setItem('mfl_league_id', id); localStorage.setItem('mfl_year', yr); window.location.reload(); }
-                            }}>CONNECT MFL</button>
+                            {/* Connected leagues */}
+                            {mflLeagues.length > 0 && (
+                                <div style={{ marginBottom: '8px' }}>
+                                    {mflLeagues.map(l => (
+                                        <button key={l.id} className="hub-cta gold" style={{ marginBottom: '4px', width: '100%' }} onClick={() => handleSelectLeague(l)}>
+                                            ENTER {l.name?.toUpperCase()}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            {/* Franchise picker */}
+                            {mflFranchises && (
+                                <div>
+                                    <div style={{ fontSize: '0.72rem', color: 'var(--gold)', marginBottom: '8px', fontWeight: 700 }}>Select your team:</div>
+                                    <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+                                        {mflFranchises.map(f => (
+                                            <button key={f.id} onClick={() => finalizeMFLConnect(f.id)}
+                                                style={{ display: 'block', width: '100%', padding: '8px 10px', marginBottom: '4px', background: 'rgba(46,125,50,0.08)', border: '1px solid rgba(46,125,50,0.25)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', cursor: 'pointer', textAlign: 'left' }}>
+                                                {f.name || f.owner_name || ('Team ' + f.id)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button onClick={() => { setMflFranchises(null); setMflPendingResult(null); }} style={{ fontSize: '0.72rem', color: 'var(--silver)', background: 'none', border: 'none', cursor: 'pointer', marginTop: '6px' }}>Cancel</button>
+                                </div>
+                            )}
+                            {/* Connect form */}
+                            {!mflFranchises && (
+                                <div>
+                                    <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginBottom: '8px' }}>Enter your MFL League ID and year to connect.</div>
+                                    <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                                        <input id="wr-mfl-id" placeholder="League ID" style={{ flex: 1, padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'Inter, sans-serif' }} />
+                                        <input id="wr-mfl-year" placeholder="Year" defaultValue="2026" style={{ width: '70px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'Inter, sans-serif', textAlign: 'center' }} />
+                                    </div>
+                                    <details style={{ marginBottom: '8px' }}>
+                                        <summary style={{ fontSize: '0.72rem', color: 'var(--silver)', cursor: 'pointer', opacity: 0.7 }}>Private league? Add API key</summary>
+                                        <input id="wr-mfl-apikey" placeholder="API Key (optional)" style={{ width: '100%', marginTop: '6px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'Inter, sans-serif' }} />
+                                    </details>
+                                    {mflError && <div style={{ fontSize: '0.72rem', color: '#E74C3C', marginBottom: '8px' }}>{mflError}</div>}
+                                    <button className="hub-cta gold" disabled={mflConnecting} onClick={() => {
+                                        const id = document.getElementById('wr-mfl-id')?.value?.trim();
+                                        const yr = document.getElementById('wr-mfl-year')?.value?.trim() || '2026';
+                                        const apiKey = document.getElementById('wr-mfl-apikey')?.value?.trim() || '';
+                                        handleMFLConnect(id, yr, apiKey);
+                                    }}>{mflConnecting ? 'Connecting...' : 'CONNECT MFL'}</button>
+                                </div>
+                            )}
                         </div>
                     </div>
 

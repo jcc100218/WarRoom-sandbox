@@ -30,6 +30,11 @@
         const [editingRank, setEditingRank] = useState(null); // pid being rank-edited
         const [rankInput, setRankInput] = useState('');
         const [countdownNow, setCountdownNow] = useState(Date.now());
+        const [draftStrategyEditing, setDraftStrategyEditing] = useState(false);
+        const draftStrategyKey = 'wr_draft_strategy_' + (currentLeague?.league_id || currentLeague?.id || '');
+        const [customDraftStrategy, setCustomDraftStrategy] = useState(() => {
+            try { return localStorage.getItem(draftStrategyKey) || ''; } catch(e) { return ''; }
+        });
 
         const normPos = window.App.normPos;
 
@@ -230,16 +235,19 @@
                 {/* ═══════════════════ VIEW 1: FLASH BRIEF ═══════════════════ */}
                 {activeView === 'command' && (
                     <div>
+                        {/* Draft Countdown + Class Preview side by side */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px' }}>
+
                         {/* Draft Countdown Clock */}
-                        {draftInfo?.start_time && draftInfo.status === 'pre_draft' && (() => {
+                        {draftInfo?.start_time && draftInfo.status === 'pre_draft' ? (() => {
                             const now = countdownNow;
                             const start = draftInfo.start_time;
                             const diff = start - now;
-                            if (diff <= 0) return <div style={{ background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '8px', padding: '14px 16px', marginBottom: '14px', textAlign: 'center', fontFamily: 'Rajdhani, sans-serif', fontSize: '1.6rem', color: '#2ECC71', letterSpacing: '0.04em' }}>DRAFT IS LIVE</div>;
+                            if (diff <= 0) return <div style={{ background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '8px', padding: '14px 16px', textAlign: 'center', fontFamily: 'Rajdhani, sans-serif', fontSize: '1.6rem', color: '#2ECC71', letterSpacing: '0.04em' }}>DRAFT IS LIVE</div>;
                             const days = Math.floor(diff / 86400000);
                             const hours = Math.floor((diff % 86400000) / 3600000);
                             const mins = Math.floor((diff % 3600000) / 60000);
-                            return <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '14px 16px', marginBottom: '14px', textAlign: 'center' }}>
+                            return <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '14px 16px', textAlign: 'center' }}>
                                 <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Draft Countdown</div>
                                 <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', color: 'var(--white)', letterSpacing: '0.04em' }}>
                                     {days > 0 ? days + 'd ' : ''}{hours}h {mins}m
@@ -251,10 +259,13 @@
                                     {draftInfo.type === 'linear' ? 'Linear' : draftInfo.type === 'snake' ? 'Snake' : draftInfo.type} · {draftInfo.settings?.rounds || 5} rounds · {draftInfo.settings?.teams || 16} teams
                                 </div>
                             </div>;
-                        })()}
+                        })() : <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '14px 16px', textAlign: 'center' }}>
+                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Draft Status</div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>No draft scheduled yet</div>
+                        </div>}
 
-                        {/* Draft Class Preview (moved from Rankings) */}
-                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
+                        {/* Draft Class Preview */}
+                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px' }}>
                             <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Draft Class Preview</div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.6 }}>
                                 Based on PFF and consensus rankings, the strongest position groups in the upcoming draft class are typically available via the AI advisor. Click the War Room Scout panel and ask about specific positions or prospects.
@@ -267,8 +278,13 @@
                             </div>
                         </div>
 
-                        {/* Your Picks (moved from Rankings) */}
-                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px' }}>
+                        </div>{/* end countdown + class preview grid */}
+
+                        {/* Your Picks + On the Clock side by side */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px' }}>
+
+                        {/* Your Picks */}
+                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px' }}>
                             <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Your Picks</div>
                             {[leagueSeason, leagueSeason + 1, leagueSeason + 2].map(yr => {
                                 const yearPicks = myPicks.filter(pk => pk.year === yr);
@@ -290,7 +306,7 @@
                         </div>
 
                         {/* ON THE CLOCK card */}
-                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '8px', padding: '16px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2ECC71', animation: 'pulse 2s infinite' }} />
                                 <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.9rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>On The Clock</span>
@@ -333,18 +349,39 @@
                             )}
                         </div>
 
-                        {/* Draft Strategy card */}
-                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '14px 16px', marginBottom: '16px' }}>
-                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Draft Strategy</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                                <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', color: strategyRec.type === 'target' ? '#F0A500' : '#2ECC71' }}>{strategyRec.label}</span>
-                                <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '10px', background: strategyRec.type === 'target' ? 'rgba(240,165,0,0.15)' : 'rgba(46,204,113,0.15)', color: strategyRec.type === 'target' ? '#F0A500' : '#2ECC71', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase' }}>
-                                    {strategyRec.type === 'target' ? 'Position Target' : 'Best Player Available'}
+                        </div>{/* end your picks + on the clock grid */}
+
+                        {/* Draft Strategy — Alex Ingram Message Card */}
+                        <div style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.06), rgba(0,0,0,0.4))', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '10px', padding: '16px 18px', marginBottom: '16px' }}>
+                            {/* Alex header */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(212,175,55,0.15)', border: '2px solid rgba(212,175,55,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>{'\uD83E\uDDE0'}</div>
+                                <div>
+                                    <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.82rem', color: 'var(--gold)', letterSpacing: '0.08em', fontWeight: 700 }}>ALEX INGRAM</div>
+                                    <div style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'Inter, sans-serif' }}>Draft Strategy Advisor</div>
+                                </div>
+                                <span style={{ marginLeft: 'auto', fontSize: '0.68rem', padding: '2px 10px', borderRadius: '10px', background: strategyRec.type === 'target' ? 'rgba(240,165,0,0.15)' : 'rgba(46,204,113,0.15)', color: strategyRec.type === 'target' ? '#F0A500' : '#2ECC71', fontFamily: 'Inter, sans-serif', fontWeight: 700, textTransform: 'uppercase' }}>
+                                    {strategyRec.type === 'target' ? 'Position Target' : 'BPA'}
                                 </span>
                             </div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.6 }}>{strategyRec.reason}</div>
+
+                            {/* Strategy message */}
+                            <div style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)', borderRadius: '8px', padding: '12px 14px', marginBottom: '10px' }}>
+                                {customDraftStrategy ? (
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.7, fontStyle: 'italic' }}>
+                                        <span style={{ color: 'var(--gold)', fontWeight: 600, fontStyle: 'normal' }}>Your strategy: </span>{customDraftStrategy}
+                                    </div>
+                                ) : (
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.7 }}>
+                                        Based on your roster needs, I recommend <span style={{ color: strategyRec.type === 'target' ? '#F0A500' : '#2ECC71', fontWeight: 700 }}>{strategyRec.label.toLowerCase()}</span> this draft. {strategyRec.reason}
+                                        {assess?.needs?.length > 0 && (' Your biggest gaps are at ' + assess.needs.slice(0, 3).map(n => n.pos).join(', ') + '.')}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Team needs pills */}
                             {assess?.needs?.length > 0 && (
-                                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' }}>
+                                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '12px' }}>
                                     {assess.needs.slice(0, 5).map(n => (
                                         <span key={n.pos} style={{ padding: '2px 8px', fontSize: '0.68rem', borderRadius: '10px', fontFamily: 'Inter, sans-serif', background: n.urgency === 'deficit' ? 'rgba(231,76,60,0.15)' : 'rgba(240,165,0,0.12)', color: n.urgency === 'deficit' ? '#E74C3C' : '#F0A500', border: '1px solid ' + (n.urgency === 'deficit' ? 'rgba(231,76,60,0.3)' : 'rgba(240,165,0,0.25)') }}>
                                             {n.pos} {n.urgency === 'deficit' ? 'CRITICAL' : 'THIN'}
@@ -352,6 +389,38 @@
                                     ))}
                                 </div>
                             )}
+
+                            {/* Editable strategy textarea */}
+                            {draftStrategyEditing && (
+                                <div style={{ marginBottom: '10px' }}>
+                                    <textarea
+                                        value={customDraftStrategy}
+                                        onChange={e => setCustomDraftStrategy(e.target.value)}
+                                        placeholder="Declare your draft interests... (e.g., 'Targeting WR and TE early, willing to trade back in round 2 for depth picks')"
+                                        style={{ width: '100%', minHeight: '70px', padding: '10px 12px', fontSize: '0.78rem', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--silver)', fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.5, outline: 'none' }}
+                                    />
+                                    <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                                        <button onClick={() => { try { localStorage.setItem(draftStrategyKey, customDraftStrategy); } catch(e) {} window.wrLogAction?.('\uD83D\uDCCB', 'Set draft strategy: ' + (customDraftStrategy || '').substring(0, 60), 'draft', { actionType: 'draft-strategy' }); setDraftStrategyEditing(false); }}
+                                            style={{ padding: '5px 14px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 700 }}>Save</button>
+                                        <button onClick={() => { setCustomDraftStrategy(''); try { localStorage.removeItem(draftStrategyKey); } catch(e) {} setDraftStrategyEditing(false); }}
+                                            style={{ padding: '5px 14px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: 'rgba(231,76,60,0.15)', color: '#E74C3C', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '4px', cursor: 'pointer' }}>Clear</button>
+                                        <button onClick={() => setDraftStrategyEditing(false)}
+                                            style={{ padding: '5px 14px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: 'transparent', color: 'var(--silver)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Action buttons */}
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                <button onClick={() => setDraftStrategyEditing(!draftStrategyEditing)}
+                                    style={{ padding: '6px 14px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '5px', color: 'var(--gold)', cursor: 'pointer', fontWeight: 600 }}>
+                                    {draftStrategyEditing ? '\u25B2 Close' : '\u270E Edit Strategy'}
+                                </button>
+                                <button onClick={() => { if (typeof window._wrSetActiveTab === 'function') { window._wrSetActiveTab('myteam'); setTimeout(() => { if (typeof window._wrSetGmStrategyOpen === 'function') window._wrSetGmStrategyOpen(true); }, 150); } }}
+                                    style={{ padding: '6px 14px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: 'rgba(124,107,248,0.12)', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '5px', color: '#9b8afb', cursor: 'pointer', fontWeight: 600 }}>
+                                    {'\u2699'} Edit GM Strategy
+                                </button>
+                            </div>
                         </div>
 
                         {/* Tier 1 Prospects */}
@@ -559,7 +628,7 @@
                                       {/* Quick tag buttons */}
                                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' }}>
                                         {Object.entries(tagDefs).map(([tKey, tDef]) => (
-                                          <button key={tKey} onClick={(e) => { e.stopPropagation(); setBoardTags(prev => ({ ...prev, [r.pid]: prev[r.pid] === tKey ? undefined : tKey })); }} style={{ padding: '3px 10px', fontSize: '0.68rem', fontFamily: 'Inter, sans-serif', fontWeight: 600, borderRadius: '12px', cursor: 'pointer', border: '1px solid ' + (tag === tKey ? tDef.color : 'rgba(255,255,255,0.12)'), background: tag === tKey ? tDef.color + '25' : 'rgba(255,255,255,0.03)', color: tag === tKey ? tDef.color : 'var(--silver)', transition: 'all 0.15s' }}>{tDef.icon} {tDef.label}</button>
+                                          <button key={tKey} onClick={(e) => { e.stopPropagation(); const wasActive = boardTags[r.pid] === tKey; setBoardTags(prev => ({ ...prev, [r.pid]: prev[r.pid] === tKey ? undefined : tKey })); if (!wasActive) { window.wrLogAction?.('\uD83C\uDFAF', 'Tagged ' + pName(r.p) + ' on draft board', 'draft', { players: [{ name: pName(r.p) }], actionType: 'board-tag' }); } }} style={{ padding: '3px 10px', fontSize: '0.68rem', fontFamily: 'Inter, sans-serif', fontWeight: 600, borderRadius: '12px', cursor: 'pointer', border: '1px solid ' + (tag === tKey ? tDef.color : 'rgba(255,255,255,0.12)'), background: tag === tKey ? tDef.color + '25' : 'rgba(255,255,255,0.03)', color: tag === tKey ? tDef.color : 'var(--silver)', transition: 'all 0.15s' }}>{tDef.icon} {tDef.label}</button>
                                         ))}
                                       </div>
                                     </div>
@@ -595,6 +664,8 @@
                                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                     <a href={'https://www.sports-reference.com/cfb/search/search.fcgi?search=' + encodeURIComponent(pName(r.p))} target="_blank" rel="noopener" style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', background: 'rgba(52,152,219,0.12)', color: '#3498DB', border: '1px solid rgba(52,152,219,0.3)', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}>{'\uD83C\uDFC8'} COLLEGE STATS</a>
                                     <a href={'https://www.youtube.com/results?search_query=' + encodeURIComponent(pName(r.p) + ' highlights ' + leagueSeason)} target="_blank" rel="noopener" style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', background: 'rgba(231,76,60,0.12)', color: '#E74C3C', border: '1px solid rgba(231,76,60,0.3)', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}>{'\u25B6'} HIGHLIGHTS</a>
+                                    <a href={'https://www.fantasypros.com/nfl/players/' + encodeURIComponent(((r.p.first_name || '') + '-' + (r.p.last_name || '')).toLowerCase().replace(/[^a-z-]/g, '')) + '.php'} target="_blank" rel="noopener" style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', background: 'rgba(52,152,219,0.15)', color: '#3498DB', border: '1px solid rgba(52,152,219,0.3)', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}>{'\uD83D\uDCF0'} NEWS</a>
+                                    {(r.p.years_exp === 0) && <a href={'https://www.nfl.com/prospects/' + encodeURIComponent(((r.p.first_name || '') + '-' + (r.p.last_name || '')).toLowerCase().replace(/\s+/g, '-')) + '/'} target="_blank" rel="noopener" style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', background: 'rgba(46,204,113,0.15)', color: '#2ECC71', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '6px', textDecoration: 'none', fontWeight: 600 }}>{'\uD83C\uDFC8'} NFL PROFILE</a>}
                                     <button onClick={() => { setReconPanelOpen(true); sendReconMessage('Give me a full scouting report on ' + pName(r.p) + ' (' + pos + ', ' + college + '). Include strengths, weaknesses, NFL comparison, and where I should draft them.'); }} style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', background: 'rgba(124,107,248,0.15)', color: '#9b8afb', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>ASK ALEX</button>
                                     <button onClick={() => setExpandedDraftPid(null)} style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', background: 'transparent', color: 'var(--silver)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>COLLAPSE</button>
                                   </div>
@@ -694,7 +765,7 @@
                                             </div>
                                             <div style={{ width: '100px', flexShrink: 0, display: 'flex', gap: '2px', alignItems: 'center', justifyContent: 'center' }}>
                                                 {Object.entries(tagDefs).map(([tKey, tDef]) => (
-                                                    <button key={tKey} onClick={e => { e.stopPropagation(); setBoardTags(prev => ({ ...prev, [r.pid]: prev[r.pid] === tKey ? undefined : tKey })); }}
+                                                    <button key={tKey} onClick={e => { e.stopPropagation(); const wasActive = boardTags[r.pid] === tKey; setBoardTags(prev => ({ ...prev, [r.pid]: prev[r.pid] === tKey ? undefined : tKey })); if (!wasActive) { window.wrLogAction?.('\uD83C\uDFAF', 'Tagged ' + pName(r.p) + ' on draft board', 'draft', { players: [{ name: pName(r.p) }], actionType: 'board-tag' }); } }}
                                                         title={tDef.label}
                                                         style={{ width: '18px', height: '18px', fontSize: '0.6rem', border: 'none', borderRadius: '3px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                             background: tag === tKey ? tDef.color + '33' : 'rgba(255,255,255,0.04)', color: tag === tKey ? tDef.color : 'rgba(255,255,255,0.2)' }}>

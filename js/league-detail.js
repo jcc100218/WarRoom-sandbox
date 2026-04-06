@@ -21,7 +21,7 @@
     // ══════════════════════════════════════════════════════════════════════════
 
     // League Detail Component
-    function LeagueDetail({ league, onBack, sleeperUserId, onOpenSettings }) {
+    function LeagueDetail({ league, onBack, sleeperUserId, onOpenSettings, activeTab: propActiveTab, onTabChange }) {
         const [loading, setLoading] = useState(true);
         const [error, setError] = useState(null);
         const [playersData, setPlayersData] = useState({});
@@ -34,7 +34,9 @@
         const [currentLeague, setCurrentLeague] = useState(league);
         const [activeYear, setActiveYear] = useState(league.season);
         const [trending, setTrending] = useState({ adds: [], drops: [] });
-        const [activeTab, setActiveTab] = useState('brief');
+        const [localActiveTab, setLocalActiveTab] = useState('brief');
+        const activeTab = propActiveTab !== undefined ? propActiveTab : localActiveTab;
+        const setActiveTab = onTabChange || setLocalActiveTab;
         const [tradeSubTab, setTradeSubTab] = useState(null); // when set, TradeCalcTab opens this sub-tab
         const [selectedPlayerPid, setSelectedPlayerPid] = useState(null);
 
@@ -73,6 +75,8 @@
             }
         }, [playersData, statsData, currentLeague]);
         window._wrSelectPlayer = selectPlayer;
+        window._wrSetActiveTab = setActiveTab;
+        window._wrSetGmStrategyOpen = setGmStrategyOpen;
 
         // Derived selectors — modules use these, never compute their own
         const isCurrentYear = timeYear === currentSeason;
@@ -375,10 +379,11 @@
         const [loadStage, setLoadStage] = useState('');
         const [editingKpi, setEditingKpi] = useState(null); // index being edited, null = not editing
         const [leagueSelectedTeam, setLeagueSelectedTeam] = useState(null);
-        const [leagueSort, setLeagueSort] = useState('wins');
+        const [leagueSort, setLeagueSort] = useState('health');
         const [leagueViewMode, setLeagueViewMode] = useState('roster');
         const [myTeamView, setMyTeamView] = useState('roster');
         const [compareTeamId, setCompareTeamId] = useState(null);
+        const [leagueViewTab, setLeagueViewTab] = useState('overview'); // top-level: overview | analyst
         const [leagueSubView, setLeagueSubView] = useState('teams'); // sub-tabs below the overview
         const [lpSort, setLpSort] = useState({ key: 'dhq', dir: 1 });
         const [lpFilter, setLpFilter] = useState('');
@@ -411,7 +416,7 @@
             'trade-leverage':   { label: 'Trade Leverage', icon: '', category: 'Trades', tip: 'How many league teams need positions where you have surplus. Higher = more trade partners available.' },
             'sched-sos':        { label: 'Schedule SOS', icon: '', category: 'Roster', tip: 'Average opponent defense rank faced by your starters (1=hardest, 32=easiest). Based on last completed season. Higher = easier schedule.' },
         };
-        const DEFAULT_KPIS = ['contender-rank', 'dynasty-rank', 'health-score', 'window', 'elite-players', '', '', '', '', ''];
+        const DEFAULT_KPIS = ['contender-rank', 'dynasty-rank', 'health-score', 'window', 'elite-players', 'portfolio-dhq', 'avg-age', 'top5-concentration', 'trade-velocity', 'draft-roi'];
         const [selectedKpis, setSelectedKpis] = useState(() =>
             WrStorage.get(WR_KEYS.KPI_SELECTION(currentLeague?.id || '')) || DEFAULT_KPIS
         );
@@ -775,11 +780,15 @@
         const [gmStrategy, setGmStrategy] = useState(() =>
             WrStorage.get(WR_KEYS.GM_STRATEGY(currentLeague?.league_id)) || GM_STRATEGY_DEFAULT
         );
+        const gmStrategyInitRef = useRef(true);
         useEffect(() => {
             if (currentLeague?.league_id) {
                 WrStorage.set(WR_KEYS.GM_STRATEGY(currentLeague.league_id), gmStrategy);
                 // Expose to window for AI context
                 window._wrGmStrategy = gmStrategy;
+                // Log deliberate updates (skip initial load)
+                if (gmStrategyInitRef.current) { gmStrategyInitRef.current = false; }
+                else { window.wrLogAction?.('\uD83D\uDCCA', 'Updated GM strategy', 'roster', { actionType: 'gm-strategy' }); }
             }
         }, [gmStrategy, currentLeague?.league_id]);
 
@@ -990,7 +999,9 @@
                     throw new Error('League missing roster or user data');
                 }
 
-                const myRosterData = currentLeague.rosters.find(r => r.owner_id === sleeperUserId);
+                const myRosterData = currentLeague._mfl && currentLeague._mflFranchiseId
+                    ? currentLeague.rosters.find(r => r.roster_id === currentLeague._mflFranchiseId)
+                    : currentLeague.rosters.find(r => r.owner_id === sleeperUserId);
                 setMyRoster(myRosterData);
 
                 // Compute standings immediately (no fetch needed)
@@ -1049,9 +1060,12 @@
                     window.S.tradedPicks = tradedPicks || [];
                     window.S.matchups = matchupsData || [];
                     window.S.myRosterId = myRosterData?.roster_id;
-                    window.S.myUserId = sleeperUserId;
+                    window.S.myUserId = currentLeague._mfl ? (myRosterData?.owner_id || currentLeague._mflFranchiseId) : sleeperUserId;
                     // Bridge user object so dhqBuildRosterContext can identify the owner
-                    window.S.user = { user_id: sleeperUserId, display_name: sleeperUsername, username: sleeperUsername };
+                    const _userId = currentLeague._mfl ? (myRosterData?.owner_id || currentLeague._mflFranchiseId) : sleeperUserId;
+                    const _userName = currentLeague._mfl ? (myRosterData?._owner_name || 'MFL Owner') : (sleeperUsername || '');
+                    window.S.user = { user_id: _userId, display_name: _userName, username: _userName };
+                    if (currentLeague._mfl) window.S.platform = 'mfl';
 
                     // Bridge helper functions for dhq-ai.js context builders
                     const _p = players || {};
@@ -2258,6 +2272,8 @@
                     timeRecomputeTs={timeRecomputeTs}
                     setTimeRecomputeTs={setTimeRecomputeTs}
                 /> : activeTab === 'league' ? <LeagueMapTab
+                    leagueViewTab={leagueViewTab}
+                    setLeagueViewTab={setLeagueViewTab}
                     leagueSelectedTeam={leagueSelectedTeam}
                     setLeagueSelectedTeam={setLeagueSelectedTeam}
                     leagueSort={leagueSort}
@@ -2389,7 +2405,7 @@
                       </div>
 
                       {/* RIGHT: Power Rankings */}
-                      <div style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '16px', maxHeight: '420px', overflow: 'auto' }}>
+                      <div style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '16px', maxHeight: '460px', overflow: 'auto' }}>
                         <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: 'var(--gold)', marginBottom: '12px', letterSpacing: '0.06em' }}>POWER RANKINGS</div>
                         {rankedTeams.length === 0 ? (
                           <div style={{ color: 'var(--silver)', fontSize: '0.78rem', opacity: 0.6, padding: '16px 0', textAlign: 'center' }}>Loading rankings...</div>
@@ -2440,29 +2456,6 @@
                           </div>
                         ))}
                       </div>
-                    </div>
-
-                    {/* 3. AI STORIES (3 cards) */}
-                    <div style={{ marginBottom: '16px' }}>
-                      {aiStories.length === 0 ? (
-                        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px' }}>
-                          {[0,1,2].map(i => <div key={i} className="skel-card" style={{height:'120px'}}><div className="skel skel-line" style={{width:'30%'}} /><div className="skel skel-line" style={{width:'80%'}} /><div className="skel skel-line" style={{width:'60%'}} /></div>)}
-                        </div>
-                      ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                          {aiStories.map((story, i) => (
-                            <div key={i} style={{
-                              background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)',
-                              borderRadius: '12px', padding: '16px'
-                            }}>
-                              <div style={{ fontSize: '1.2rem', marginBottom: '6px' }}>{story.icon}</div>
-                              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{story.category}</div>
-                              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.92rem', color: 'var(--white)', lineHeight: 1.5, marginBottom: '8px' }}>{story.headline}</div>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.5 }}>{story.body}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
 
                     {/* 4. LEAGUE STANDINGS TABLE */}

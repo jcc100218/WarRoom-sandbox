@@ -71,36 +71,6 @@ function AnalyticsPanel({
         </div>
         <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '16px' }}>Elite Tier Teams = playoff bracket champions, runner-ups, and semi-finalists when available. Falls back to top 3 by record in the current season.</div>
 
-        {/* Overview card — most important finding at a glance */}
-        {d && d.roster && (() => {
-            const _m = d.roster.myProfile || {};
-            const _w = d.roster.winnerProfile || {};
-            const _l = d.roster.leagueProfile || {};
-            let _hs = 0, _tier = 'UNKNOWN';
-            if(window.assessTeamFromGlobal?._cache) window.assessTeamFromGlobal._cache = {};
-            try { const _a = window.assessTeamFromGlobal?.(_SS?.myRosterId, true); if (_a) { _hs = _a.healthScore || 0; _tier = (_a.tier || 'UNKNOWN').toUpperCase(); } } catch(e) {}
-            const _tierColor = _tier === 'ELITE' ? '#2ECC71' : _tier === 'CONTENDER' ? '#D4AF37' : _tier === 'CROSSROADS' ? '#F0A500' : '#E74C3C';
-            const _pctVsLeague = _l.avgTotalDHQ > 0 ? Math.round((_m.avgTotalDHQ - _l.avgTotalDHQ) / _l.avgTotalDHQ * 100) : 0;
-            const _gapsList = d.gaps || d.roster.gaps || [];
-            const _topGap = _gapsList[0];
-            const _finding = _pctVsLeague > 0
-                ? `Portfolio is ${_pctVsLeague}% above league average${_topGap ? `, but ${_topGap.pos || _topGap} depth needs attention` : ''}.`
-                : `Portfolio trails league average by ${Math.abs(_pctVsLeague)}%${_topGap ? ` — prioritize adding ${_topGap.pos || _topGap}` : ''}.`;
-            return (
-                <div style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
-                        <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.6rem', color: _tierColor, lineHeight: 1 }}>{_hs}</span>
-                        <div>
-                            <div style={{ fontSize: '0.62rem', color: 'var(--silver)', fontFamily: 'Inter, sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.7 }}>Health</div>
-                            <div style={{ fontSize: '0.72rem', color: _tierColor, fontFamily: 'Inter, sans-serif', fontWeight: 700, letterSpacing: '0.04em' }}>{_tier}</div>
-                        </div>
-                    </div>
-                    <div style={{ width: '1px', height: '32px', background: 'rgba(212,175,55,0.2)', flexShrink: 0 }} />
-                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.45, flex: 1, minWidth: '180px' }}>{_finding}</div>
-                </div>
-            );
-        })()}
-
         {/* Sub-tab navigation */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
             {subTabs.map(t => (
@@ -445,57 +415,6 @@ function AnalyticsPanel({
                             );
                         })}
                     </div>
-                </div>
-
-                {/* ── PERFORMANCE RANKINGS TABLE ── */}
-                <div style={{ ...aCardStyle, marginBottom: '12px' }}>
-                    <div style={aHeaderStyle}>LEAGUE POWER RANKINGS</div>
-                    {/* Header row */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '36px 1.4fr 0.7fr 80px 0.9fr 0.7fr', gap: '8px', padding: '8px 0', borderBottom: '2px solid rgba(212,175,55,0.2)', fontWeight: 700, color: 'var(--gold)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'Inter, sans-serif' }}>
-                        <div>#</div><div>Team</div><div>Record</div><div>Health</div><div>Total DHQ</div><div>Tier</div>
-                    </div>
-                    {teamRankings.map((team, i) => {
-                        const tierUpper = (team.tier || '').toUpperCase();
-                        const tierBg = tierUpper === 'ELITE' ? '#D4AF37' : tierUpper === 'CONTENDER' ? goodColor : tierUpper === 'CROSSROADS' ? warnColor : tierUpper === 'REBUILDING' ? badColor : 'var(--silver)';
-                        return (
-                        <div key={team.rosterId} className={team.isMe ? 'wr-my-row' : undefined} style={{
-                            display: 'grid', gridTemplateColumns: '36px 1.4fr 0.7fr 80px 0.9fr 0.7fr', gap: '8px', padding: '8px 0',
-                            borderBottom: '1px solid rgba(255,255,255,0.04)',
-                            background: team.isMe ? 'rgba(212,175,55,0.06)' : 'transparent',
-                            borderLeft: team.isMe ? '3px solid var(--gold)' : '3px solid transparent',
-                            paddingLeft: '4px',
-                        }}>
-                            <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.1rem', color: i < 3 ? 'var(--gold)' : 'var(--silver)' }}>{i + 1}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {team.avatar && <img src={'https://sleepercdn.com/avatars/thumbs/' + team.avatar} style={{ width:'24px', height:'24px', borderRadius:'50%', flexShrink:0 }} onError={e => e.target.style.display='none'} />}
-                                <div>
-                                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: team.isMe ? 'var(--gold)' : 'var(--white)', fontWeight: team.isMe ? 700 : 400 }}>
-                                        {team.name}{team.isMe ? ' (You)' : ''}
-                                    </div>
-                                    {team.teamName && <div style={{ fontSize: '0.65rem', color: 'var(--silver)', opacity: 0.5 }}>{team.teamName}</div>}
-                                </div>
-                            </div>
-                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', color: 'var(--silver)' }}>{team.wins}-{team.losses}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                {typeof MiniDonut !== 'undefined' && React.createElement(MiniDonut, { value: team.healthScore, size: 32, thickness: 3 })}
-                            </div>
-                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: 'var(--silver)' }}>
-                                {team.totalDhq.toLocaleString()}
-                                {/* Mini bar indicator */}
-                                <div style={{ height: '3px', marginTop: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                                    <div style={{ height: '100%', width: Math.min(100, Math.round(team.totalDhq / Math.max(teamRankings[0]?.totalDhq || 1, 1) * 100)) + '%', background: 'var(--gold)', opacity: 0.5, borderRadius: '2px' }} />
-                                </div>
-                            </div>
-                            <div>
-                                <span style={{
-                                    fontSize: '0.65rem', fontFamily: 'Inter, sans-serif', padding: '2px 8px', borderRadius: '10px',
-                                    background: tierBg + '22', color: tierBg, border: '1px solid ' + tierBg + '44', fontWeight: 600,
-                                    whiteSpace: 'nowrap',
-                                }}>{team.tier || '\u2014'}</span>
-                            </div>
-                        </div>
-                        );
-                    })}
                 </div>
 
                 {/* ── INSIGHT CARDS ── */}

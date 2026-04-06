@@ -229,6 +229,35 @@ function MyTeamTab({
   const statusCol = s => s === 'starter' ? 'var(--gold)' : s === 'ir' ? '#E74C3C' : s === 'taxi' ? '#3498DB' : 'transparent';
   const posColors = window.App.POS_COLORS;
 
+  // Drop candidate PIDs: non-starters with lowest DHQ (bottom 3 bench players)
+  const dropCandidatePids = React.useMemo(() => {
+    const benchPlayers = rows.filter(r => !r.isStarter && !r.isIR && !r.isTaxi)
+      .sort((a, b) => a.dhq - b.dhq).slice(0, 3);
+    return new Set(benchPlayers.map(r => r.pid));
+  }, [rows]);
+
+  // Dismissed drop alerts (persisted in localStorage per league)
+  const [dismissedDrops, setDismissedDrops] = React.useState(() => {
+    try {
+      const leagueId = currentLeague?.id || currentLeague?.league_id || '';
+      const stored = localStorage.getItem('wr_dismissed_drops_' + leagueId);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+  const dismissDrop = React.useCallback((pid) => {
+    const playerName = window.App?.playersData?.[pid]?.full_name || pid;
+    setDismissedDrops(prev => {
+      const next = new Set(prev);
+      next.add(pid);
+      try {
+        const leagueId = currentLeague?.id || currentLeague?.league_id || '';
+        localStorage.setItem('wr_dismissed_drops_' + leagueId, JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+    window.wrLogAction?.('\uD83D\uDEAB', 'Dismissed drop alert for ' + playerName, 'roster', { players: [{ name: playerName, pid: pid }], actionType: 'dismiss-drop' });
+  }, [currentLeague]);
+
   const filtered = filteredAndSortedRows(rows);
 
   // renderCell — renders each data cell with FM-style coloring
@@ -851,7 +880,7 @@ function MyTeamTab({
           return (
             <React.Fragment key={r.pid}>
               {/* Normal row */}
-              <div className={[actionClass, isUntouchable ? 'wr-untouchable' : ''].filter(Boolean).join(' ')} style={{ display: 'flex', borderBottom: isExpanded ? 'none' : '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', background: isExpanded ? 'rgba(212,175,55,0.06)' : idx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent', transition: 'background 0.1s' }}
+              <div className={[actionClass, isUntouchable ? 'wr-untouchable' : ''].filter(Boolean).join(' ')} style={{ display: 'flex', overflow: 'hidden', borderBottom: isExpanded ? 'none' : '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', background: isExpanded ? 'rgba(212,175,55,0.06)' : idx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent', transition: 'background 0.1s' }}
                 onClick={() => setExpandedPid(prev => prev === r.pid ? null : r.pid)}
                 onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = 'rgba(212,175,55,0.06)'; }}
                 onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = idx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent'; }}>
@@ -861,7 +890,8 @@ function MyTeamTab({
                   <div style={{ overflow: 'hidden', flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span style={{ fontWeight: 600, color: 'var(--white)', fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getPlayerName(r.pid)}</span>
-                      {(() => { const pt = window._playerTags?.[r.pid]; if (!pt) return null; const cfg = { trade: { bg: 'rgba(240,165,0,0.15)', col: '#F0A500', lbl: 'TB' }, cut: { bg: 'rgba(231,76,60,0.15)', col: '#E74C3C', lbl: 'CUT' }, untouchable: { bg: 'rgba(46,204,113,0.15)', col: '#2ECC71', lbl: 'UT' }, watch: { bg: 'rgba(52,152,219,0.15)', col: '#3498DB', lbl: 'W' } }[pt]; return cfg ? <span style={{ fontSize: '0.62rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 700, background: cfg.bg, color: cfg.col, flexShrink: 0 }}>{cfg.lbl}</span> : null; })()}
+                      {(() => { const pt = window._playerTags?.[r.pid]; if (!pt) return null; const cfg = { trade: { bg: 'rgba(240,165,0,0.15)', col: '#F0A500', lbl: 'TB' }, cut: { bg: 'rgba(231,76,60,0.15)', col: '#E74C3C', lbl: 'CUT' }, untouchable: { bg: 'rgba(46,204,113,0.15)', col: '#2ECC71', lbl: 'UT' }, watch: { bg: 'rgba(52,152,219,0.15)', col: '#3498DB', lbl: 'W' } }[pt]; return cfg ? <span style={{ fontSize: '0.58rem', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: cfg.bg, color: cfg.col, flexShrink: 0, lineHeight: 1 }}>{cfg.lbl}</span> : null; })()}
+                      {dropCandidatePids.has(r.pid) && !dismissedDrops.has(r.pid) && <span onClick={e => { e.stopPropagation(); dismissDrop(r.pid); }} title="Drop candidate (click to dismiss)" style={{ fontSize: '0.56rem', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, background: 'rgba(231,76,60,0.2)', color: '#E74C3C', border: '1px solid rgba(231,76,60,0.4)', flexShrink: 0, cursor: 'pointer', lineHeight: 1 }}>DROP?</span>}
                     </div>
                     <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.65 }}>{r.p.team || 'FA'}{r.injury ? ' \u00B7 '+r.injury : ''}</div>
                   </div>
@@ -890,6 +920,16 @@ function MyTeamTab({
                         {r.p.college ? ' \u00B7 '+r.p.college : ''}
                       </div>
                       {r.injury && <div style={{ fontSize: '0.74rem', color: '#E74C3C', fontWeight: 600, marginTop: '3px' }}>{r.injury}</div>}
+                      {/* Dynasty profile — inline */}
+                      <div style={{ fontSize: '0.72rem', fontStyle: 'italic', color: 'var(--silver)', opacity: 0.8, marginTop: '2px' }}>
+                        {r.peakPhase === 'PRE' && r.dhq >= 4000 ? 'Rising asset with ' + r.peakYrsLeft + ' peak years ahead. Buy window closing.' :
+                         r.peakPhase === 'PRIME' && r.dhq >= 7000 ? 'Elite producer in prime. Cornerstone dynasty asset.' :
+                         r.peakPhase === 'PRIME' && r.dhq >= 4000 ? 'Solid starter in peak window. ' + r.peakYrsLeft + ' productive years left.' :
+                         r.peakPhase === 'POST' ? 'Past peak \u2014 dynasty value declining. ' + (r.dhq >= 3000 ? 'Sell before the cliff.' : 'Move for any return.') :
+                         r.dhq < 2000 ? 'Depth piece. Low dynasty value.' :
+                         'Moderate dynasty asset. Watch trajectory.'}
+                        {r.trend >= 20 ? ' Trending up ' + r.trend + '%.' : r.trend <= -20 ? ' Production down ' + Math.abs(r.trend) + '%.' : ''}
+                      </div>
                       {/* Verdict badge */}
                       <div style={{ marginTop: '6px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: '0.72rem', fontWeight: 700, fontFamily: 'Inter, sans-serif', padding: '2px 10px', borderRadius: '10px', background: r.rec.includes('SELL') ? 'rgba(231,76,60,0.15)' : r.rec.includes('BUY') ? 'rgba(46,204,113,0.15)' : 'rgba(212,175,55,0.12)', color: r.rec.includes('SELL') ? '#E74C3C' : r.rec.includes('BUY') ? '#2ECC71' : 'var(--gold)', letterSpacing: '0.04em' }}>{r.rec}</span>
@@ -898,20 +938,6 @@ function MyTeamTab({
                         </span>
                         {r.peakYrsLeft > 0 && <span style={{ fontSize: '0.72rem', padding: '2px 10px', borderRadius: '10px', background: r.peakPhase === 'PRE' ? 'rgba(46,204,113,0.1)' : 'rgba(212,175,55,0.08)', color: r.peakPhase === 'PRE' ? '#2ECC71' : 'var(--gold)' }}>{r.peakYrsLeft}yr peak left</span>}
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Dynasty Profile */}
-                  <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
-                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Dynasty Profile</div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.5 }}>
-                      {r.peakPhase === 'PRE' && r.dhq >= 4000 ? 'Rising asset with ' + r.peakYrsLeft + ' peak years ahead. Buy window closing \u2014 value only goes up from here.' :
-                       r.peakPhase === 'PRIME' && r.dhq >= 7000 ? 'Elite producer in prime. Cornerstone dynasty asset \u2014 hold unless offered a king\'s ransom.' :
-                       r.peakPhase === 'PRIME' && r.dhq >= 4000 ? 'Solid starter in peak window. ' + r.peakYrsLeft + ' productive years left. Hold or sell high if trending down.' :
-                       r.peakPhase === 'POST' ? 'Past peak \u2014 dynasty value declining. ' + (r.dhq >= 3000 ? 'Still producing but sell before the cliff.' : 'Move for any return.') :
-                       r.dhq < 2000 ? 'Depth piece. Low dynasty value \u2014 roster clogger unless a breakout is imminent.' :
-                       'Moderate dynasty asset. Watch trajectory.'}
-                      {r.trend >= 20 ? ' Trending up ' + r.trend + '% \u2014 stock rising.' : r.trend <= -20 ? ' Production down ' + Math.abs(r.trend) + '% \u2014 red flag.' : ''}
                     </div>
                   </div>
 
@@ -984,10 +1010,11 @@ function MyTeamTab({
 
                   {/* Action buttons */}
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button onClick={e => { e.stopPropagation(); setReconPanelOpen(true); sendReconMessage('What trades can I make involving ' + (r.p.full_name || getPlayerName(r.pid)) + '? Consider their DHQ value (' + r.dhq + '), age (' + r.age + '), and peak window (' + r.peakPhase + ').'); }} style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', background: 'rgba(124,107,248,0.15)', color: '#9b8afb', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>TRADE</button>
+                    <button onClick={e => { e.stopPropagation(); const playerName = r.p.full_name || getPlayerName(r.pid); setReconPanelOpen(true); sendReconMessage("I'd like help with " + playerName + ". Here are my options:\n1. Who are the best trade partners for " + playerName + "?\n2. What's the long-term projection for " + playerName + "?\n3. Should I hold or sell " + playerName + " right now?"); }} style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', background: 'rgba(124,107,248,0.15)', color: '#9b8afb', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>ASK ALEX</button>
+                    <button onClick={e => { e.stopPropagation(); window.open('https://www.fantasypros.com/nfl/players/' + encodeURIComponent((r.p.first_name + '-' + r.p.last_name).toLowerCase().replace(/[^a-z-]/g, '')) + '.php', '_blank'); }} style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', background: 'rgba(52,152,219,0.15)', color: '#3498DB', border: '1px solid rgba(52,152,219,0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>NEWS</button>
                     {[{tag:'trade',label:'TRADE BLOCK',bg:'rgba(240,165,0,0.15)',col:'#F0A500',border:'rgba(240,165,0,0.3)'},{tag:'cut',label:'CUT',bg:'rgba(231,76,60,0.15)',col:'#E74C3C',border:'rgba(231,76,60,0.3)'},{tag:'untouchable',label:'UNTOUCHABLE',bg:'rgba(46,204,113,0.15)',col:'#2ECC71',border:'rgba(46,204,113,0.3)'},{tag:'watch',label:'WATCH',bg:'rgba(52,152,219,0.15)',col:'#3498DB',border:'rgba(52,152,219,0.3)'}].map(t => {
                       const isActive = window._playerTags?.[r.pid] === t.tag;
-                      return <button key={t.tag} onClick={e => { e.stopPropagation(); const leagueId = currentLeague.id || currentLeague.league_id || ''; const tags = window._playerTags || {}; if (tags[r.pid] === t.tag) delete tags[r.pid]; else tags[r.pid] = t.tag; window._playerTags = { ...tags }; if (window.OD?.savePlayerTags) window.OD.savePlayerTags(leagueId, tags); setTimeRecomputeTs(Date.now()); }} style={{ padding: '7px 12px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: isActive ? t.bg : 'transparent', color: isActive ? t.col : 'var(--silver)', border: '1px solid ' + (isActive ? t.border : 'rgba(255,255,255,0.1)'), borderRadius: '6px', cursor: 'pointer', fontWeight: isActive ? 700 : 400, letterSpacing: '0.03em' }}>{t.label}</button>;
+                      return <button key={t.tag} onClick={e => { e.stopPropagation(); const leagueId = currentLeague.id || currentLeague.league_id || ''; const tags = window._playerTags || {}; const wasActive = tags[r.pid] === t.tag; if (wasActive) delete tags[r.pid]; else tags[r.pid] = t.tag; window._playerTags = { ...tags }; if (window.OD?.savePlayerTags) window.OD.savePlayerTags(leagueId, tags); if (!wasActive) { const playerName = r.p.full_name || getPlayerName(r.pid); window.wrLogAction?.('\uD83C\uDFF7\uFE0F', 'Tagged ' + playerName + ' as ' + t.label, 'roster', { players: [{ name: playerName, pid: r.pid }], actionType: 'tag' }); } setTimeRecomputeTs(Date.now()); }} style={{ padding: '7px 12px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: isActive ? t.bg : 'transparent', color: isActive ? t.col : 'var(--silver)', border: '1px solid ' + (isActive ? t.border : 'rgba(255,255,255,0.1)'), borderRadius: '6px', cursor: 'pointer', fontWeight: isActive ? 700 : 400, letterSpacing: '0.03em' }}>{t.label}</button>;
                     })}
                     <button onClick={e => { e.stopPropagation(); setExpandedPid(null); }} style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', background: 'transparent', color: 'var(--silver)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>COLLAPSE</button>
                   </div>
@@ -998,19 +1025,6 @@ function MyTeamTab({
         })}
       </div>
 
-      {/* Drop Candidates */}
-      {(() => {
-        const drops = rows.filter(r => !r.isStarter && !r.isIR && !r.isTaxi)
-            .sort((a, b) => a.dhq - b.dhq).slice(0, 3);
-        if (!drops.length) return null;
-        return <div style={{ marginTop: '12px' }}>
-            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', color: '#E74C3C', letterSpacing: '0.04em', marginBottom: '6px' }}>DROP CANDIDATES</div>
-            {drops.map(d => <div key={d.pid} onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(d.pid); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 10px', borderBottom: '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', fontSize: '0.78rem' }}>
-                <span style={{ color: 'var(--white)' }}>{getPlayerName(d.pid)}</span>
-                <span style={{ color: d.dhq > 0 ? 'var(--silver)' : '#E74C3C', fontFamily: 'Inter, sans-serif' }}>{d.dhq > 0 ? d.dhq.toLocaleString() : 'No value'}</span>
-            </div>)}
-        </div>;
-      })()}
       </div>)}
     </div>
   );

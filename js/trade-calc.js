@@ -457,6 +457,15 @@
         const [tradeFaab, setTradeFaab] = useState({ A:0, B:0 });
         const [tradeOwner, setTradeOwner] = useState({ A:null, B:null });
         const [searchText, setSearchText] = useState({ A:'', B:'' });
+        const lastTradeLogRef = useRef('');
+        useEffect(() => {
+            const hasA = tradeIds.A.length > 0 || tradePickIds.A.length > 0 || tradeFaab.A > 0;
+            const hasB = tradeIds.B.length > 0 || tradePickIds.B.length > 0 || tradeFaab.B > 0;
+            if (hasA && hasB) {
+                const sig = JSON.stringify([tradeIds, tradePickIds, tradeFaab]);
+                if (sig !== lastTradeLogRef.current) { lastTradeLogRef.current = sig; window.wrLogAction?.('\uD83D\uDD04', 'Evaluated trade proposal', 'trade', { actionType: 'trade-builder' }); }
+            }
+        }, [tradeIds, tradePickIds, tradeFaab]);
 
         // DNA tab state
         const [ownerDraftDna, setOwnerDraftDna] = useState({});
@@ -464,6 +473,7 @@
         const [draftDnaSyncMsg, setDraftDnaSyncMsg] = useState(null);
         const [expandedDnaOwner, setExpandedDnaOwner] = useState(null);
         const [inboxMode, setInboxMode] = useState('recent');
+        const [inboxTeamFilter, setInboxTeamFilter] = useState('all');
 
         const allRosters = currentLeague.rosters || [];
         const leagueUsers = currentLeague.users || [];
@@ -792,21 +802,6 @@
                             ) : null
                         );
                     })}
-                    {window.DraftHistory && (
-                        <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'1rem', flexWrap:'wrap' }}>
-                            <button onClick={async () => {
-                                if (!leagueId) return;
-                                setDraftDnaSyncing(true); setDraftDnaSyncMsg(null);
-                                try { const map = await window.DraftHistory.syncDraftDNA(leagueId); setOwnerDraftDna(map); setDraftDnaSyncMsg(`Draft DNA synced for ${Object.keys(map).length} owners`); }
-                                catch(e) { setDraftDnaSyncMsg(`Warning: ${e.message}`); }
-                                finally { setDraftDnaSyncing(false); }
-                            }} disabled={draftDnaSyncing || !leagueId}
-                            style={{ fontSize:'0.76rem', padding:'0.3rem 0.75rem', border:'1px solid rgba(165,180,252,0.35)', color:'#a5b4fc', background:'transparent', borderRadius:'4px', cursor:'pointer', opacity:(draftDnaSyncing||!leagueId)?0.4:1 }}>
-                                {draftDnaSyncing ? 'Syncing...' : 'Sync Draft History (3 seasons)'}
-                            </button>
-                            {draftDnaSyncMsg && <span style={{ fontSize:'0.72rem', color: draftDnaSyncMsg.startsWith('Draft') ? '#4ade80' : '#fbbf24' }}>{draftDnaSyncMsg}</span>}
-                        </div>
-                    )}
                     <div className="tc-dna-grid">
                         {assessments.map(a => {
                             const rid = a.rosterId;
@@ -1290,12 +1285,21 @@
 
             const pn = pid => playersData[pid]?.full_name || pid;
 
+            // Filter by team
+            const filteredTrades = inboxTeamFilter === 'all' ? recentTrades : recentTrades.filter(t => t.rids.includes(inboxTeamFilter));
+
             return (
                 <div>
-                    <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.655, marginBottom:'0.75rem', lineHeight:1.5 }}>
-                        Recent trades analyzed with DHQ values and fairness grades.
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.75rem', gap:'8px', flexWrap:'wrap' }}>
+                        <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.655, lineHeight:1.5 }}>
+                            Recent trades analyzed with DHQ values and fairness grades.
+                        </div>
+                        <select value={inboxTeamFilter} onChange={e => setInboxTeamFilter(e.target.value)} style={{ padding:'4px 8px', fontSize:'0.74rem', fontFamily:'Inter, sans-serif', background:'var(--charcoal)', border:'1px solid rgba(212,175,55,0.2)', borderRadius:'4px', color:'var(--silver)', cursor:'pointer' }}>
+                            <option value="all">All Teams</option>
+                            {allRosters.map(r => <option key={r.roster_id} value={r.roster_id}>{ownerNameForRosterId(r.roster_id) || 'Team ' + r.roster_id}</option>)}
+                        </select>
                     </div>
-                    {recentTrades.length === 0 ? (
+                    {filteredTrades.length === 0 ? (
                         <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem', opacity:0.65 }}>
                             {window.App?.LI_LOADED ? 'No trades found in league history.' : (
                                 <React.Fragment>
@@ -1305,7 +1309,8 @@
                                 </React.Fragment>
                             )}
                         </div>
-                    ) : recentTrades.map(t => {
+                    ) : <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:'10px' }}>
+                    {filteredTrades.map(t => {
                         const name1 = ownerNameForRosterId(t.rid1) || 'Team ' + t.rid1;
                         const name2 = ownerNameForRosterId(t.rid2) || 'Team ' + t.rid2;
                         const s1 = t.sides[t.rid1] || { players:[], picks:[] };
@@ -1313,33 +1318,34 @@
                         const winner = t.diff > t.val1 * 0.05 ? name1 : t.diff < -t.val2 * 0.05 ? name2 : null;
 
                         return (
-                            <div key={t.idx} style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(212,175,55,0.15)', borderRadius:'8px', padding:'0.75rem', marginBottom:'0.6rem' }}>
-                                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.5rem' }}>
-                                    <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                                        <span style={{ fontFamily:'JetBrains Mono, monospace', fontSize:'1.2rem', fontWeight:600, color:t.gradeCol }}>{t.grade}</span>
-                                        <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>{t.pctDiff}% variance</span>
-                                        {winner && <span style={{ fontSize:'0.7rem', color:'var(--win-green)', fontWeight:700 }}>{winner} wins</span>}
+                            <div key={t.idx} style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(212,175,55,0.15)', borderRadius:'8px', padding:'10px' }}>
+                                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px' }}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:'6px' }}>
+                                        <span title={'Grade measures trade fairness. A = balanced (\u22645% value diff). Variance = % difference between sides.'} style={{ fontFamily:'JetBrains Mono, monospace', fontSize:'1rem', fontWeight:600, color:t.gradeCol, cursor:'help' }}>{t.grade}</span>
+                                        <span style={{ fontSize:'0.68rem', color:'var(--silver)', opacity:0.65 }}>{t.pctDiff}%</span>
+                                        {winner && <span style={{ fontSize:'0.66rem', color:'var(--win-green)', fontWeight:700 }}>{winner}</span>}
                                     </div>
-                                    <span style={{ fontSize:'0.78rem', color:'var(--silver)', opacity:0.6 }}>
+                                    <span style={{ fontSize:'0.68rem', color:'var(--silver)', opacity:0.5 }}>
                                         {t.trade.season ? 'S'+t.trade.season+(t.trade.week?' W'+t.trade.week:'') : ''}
                                     </span>
                                 </div>
-                                <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:'0.5rem', alignItems:'start' }}>
+                                <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:'4px', alignItems:'start' }}>
                                     <div>
-                                        <div style={{ fontSize:'0.72rem', color:'var(--gold)', fontWeight:700, marginBottom:'0.25rem' }}>{name1} ({t.val1.toLocaleString()})</div>
-                                        {(s1.players||[]).map(pid => <div key={pid} style={{ fontSize:'0.78rem', color:'var(--white)' }}>{pn(pid)} <span style={{color:'var(--silver)',fontSize:'0.72rem'}}>{(getPlayerValue(pid).value||0).toLocaleString()}</span></div>)}
-                                        {(s1.picks||[]).map((pk,i) => <div key={'p'+i} style={{ fontSize:'0.78rem', color:'var(--gold)' }}>{pk.season||pk.year} R{pk.round}</div>)}
+                                        <div style={{ fontSize:'0.68rem', color:'var(--gold)', fontWeight:700, marginBottom:'2px' }}>{name1} ({t.val1.toLocaleString()})</div>
+                                        {(s1.players||[]).map(pid => <div key={pid} style={{ fontSize:'0.72rem', color:'var(--white)', lineHeight:1.4 }}>{pn(pid)}</div>)}
+                                        {(s1.picks||[]).map((pk,i) => <div key={'p'+i} style={{ fontSize:'0.72rem', color:'var(--gold)' }}>{pk.season||pk.year} R{pk.round}</div>)}
                                     </div>
-                                    <div style={{ fontSize:'1rem', color:'var(--gold)', alignSelf:'center', fontWeight:700 }}>&#8644;</div>
+                                    <div style={{ fontSize:'0.82rem', color:'var(--gold)', alignSelf:'center', fontWeight:700 }}>&#8644;</div>
                                     <div>
-                                        <div style={{ fontSize:'0.72rem', color:'var(--gold)', fontWeight:700, marginBottom:'0.25rem' }}>{name2} ({t.val2.toLocaleString()})</div>
-                                        {(s2.players||[]).map(pid => <div key={pid} style={{ fontSize:'0.78rem', color:'var(--white)' }}>{pn(pid)} <span style={{color:'var(--silver)',fontSize:'0.72rem'}}>{(getPlayerValue(pid).value||0).toLocaleString()}</span></div>)}
-                                        {(s2.picks||[]).map((pk,i) => <div key={'s2p'+i} style={{ fontSize:'0.78rem', color:'var(--gold)' }}>{pk.season||pk.year} R{pk.round}</div>)}
+                                        <div style={{ fontSize:'0.68rem', color:'var(--gold)', fontWeight:700, marginBottom:'2px' }}>{name2} ({t.val2.toLocaleString()})</div>
+                                        {(s2.players||[]).map(pid => <div key={pid} style={{ fontSize:'0.72rem', color:'var(--white)', lineHeight:1.4 }}>{pn(pid)}</div>)}
+                                        {(s2.picks||[]).map((pk,i) => <div key={'s2p'+i} style={{ fontSize:'0.72rem', color:'var(--gold)' }}>{pk.season||pk.year} R{pk.round}</div>)}
                                     </div>
                                 </div>
                             </div>
                         );
                     })}
+                    </div>}
                 </div>
             );
         }
@@ -1351,7 +1357,7 @@
             if (!canAccess('intelligence-full')) {
                 return React.createElement(UpgradeGate, {
                     feature: 'intelligence-full',
-                    title: 'UNLOCK LEAGUE INTELLIGENCE',
+                    title: 'UNLOCK TRADE CENTER',
                     description: 'See trades your leaguemates are actually likely to accept. Owner DNA profiles every manager\'s trading psychology — Fleecer, Dominator, Stalwart, Acceptor, or Desperate — then calculates acceptance likelihood.',
                     targetTier: 'warroom'
                 });
@@ -1467,7 +1473,7 @@
         // ── Analyst mode: full intelligence terminal ──
         return (
             <div style={{ padding: '16px' }}>
-                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' }}>LEAGUE INTELLIGENCE</div>
+                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' }}>TRADE CENTER</div>
                 <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
                     {['dna','finder','analyzer','audit','inbox'].map(tab => (
                         <button key={tab} onClick={() => setTcTab(tab)} style={{
@@ -1477,7 +1483,7 @@
                             color: tcTab === tab ? 'var(--black)' : 'var(--silver)',
                             border: '1px solid ' + (tcTab === tab ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
                             borderRadius: '4px', cursor: 'pointer'
-                        }}>{({dna:'Owner Profiles',finder:'Trade Finder',analyzer:'Deal Analyzer',inbox:'Trade History',audit:'Roster Audit'})[tab]}</button>
+                        }}>{({dna:'Owner Profiles',finder:'Trade Finder',analyzer:'Trade Builder',inbox:'Trade History',audit:'Roster Audit'})[tab]}</button>
                     ))}
                 </div>
                 {tcTab === 'audit' && renderAudit()}
