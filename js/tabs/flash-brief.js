@@ -40,10 +40,24 @@ function FlashBriefPanel({
         (currentLeague?.rosters || []).forEach(r => (r.players || []).concat(r.taxi || [], r.reserve || []).forEach(pid => rostered.add(String(pid))));
         const needPos = typeof needs[0] === 'string' ? needs[0] : needs[0]?.pos;
         if (!needPos) return null;
-        return Object.entries(playersData || {})
-            .filter(([pid, p]) => !rostered.has(pid) && normPos(p.position) === needPos && p.team && p.active !== false)
+        // Minimum DHQ 1500 to be worth recommending — below that it's roster filler
+        const candidates = Object.entries(playersData || {})
+            .filter(([pid, p]) => !rostered.has(pid) && normPos(p.position) === needPos && p.team && p.active !== false && (scores[pid] || 0) >= 1500)
             .map(([pid, p]) => ({ pid, name: p.full_name || '', dhq: scores[pid] || 0, pos: needPos, team: p.team }))
-            .sort((a, b) => b.dhq - a.dhq)[0] || null;
+            .sort((a, b) => b.dhq - a.dhq);
+        // If no good target at primary need, try secondary needs
+        if (!candidates.length && needs.length > 1) {
+            for (let i = 1; i < Math.min(needs.length, 4); i++) {
+                const altPos = typeof needs[i] === 'string' ? needs[i] : needs[i]?.pos;
+                if (!altPos) continue;
+                const alt = Object.entries(playersData || {})
+                    .filter(([pid, p]) => !rostered.has(pid) && normPos(p.position) === altPos && p.team && p.active !== false && (scores[pid] || 0) >= 1500)
+                    .map(([pid, p]) => ({ pid, name: p.full_name || '', dhq: scores[pid] || 0, pos: altPos, team: p.team }))
+                    .sort((a, b) => b.dhq - a.dhq);
+                if (alt.length) return alt[0];
+            }
+        }
+        return candidates[0] || null;
     }, [needs, playersData, scores, currentLeague]);
 
     // Key drops (high-value players dropped in last 3 weeks)
