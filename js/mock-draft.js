@@ -37,21 +37,31 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
                     val: scores[pid] || 0, age: p.age || 21,
                 };
             });
-        // Fallback: if no FC_ROOKIE data, use all young players (rookies/2nd year)
+        // Fallback: if no FC_ROOKIE data, use all unrostered players sorted by value/youth
         if (pool.length < 10) {
             const allPlayers = playersData && Object.keys(playersData).length > 100 ? playersData : (S.players || {});
             const rostered = new Set();
             (S.rosters || []).forEach(r => (r.players || []).forEach(pid => rostered.add(String(pid))));
-            const fallback = Object.entries(allPlayers)
-                .filter(([pid, p]) => p && (p.years_exp <= 1 || (p.age && p.age <= 23)) && !rostered.has(pid) && p.position && ['QB','RB','WR','TE'].includes((p.position || '').toUpperCase()) && (scores[pid] || 0) > 0)
-                .map(([pid, p]) => ({
-                    pid, name: p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || pid,
-                    pos: (p.position || '').toUpperCase(), team: p.team || '', college: p.college || '',
-                    val: scores[pid] || 0, age: p.age || 21,
-                }));
-            // Merge, avoiding duplicates
             const existingPids = new Set(pool.map(p => p.pid));
-            fallback.forEach(p => { if (!existingPids.has(p.pid)) pool.push(p); });
+            const fallback = [];
+            Object.entries(allPlayers).forEach(([pid, p]) => {
+                if (!p || existingPids.has(pid) || rostered.has(String(pid))) return;
+                const pos = window.App?.normPos?.(p.position) || (p.position || '').toUpperCase();
+                if (!pos || pos === 'DEF' || pos === 'UNK') return;
+                // Include young players (age ≤ 25) or any player with DHQ score
+                const age = p.age || 25;
+                const dhq = scores[pid] || 0;
+                if (age > 25 && dhq <= 0) return;
+                const val = dhq > 0 ? dhq : Math.max(500, 5000 - (age - 20) * 300); // Estimate value from age if no DHQ
+                fallback.push({
+                    pid, name: p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || pid,
+                    pos, team: p.team || '', college: p.college || '',
+                    val, age,
+                });
+            });
+            fallback.sort((a, b) => b.val - a.val);
+            // Take top 100 to avoid massive pools
+            fallback.slice(0, 100).forEach(p => pool.push(p));
         }
         return pool.sort((a, b) => b.val - a.val);
     }, [playerMeta, scores, playersData]);
@@ -240,7 +250,7 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
     const runMultiSim = () => {
         const NUM_SIMS = 10;
         const pickOrder = buildPickOrder();
-        const landingData = {}; // pid -> [pickOverall, ...]
+        const landingData = {}; // pid -> { picks: [pickOverall, ...], teams: [rosterId, ...] }
         const myPickData = {}; // round -> { posFreq: {QB:n,...}, bestAvail: [...] }
 
         for (let sim = 0; sim < NUM_SIMS; sim++) {
@@ -263,8 +273,9 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
                 }
                 if (!pick) return;
                 pool.splice(pool.indexOf(pick), 1);
-                if (!landingData[pick.pid]) landingData[pick.pid] = [];
-                landingData[pick.pid].push(slot.overall);
+                if (!landingData[pick.pid]) landingData[pick.pid] = { picks: [], teams: [] };
+                landingData[pick.pid].picks.push(slot.overall);
+                landingData[pick.pid].teams.push(slot.rosterId);
 
                 if (slot.rosterId === myRid) {
                     if (!myPickData[slot.round]) myPickData[slot.round] = { posFreq: {}, avail: [] };
@@ -275,9 +286,9 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
 
         // Aggregate
         const prospectRanges = Object.entries(landingData)
-            .map(([pid, landings]) => {
+            .map(([pid, data]) => {
                 const p = prospectPool.find(pr => pr.pid === pid) || { name: pid, pos: '?', val: 0 };
-                landings.sort((a, b) => a - b);
+                const landings = [...data.picks].sort((a, b) => a - b);
                 return {
                     pid, name: p.name, pos: p.pos, val: p.val,
                     min: landings[0], max: landings[landings.length - 1],
@@ -288,7 +299,7 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
             .sort((a, b) => a.median - b.median)
             .slice(0, 30);
 
-        setSimResults({ prospectRanges, myPickData, numSims: NUM_SIMS });
+        setSimResults({ prospectRanges, myPickData, landingData, numSims: NUM_SIMS });
         setMode('multisim');
     };
 
@@ -515,7 +526,7 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
 
     // ── MULTI-SIM RESULTS ──
     if (mode === 'multisim' && simResults) {
-        const { prospectRanges, myPickData, numSims } = simResults;
+        const { prospectRanges, myPickData, landingData: simLanding, numSims } = simResults;
         return React.createElement('div', { style: wrapStyle },
             exitBtn,
             React.createElement('div', { style: { ...cardStyle, textAlign: 'center' } },
@@ -566,6 +577,51 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
                     ),
                 ))
             ),
+            // Draft Tendencies — who gets picked where
+            simLanding && React.createElement('div', { style: cardStyle },
+                React.createElement('div', { style: goldLabel }, 'DRAFT TENDENCIES'),
+                React.createElement('div', { style: { fontSize: '0.68rem', color: 'var(--silver)', marginBottom: '10px' } }, 'Who gets picked where across all simulations'),
+                // Table header
+                React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 50px 70px 90px 1fr', gap: '4px', padding: '6px 8px', borderBottom: '1px solid rgba(212,175,55,0.15)', fontSize: '0.62rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' } },
+                    React.createElement('span', null, 'Player'),
+                    React.createElement('span', { style: { textAlign: 'center' } }, 'Pos'),
+                    React.createElement('span', { style: { textAlign: 'center' } }, 'Avg Pick'),
+                    React.createElement('span', { style: { textAlign: 'center' } }, 'Range'),
+                    React.createElement('span', { style: { textAlign: 'right' } }, 'Most Common Team'),
+                ),
+                // Top 10 prospects by average pick
+                (() => {
+                    const posColors = window.App?.POS_COLORS || { QB: '#60a5fa', RB: '#34d399', WR: '#d4af37', TE: '#fbbf24', DL: '#fb923c', LB: '#d4af37', DB: '#f472b6' };
+                    const tendencies = Object.entries(simLanding)
+                        .map(([pid, data]) => {
+                            const p = prospectPool.find(pr => pr.pid === pid) || { name: pid, pos: '?' };
+                            const avg = Math.round(data.picks.reduce((s, v) => s + v, 0) / data.picks.length);
+                            const mn = Math.min(...data.picks);
+                            const mx = Math.max(...data.picks);
+                            // Mode of teams array
+                            const teamFreq = {};
+                            data.teams.forEach(rid => { teamFreq[rid] = (teamFreq[rid] || 0) + 1; });
+                            const modeRid = Object.entries(teamFreq).sort((a, b) => b[1] - a[1])[0];
+                            const modeTeamName = modeRid ? ((S.leagueUsers || []).find(u => u.user_id === Number(modeRid[0]) || String(u.user_id) === String(modeRid[0]))?.display_name || 'Team ' + modeRid[0]) : '—';
+                            const modePct = modeRid ? Math.round(modeRid[1] / data.teams.length * 100) : 0;
+                            return { pid, name: p.name, pos: p.pos, avg, min: mn, max: mx, modeTeamName, modePct };
+                        })
+                        .sort((a, b) => a.avg - b.avg)
+                        .slice(0, 10);
+                    return tendencies.map((t, i) => React.createElement('div', {
+                        key: t.pid, style: { display: 'grid', gridTemplateColumns: '1fr 50px 70px 90px 1fr', gap: '4px', alignItems: 'center', padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.03)', background: i % 2 ? 'rgba(255,255,255,0.015)' : 'transparent' }
+                    },
+                        React.createElement('span', { style: { fontSize: '0.78rem', color: 'var(--white)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, t.name),
+                        React.createElement('span', { style: { fontSize: '0.68rem', fontWeight: 700, color: posColors[t.pos] || 'var(--silver)', textAlign: 'center', padding: '1px 4px', background: (posColors[t.pos] || '#666') + '22', borderRadius: '4px' } }, t.pos),
+                        React.createElement('span', { style: { fontSize: '0.82rem', fontWeight: 700, color: 'var(--gold)', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace' } }, '#' + t.avg),
+                        React.createElement('span', { style: { fontSize: '0.68rem', color: 'var(--silver)', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace' } }, '#' + t.min + ' — #' + t.max),
+                        React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)', textAlign: 'right' } },
+                            t.modeTeamName,
+                            React.createElement('span', { style: { fontSize: '0.62rem', color: 'var(--gold)', marginLeft: '4px' } }, '(' + t.modePct + '%)')
+                        ),
+                    ));
+                })(),
+            ),
         );
     }
 
@@ -573,6 +629,7 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
     if (mode === 'results' && draftState) {
         const grades = gradeMyPicks(draftState.picks);
         const [saveMsg, setSaveMsg] = useState('');
+        const [resultView, setResultView] = useState('table');
 
         // League-wide DHQ ranking
         const teamDHQ = {};
@@ -605,6 +662,21 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
                     React.createElement('button', { onClick: () => setMode('setup'), style: { padding: '10px 20px', background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '8px', cursor: 'pointer', fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', fontWeight: 700 } }, 'NEW DRAFT'),
                 ),
             ),
+            // Sub-tab selector
+            React.createElement('div', { style: { display: 'flex', gap: '0', marginBottom: '12px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(212,175,55,0.2)' } },
+                ['summary', 'table', 'log'].map(tab => React.createElement('button', {
+                    key: tab, onClick: () => setResultView(tab),
+                    style: {
+                        flex: 1, padding: '10px 0', border: 'none', cursor: 'pointer',
+                        fontFamily: 'Rajdhani, sans-serif', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                        background: resultView === tab ? 'var(--gold)' : 'var(--black)',
+                        color: resultView === tab ? 'var(--black)' : 'var(--gold)',
+                        borderRight: tab !== 'log' ? '1px solid rgba(212,175,55,0.2)' : 'none',
+                    }
+                }, tab === 'summary' ? 'Summary' : tab === 'table' ? 'Round Table' : 'Draft Log'))
+            ),
+            // ── Summary view ──
+            resultView === 'summary' && React.createElement(React.Fragment, null,
             // Alex's analysis
             React.createElement('div', { style: { ...cardStyle, borderColor: 'rgba(212,175,55,0.3)' } },
                 React.createElement('div', { style: goldLabel }, `ALEX'S ANALYSIS`),
@@ -647,8 +719,78 @@ function MockDraftPanel({ playersData, myRoster, currentLeague, draftRounds }) {
                     React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, color: i < 3 ? '#2ECC71' : 'var(--silver)', fontFamily: 'JetBrains Mono, monospace' } }, data.total.toLocaleString()),
                 ))
             ),
-            // Full draft log by round
-            React.createElement('div', { style: cardStyle },
+            ), // close summary fragment
+            // ── Round Table view ──
+            resultView === 'table' && (() => {
+                const posColors = window.App?.POS_COLORS || { QB: '#60a5fa', RB: '#34d399', WR: '#d4af37', TE: '#fbbf24', DL: '#fb923c', LB: '#d4af37', DB: '#f472b6' };
+                const gridData = {};
+                const teamOrder = [];
+                const seenTeams = new Set();
+                // Build team order from first round picks to get consistent column order
+                draftState.picks.forEach(p => {
+                    if (!seenTeams.has(p.rosterId)) { seenTeams.add(p.rosterId); teamOrder.push(p.rosterId); }
+                });
+                const maxRound = Math.max(...draftState.picks.map(p => p.round));
+                draftState.picks.forEach(pick => {
+                    const key = pick.round + '_' + pick.rosterId;
+                    gridData[key] = pick;
+                });
+                // Get team name for a rosterId
+                const getTeamName = (rid) => {
+                    const user = (S.leagueUsers || []).find(u => u.user_id === rid || String(u.user_id) === String(rid));
+                    return user?.display_name || 'Team ' + rid;
+                };
+                return React.createElement('div', { style: { ...cardStyle, padding: '12px', overflowX: 'auto' } },
+                    React.createElement('div', { style: goldLabel }, 'ROUND TABLE'),
+                    React.createElement('div', { style: { overflowX: 'auto', WebkitOverflowScrolling: 'touch' } },
+                        React.createElement('table', { style: { borderCollapse: 'collapse', minWidth: teamOrder.length * 90 + 60 + 'px', width: '100%' } },
+                            // Header row: team names
+                            React.createElement('thead', null,
+                                React.createElement('tr', null,
+                                    React.createElement('th', { style: { padding: '6px 8px', fontSize: '0.62rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'left', borderBottom: '2px solid rgba(212,175,55,0.3)', position: 'sticky', left: 0, background: 'var(--black)', zIndex: 2 } }, 'RD'),
+                                    teamOrder.map(rid => React.createElement('th', {
+                                        key: rid, style: {
+                                            padding: '6px 4px', fontSize: '0.6rem', color: rid === myRid ? 'var(--black)' : 'var(--gold)', fontWeight: 700,
+                                            textTransform: 'uppercase', letterSpacing: '0.02em', textAlign: 'center',
+                                            borderBottom: '2px solid rgba(212,175,55,0.3)',
+                                            background: rid === myRid ? 'rgba(212,175,55,0.85)' : 'var(--black)',
+                                            maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        }
+                                    }, getTeamName(rid).slice(0, 8)))
+                                )
+                            ),
+                            // Body: one row per round
+                            React.createElement('tbody', null,
+                                Array.from({ length: maxRound }, (_, ri) => {
+                                    const rd = ri + 1;
+                                    return React.createElement('tr', { key: rd },
+                                        React.createElement('td', { style: { padding: '4px 8px', fontSize: '0.68rem', color: 'var(--gold)', fontWeight: 700, borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'sticky', left: 0, background: 'var(--black)', zIndex: 1 } }, rd),
+                                        teamOrder.map(rid => {
+                                            const pick = gridData[rd + '_' + rid];
+                                            const isMe = rid === myRid;
+                                            if (!pick) return React.createElement('td', { key: rid, style: { padding: '4px', borderBottom: '1px solid rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.04)', background: isMe ? 'rgba(212,175,55,0.08)' : 'transparent' } }, '—');
+                                            const lastName = (pick.playerName || '').split(' ').pop().slice(0, 10);
+                                            const pc = posColors[pick.pos] || 'var(--silver)';
+                                            return React.createElement('td', {
+                                                key: rid, style: {
+                                                    padding: '3px 4px', textAlign: 'center',
+                                                    borderBottom: '1px solid rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.04)',
+                                                    background: isMe ? 'rgba(212,175,55,0.08)' : 'transparent',
+                                                }
+                                            },
+                                                React.createElement('div', { style: { fontSize: '0.68rem', color: isMe ? 'var(--white)' : 'rgba(255,255,255,0.8)', fontWeight: isMe ? 700 : 500, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, lastName),
+                                                React.createElement('div', { style: { fontSize: '0.55rem', fontWeight: 700, color: pc, lineHeight: 1 } }, pick.pos),
+                                            );
+                                        })
+                                    );
+                                })
+                            ),
+                        )
+                    ),
+                );
+            })(),
+            // ── Draft Log view ──
+            resultView === 'log' && React.createElement('div', { style: cardStyle },
                 React.createElement('div', { style: goldLabel }, `COMPLETE DRAFT (${draftState.picks.length} picks)`),
                 React.createElement('div', { style: { maxHeight: '500px', overflowY: 'auto' } },
                     [...new Set(draftState.picks.map(p => p.round))].map(rd =>
