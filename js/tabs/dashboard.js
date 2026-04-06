@@ -26,14 +26,42 @@ function DashboardPanel({
     return (
         <React.Fragment>
             <div style={{
-                display: 'grid', gridTemplateColumns: selectedKpis.length <= 4 ? 'repeat(4, 1fr)' : selectedKpis.length <= 6 ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)', gap: '10px',
+                display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px',
                 padding: '16px 24px', background: 'var(--black)',
                 borderBottom: '1px solid rgba(212,175,55,0.15)'
             }}>
                 {selectedKpis.map((kpiKey, idx) => {
+                    const isEditing = editingKpi === idx;
+                    // Empty slot
+                    if (!kpiKey) {
+                        return React.createElement('div', {
+                            key: 'empty-' + idx,
+                            onClick: () => setEditingKpi(isEditing ? null : idx),
+                            style: { ...kpiCardStyle, position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80px', border: isEditing ? '1px solid var(--gold)' : '1px dashed rgba(212,175,55,0.2)', background: 'transparent' }
+                        },
+                            !isEditing && React.createElement('span', { style: { fontSize: '1.2rem', color: 'rgba(212,175,55,0.3)' } }, '+'),
+                            isEditing && React.createElement('div', {
+                                style: { position: 'absolute', top: '100%', left: '-4px', right: '-4px', marginTop: '4px', background: '#0a0a0a', border: '2px solid rgba(212,175,55,0.4)', borderRadius: '8px', zIndex: 50, maxHeight: '220px', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }
+                            },
+                                Object.entries(KPI_OPTIONS).filter(([k]) => !selectedKpis.includes(k)).map(([k, o]) =>
+                                    React.createElement('div', {
+                                        key: k, onClick: (e) => { e.stopPropagation(); const updated = [...selectedKpis]; updated[idx] = k; setSelectedKpis(updated); setEditingKpi(null); },
+                                        style: { padding: '6px 10px', cursor: 'pointer', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--white)', borderBottom: '1px solid rgba(255,255,255,0.04)' },
+                                        onMouseEnter: e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)',
+                                        onMouseLeave: e => e.currentTarget.style.background = 'transparent',
+                                    },
+                                        React.createElement('span', { style: { fontSize: '0.8rem' } }, o.icon),
+                                        React.createElement('div', null,
+                                            React.createElement('div', { style: { fontWeight: 600 } }, o.label),
+                                            React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 } }, o.category),
+                                        ),
+                                    )
+                                )
+                            ),
+                        );
+                    }
                     const opt = KPI_OPTIONS[kpiKey] || { label: kpiKey, icon: '?', category: '' };
                     const val = computeKpiValue(kpiKey);
-                    const isEditing = editingKpi === idx;
                     return (
                         <div key={kpiKey + idx} style={{
                             ...kpiCardStyle, position: 'relative', cursor: 'default',

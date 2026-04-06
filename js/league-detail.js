@@ -411,7 +411,7 @@
             'trade-leverage':   { label: 'Trade Leverage', icon: '', category: 'Trades', tip: 'How many league teams need positions where you have surplus. Higher = more trade partners available.' },
             'sched-sos':        { label: 'Schedule SOS', icon: '', category: 'Roster', tip: 'Average opponent defense rank faced by your starters (1=hardest, 32=easiest). Based on last completed season. Higher = easier schedule.' },
         };
-        const DEFAULT_KPIS = ['contender-rank', 'dynasty-rank', 'health-score', 'window'];
+        const DEFAULT_KPIS = ['contender-rank', 'dynasty-rank', 'health-score', 'window', 'elite-players', '', '', '', '', ''];
         const [selectedKpis, setSelectedKpis] = useState(() =>
             WrStorage.get(WR_KEYS.KPI_SELECTION(currentLeague?.id || '')) || DEFAULT_KPIS
         );
@@ -1991,24 +1991,7 @@
                       })()}
                     </div>
 
-                    {/* Notification bell */}
-                    <div style={{ padding:'0 16px', marginBottom:'12px', position:'relative' }}>
-                        <button onClick={() => setShowNotifications(!showNotifications)} style={{ background:'none', border:'1px solid rgba(212,175,55,0.2)', borderRadius:'6px', padding:'6px 12px', cursor:'pointer', color:'var(--silver)', fontSize:'0.7rem', fontFamily:'Inter, sans-serif', width:'100%', textAlign:'left', display:'flex', alignItems:'center', gap:'6px' }}>
-                            Alerts <span style={{ background: notifications.length > 0 ? 'var(--loss-red)' : 'rgba(255,255,255,0.1)', color: notifications.length > 0 ? 'var(--white)' : 'var(--silver)', fontSize:'0.78rem', fontWeight:700, padding:'1px 5px', borderRadius:'8px', marginLeft:'auto' }}>{notifications.length}</span>
-                        </button>
-                        {showNotifications && (
-                            <div style={{ position:'absolute', left:'16px', right:'16px', top:'36px', background:'var(--black)', border:'1px solid rgba(212,175,55,0.3)', borderRadius:'8px', zIndex:200, maxHeight:'300px', overflowY:'auto', boxShadow:'0 8px 24px rgba(0,0,0,0.6)' }}>
-                                {notifications.length === 0 ? (
-                                    <div style={{ padding:'12px', fontSize:'0.76rem', color:'var(--silver)', opacity:0.5, textAlign:'center' }}>No alerts right now</div>
-                                ) : notifications.map((n, i) => (
-                                    <div key={i} style={{ padding:'8px 12px', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:'0.76rem', color:'var(--silver)', display:'flex', alignItems:'center', gap:'6px' }}>
-                                        <span style={{ width:'6px', height:'6px', borderRadius:'50%', flexShrink:0, background: n.type==='warn'?'var(--loss-red)':n.type==='trade'?'var(--gold)':'#5DADE2' }} />
-                                        {n.text}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    {/* Alerts removed — rolled into Brief */}
 
                     {/* Nav items — grouped */}
                     {[

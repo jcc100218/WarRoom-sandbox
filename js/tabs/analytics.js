@@ -344,7 +344,7 @@ function AnalyticsPanel({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '12px' }}>
                     {/* Total DHQ */}
                     <div style={kpiCardStyle}>
-                        <div style={kpiLabelStyle}>Total DHQ <span title="Dynasty Health Quotient — the total dynasty value of all players on your roster, measured by scoring, age, position scarcity, and production." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                        <div style={kpiLabelStyle}>Total DHQ</div>
                         <div style={kpiNumberStyle}>{(m.avgTotalDHQ || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
                         <div style={kpiDeltaStyle(m.avgTotalDHQ >= w.avgTotalDHQ)}>
                             {m.avgTotalDHQ >= w.avgTotalDHQ ? '\u25B2' : '\u25BC'} {Math.abs(Math.round((m.avgTotalDHQ - l.avgTotalDHQ) / Math.max(l.avgTotalDHQ, 1) * 100))}% vs lg avg
@@ -355,7 +355,7 @@ function AnalyticsPanel({
                     </div>
                     {/* Health Score */}
                     <div style={kpiCardStyle}>
-                        <div style={kpiLabelStyle}>Health Score <span title="0-100 composite score measuring roster balance, depth, age profile, and elite talent. Higher = more championship-ready." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                        <div style={kpiLabelStyle}>Health Score</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div style={kpiNumberStyle}>{healthScore}</div>
                             <div style={{ marginTop: '4px' }}>
@@ -368,7 +368,7 @@ function AnalyticsPanel({
                     </div>
                     {/* Elite Count */}
                     <div style={kpiCardStyle}>
-                        <div style={kpiLabelStyle}>Elite Players <span title="Players ranked top 5 at their position across all league rosters." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                        <div style={kpiLabelStyle}>Elite Players</div>
                         <div style={kpiNumberStyle}>{mElite}</div>
                         <div style={kpiDeltaStyle(mElite >= wElite)}>
                             {mElite >= Math.ceil(wElite) ? '= ' : '\u25BC '}{mElite >= Math.ceil(wElite) ? 'above' : Math.abs(mElite - Math.ceil(wElite)) + ' below'} elite tier ({Math.ceil(wElite)})
@@ -377,7 +377,7 @@ function AnalyticsPanel({
                     </div>
                     {/* Compete Window */}
                     <div style={kpiCardStyle}>
-                        <div style={kpiLabelStyle}>Compete Window <span title="Estimated years your roster can remain championship-competitive based on age curves, peak windows, and current DHQ trajectory." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                        <div style={kpiLabelStyle}>Compete Window</div>
                         <div style={kpiNumberStyle}>{compYears}<span style={{ fontSize: '1rem', color: 'var(--silver)', marginLeft: '4px' }}>yr</span></div>
                         <div style={kpiDeltaStyle(compYears >= 3)}>
                             {compYears >= 3 ? '\u25B2 Strong' : compYears >= 1 ? '\u25AC Narrowing' : '\u25BC Rebuild mode'}
@@ -721,24 +721,24 @@ function AnalyticsPanel({
                 {/* ── TOP KPI CARDS ── */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '12px' }}>
                     <div style={dKpiCardStyle}>
-                        <div style={dKpiLabel}>Draft Grade <span title="Letter grade comparing your draft hit rate to the league average. A+ = elite drafter, C = average, D = below average and costing roster value." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                        <div style={dKpiLabel}>Draft Grade</div>
                         <div style={{ ...dKpiNum, fontSize: '2rem', color: gradeIdx <= 2 ? goodColor : gradeIdx <= 5 ? warnColor : badColor }}>{grades[gradeIdx]}</div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>Based on hit rate advantage</div>
                     </div>
                     <div style={dKpiCardStyle}>
-                        <div style={dKpiLabel}>Elite Tier Hit Rate <span title="% of draft picks by championship teams that became starter-quality players. Higher = better draft scouting by elite tier teams." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                        <div style={dKpiLabel}>Elite Tier Hit Rate</div>
                         <div style={dKpiNum}>{pctFmt(winnerHitAvg)}</div>
                         <div style={{ fontSize: '0.72rem', color: goodColor, fontFamily: 'Inter, sans-serif' }}>
                             +{Math.round(avgHitAdv * 100)}% vs league ({pctFmt(leagueHitAvg)})
                         </div>
                     </div>
                     <div style={dKpiCardStyle}>
-                        <div style={dKpiLabel}>Your Draft Picks <span title="Total number of draft picks your team has made across all recorded drafts in this league." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                        <div style={dKpiLabel}>Your Draft Picks</div>
                         <div style={dKpiNum}>{totalMyPicks || '\u2014'}</div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>Across {rounds.length} rounds</div>
                     </div>
                     <div style={dKpiCardStyle}>
-                        <div style={dKpiLabel}>Champions Draft <span title="The position that championship-winning teams draft most frequently across all rounds." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                        <div style={dKpiLabel}>Champions Draft</div>
                         <div style={dKpiNum}>{topDraftTarget ? topDraftTarget[0] : '\u2014'}</div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--gold)', opacity: 0.7 }}>Most picked position by championship teams</div>
                     </div>
@@ -865,26 +865,26 @@ function AnalyticsPanel({
                 {/* ── TOP KPI CARDS ── */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '12px' }}>
                     <div style={tKpiCardStyle}>
-                        <div style={tKpiLabel}>Your Trades/Season <span title="Average number of trades you make per season. Includes player-for-player swaps, pick trades, and multi-asset deals." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                        <div style={tKpiLabel}>Your Trades/Season</div>
                         <div style={tKpiNum}>{mp.avgTradesPerSeason}</div>
                         <div style={{ fontSize: '0.72rem', color: mp.avgTradesPerSeason >= lp.avgTradesPerSeason ? goodColor : warnColor, fontFamily: 'Inter, sans-serif' }}>
                             {mp.avgTradesPerSeason >= lp.avgTradesPerSeason ? '\u25B2' : '\u25BC'} League avg: {lp.avgTradesPerSeason}
                         </div>
                     </div>
                     <div style={tKpiCardStyle}>
-                        <div style={tKpiLabel}>Avg DHQ Gained <span title="Average net DHQ value gained or lost per trade. Positive = you extract value. Negative = you overpay in trades." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                        <div style={tKpiLabel}>Avg DHQ Gained</div>
                         <div style={{ ...tKpiNum, color: valueDeltaColor }}>{(mp.avgValueGained >= 0 ? '+' : '') + mp.avgValueGained}</div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--gold)', fontFamily: 'Inter, sans-serif' }}>
                             Elite Tier: +{wp.avgValueGained}
                         </div>
                     </div>
                     <div style={tKpiCardStyle}>
-                        <div style={tKpiLabel}>Elite Tier Volume <span title="Average number of trades per season made by championship-winning teams in this league." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                        <div style={tKpiLabel}>Elite Tier Volume</div>
                         <div style={tKpiNum}>{wp.avgTradesPerSeason}</div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>trades per season</div>
                     </div>
                     <div style={tKpiCardStyle}>
-                        <div style={tKpiLabel}>Top Positions Bought <span title="The positions that championship teams acquire most frequently via trade — shows what elite tier teams prioritize in deals." style={{ fontSize:'0.7rem', opacity:0.5, cursor:'help' }}>?</span></div>
+                        <div style={tKpiLabel}>Top Positions Bought</div>
                         <div style={{ ...tKpiNum, fontSize: '1.3rem' }}>{topPosBought(wp)}</div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--gold)', opacity: 0.7 }}>Positions champions acquire most via trade</div>
                     </div>
