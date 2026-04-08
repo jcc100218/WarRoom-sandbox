@@ -152,24 +152,84 @@ function MockDraftSimulator({ playersData, myRoster, currentLeague, draftRounds:
     const [rounds,     setRounds]     = useState(propRounds || 5);
     const [leagueSize, setLeagueSize] = useState(defaultSize);
 
-    // Auto-detect draft position from league standings (worst record = 1st pick)
-    const detectedDraftPos = useMemo(() => {
+    // Build real draft order from Sleeper data
+    const draftMeta = useMemo(() => {
         const rosters = window.S?.rosters || currentLeague?.rosters || [];
+        const users = window.S?.leagueUsers || currentLeague?.users || [];
+        const myUid = window.S?.user?.user_id || '';
         const myRid = myRoster?.roster_id;
-        if (!myRid || rosters.length < 2) return Math.min(6, defaultSize);
-        // Rookie drafts: worst record picks first
-        const sorted = [...rosters].sort((a, b) => {
-            const wa = a.settings?.wins || 0, wb = b.settings?.wins || 0;
-            if (wa !== wb) return wa - wb; // fewer wins = earlier pick
-            const pa = a.settings?.fpts || 0, pb = b.settings?.fpts || 0;
-            return pa - pb; // fewer points = earlier pick
-        });
-        const pos = sorted.findIndex(r => r.roster_id === myRid) + 1;
-        return pos > 0 ? pos : Math.min(6, defaultSize);
+        const tradedPicks = window.S?.tradedPicks || [];
+        const leagueSeason = String(currentLeague?.season || new Date().getFullYear());
+
+        // Try to get draft_order from Sleeper draft info
+        const drafts = window.S?.drafts || [];
+        const upcoming = drafts.find(d => d.status === 'pre_draft') || drafts[0];
+        const sleeperOrder = upcoming?.draft_order || {}; // user_id → slot
+
+        // Build slot → roster mapping
+        let slotToRoster = {}; // 1-indexed slot → { rosterId, ownerName }
+        if (Object.keys(sleeperOrder).length > 0) {
+            // Use actual Sleeper draft order
+            Object.entries(sleeperOrder).forEach(([userId, slot]) => {
+                const roster = rosters.find(r => r.owner_id === userId);
+                const user = users.find(u => u.user_id === userId);
+                const name = user?.metadata?.team_name || user?.display_name || user?.username || 'Team ' + slot;
+                slotToRoster[slot] = { rosterId: roster?.roster_id, ownerName: name, userId };
+            });
+        } else {
+            // Fallback: reverse standings (worst record picks first)
+            const sorted = [...rosters].sort((a, b) => {
+                const wa = a.settings?.wins || 0, wb = b.settings?.wins || 0;
+                if (wa !== wb) return wa - wb;
+                return (a.settings?.fpts || 0) - (b.settings?.fpts || 0);
+            });
+            sorted.forEach((r, i) => {
+                const user = users.find(u => u.user_id === r.owner_id);
+                const name = user?.metadata?.team_name || user?.display_name || user?.username || 'Team ' + (i + 1);
+                slotToRoster[i + 1] = { rosterId: r.roster_id, ownerName: name, userId: r.owner_id };
+            });
+        }
+
+        // Find user's slot
+        let mySlot = null;
+        for (const [slot, info] of Object.entries(slotToRoster)) {
+            if (info.userId === myUid || info.rosterId === myRid) { mySlot = parseInt(slot); break; }
+        }
+
+        // Build per-round pick ownership (accounting for traded picks)
+        const pickOwnership = {}; // "round-slot" → { ownerName, rosterId, traded }
+        const numTeams = Object.keys(slotToRoster).length || rosters.length || 12;
+        for (let rd = 1; rd <= (propRounds || 5); rd++) {
+            for (let slot = 1; slot <= numTeams; slot++) {
+                const originalInfo = slotToRoster[slot] || {};
+                const originalRid = originalInfo.rosterId;
+                // Check if this pick was traded
+                const traded = tradedPicks.find(tp =>
+                    tp.round === rd && tp.roster_id === originalRid &&
+                    tp.owner_id !== originalRid && String(tp.season) === leagueSeason
+                );
+                if (traded) {
+                    const newOwner = rosters.find(r => r.roster_id === traded.owner_id);
+                    const newUser = users.find(u => u.user_id === newOwner?.owner_id);
+                    const newName = newUser?.metadata?.team_name || newUser?.display_name || 'Team';
+                    pickOwnership[rd + '-' + slot] = { ownerName: newName, rosterId: traded.owner_id, traded: true, originalOwner: originalInfo.ownerName };
+                } else {
+                    pickOwnership[rd + '-' + slot] = { ownerName: originalInfo.ownerName || 'Team ' + slot, rosterId: originalRid, traded: false };
+                }
+            }
+        }
+
+        return {
+            mySlot: mySlot || Math.min(6, numTeams),
+            slotToRoster,
+            pickOwnership,
+            numTeams,
+            draftType: upcoming?.type || 'snake',
+        };
     }, [myRoster, currentLeague]);
 
-    const [draftPos,   setDraftPos]   = useState(detectedDraftPos);
-    const [draftType,  setDraftType]  = useState('snake');
+    const [draftPos,   setDraftPos]   = useState(draftMeta.mySlot);
+    const [draftType,  setDraftType]  = useState(draftMeta.draftType || 'snake');
 
     /* ── Draft state (single object avoids stale-closure issues) ─ */
     const [ds, setDs]         = useState(null);
@@ -294,10 +354,13 @@ function MockDraftSimulator({ playersData, myRoster, currentLeague, draftRounds:
             },
             {
                 label: 'Your Draft Position', value: draftPos, onChange: e => setDraftPos(+e.target.value),
-                opts: Array.from({ length: leagueSize }, (_, i) => ({
-                    v: i + 1,
-                    l: `Pick ${i + 1}${i + 1 === detectedDraftPos ? ' — Your slot (by record)' : i === 0 ? ' — 1st overall' : i === leagueSize - 1 ? ' — Last' : ''}`,
-                })),
+                opts: Array.from({ length: leagueSize }, (_, i) => {
+                    const slot = i + 1;
+                    const info = draftMeta.slotToRoster[slot];
+                    const isMine = slot === draftMeta.mySlot;
+                    const ownerLabel = info?.ownerName ? ` — ${info.ownerName}` : '';
+                    return { v: slot, l: `${slot}.01${ownerLabel}${isMine ? ' (YOU)' : ''}` };
+                }),
             },
             {
                 label: 'Draft Type', value: draftType, onChange: e => setDraftType(e.target.value),
