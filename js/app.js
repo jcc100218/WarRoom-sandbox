@@ -217,6 +217,7 @@
         const [sleeperLeagues, setSleeperLeagues] = useState([]);
         const [activeLeagueId, setActiveLeagueId] = useState(null);
         const [selectedLeague, setSelectedLeague] = useState(null);
+        const [proMode, setProMode] = useState(false); // Empire Dashboard mode
         // Lifted tab state for browser history navigation
         const [activeTab, setActiveTab] = useState('brief');
         const isNavigatingRef = React.useRef(false);
@@ -347,6 +348,30 @@
             return () => window.removeEventListener('popstate', onPopState);
         }, [sleeperLeagues, espnLeagues, mflLeagues]);
 
+        // Show Empire Dashboard (Pro mode)
+        // eslint-disable-next-line no-undef
+        const _EmpireDash = typeof EmpireDashboard === 'function' ? EmpireDashboard : null;
+        if (proMode && !selectedLeague && _EmpireDash) {
+            return (
+                <ErrorBoundary>
+                    <_EmpireDash
+                        allLeagues={[...sleeperLeagues, ...espnLeagues, ...mflLeagues]}
+                        playersData={window.S?.players || {}}
+                        sleeperUserId={sleeperUser?.user_id}
+                        onEnterLeague={(league) => {
+                            handleSelectLeague(league);
+                        }}
+                        onBack={() => {
+                            setProMode(false);
+                            if (!isNavigatingRef.current) {
+                                history.pushState({ view: 'hub' }, '', window.location.pathname);
+                            }
+                        }}
+                    />
+                </ErrorBoundary>
+            );
+        }
+
         // Show league detail if selected
         const LeagueDetail = window.LeagueDetail;
         if (selectedLeague) {
@@ -357,8 +382,9 @@
                         onBack={() => {
                             setSelectedLeague(null);
                             setActiveTab('brief');
+                            // Return to Empire Dashboard if Pro mode was active, otherwise hub
                             if (!isNavigatingRef.current) {
-                                history.pushState({ view: 'hub' }, '', window.location.pathname);
+                                history.pushState({ view: proMode ? 'pro' : 'hub' }, '', window.location.pathname);
                             }
                         }}
                         activeTab={activeTab}
@@ -453,25 +479,18 @@
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="rgba(212,175,55,0.5)" strokeWidth="2.5" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
                         </div>
                     )}
-                    {showProCard && isPaid && sleeperLeagues.length > 0 && (
-                        <div onClick={() => {
-                            // Auto-launch: pick last used league or first available
-                            const lastId = WrStorage.get(WR_KEYS.LAST_LEAGUE_ID, null);
-                            const target = (lastId && sleeperLeagues.find(l => l.id === lastId)) || sleeperLeagues[0];
-                            if (target) onSelect(target);
-                        }}
+                    {showProCard && isPaid && (
+                        <div onClick={() => setProMode(true)}
                             style={{ cursor: 'pointer', marginBottom: '12px', borderRadius: '12px', padding: '14px 16px', background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(0,0,0,0.3))', border: '1.5px solid rgba(212,175,55,0.4)', display: 'flex', alignItems: 'center', gap: '12px', transition: 'all 0.18s' }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(212,175,55,0.7)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(212,175,55,0.2)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(212,175,55,0.4)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}>
                             <div style={{ width: '36px', height: '36px', flexShrink: 0 }}><ProTierIcon size={36} /></div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                                    <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--gold)' }}>Launch War Room</span>
+                                    <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--gold)' }}>Launch Empire Dashboard</span>
                                     <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#2ECC71', background: 'rgba(46,204,113,0.15)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '10px', padding: '1px 7px', letterSpacing: '0.04em' }}>PRO</span>
                                 </div>
-                                <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6 }}>
-                                    {(() => { const lastId = WrStorage.get(WR_KEYS.LAST_LEAGUE_ID, null); const last = lastId && sleeperLeagues.find(l => l.id === lastId); return last ? 'Resume: ' + last.name : 'Select a league to enter your command center'; })()}
-                                </div>
+                                <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6 }}>All {sleeperLeagues.length} league{sleeperLeagues.length !== 1 ? 's' : ''} · Cross-league intel · Player exposure</div>
                             </div>
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--gold)" strokeWidth="2" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
                         </div>
