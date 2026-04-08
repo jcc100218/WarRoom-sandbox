@@ -2235,27 +2235,6 @@
                     })()}
                 </div>}
 
-                {/* Dashboard: configurable widget grid (KPIs + ticker + standings) */}
-                {activeTab === 'dashboard' && <DashboardPanel
-                    selectedWidgets={selectedWidgets}
-                    setSelectedWidgets={setSelectedWidgets}
-                    editingKpi={editingKpi}
-                    setEditingKpi={setEditingKpi}
-                    computeKpiValue={computeKpiValue}
-                    KPI_OPTIONS={KPI_OPTIONS}
-                    rankedTeams={rankedTeams}
-                    sleeperUserId={sleeperUserId}
-                    setActiveTab={setActiveTab}
-                    transactions={transactions}
-                    standings={standings}
-                    currentLeague={currentLeague}
-                    playersData={playersData}
-                    myRoster={myRoster}
-                    getOwnerName={getOwnerName}
-                    getPlayerName={getPlayerName}
-                    timeAgo={timeAgo}
-                />}
-
                 {/* ── BRIEF TAB ── */}
                 {activeTab === 'brief' && <FlashBriefPanel
                     myRoster={myRoster}
