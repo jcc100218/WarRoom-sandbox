@@ -419,7 +419,7 @@ function FlashBriefPanel({
             );
         })(),
 
-        // ═══ ROW 2 RIGHT: LEAGUE STANDINGS ═══
+        // ═══ ROW 2 RIGHT: LEAGUE STANDINGS (Tecmo Bowl style) ═══
         (() => {
             const standingsData = (currentLeague?.rosters || []).map(r => {
                 const user = (currentLeague.users || []).find(u => u.user_id === r.owner_id);
@@ -434,31 +434,35 @@ function FlashBriefPanel({
                 };
             }).sort((a, b) => b.wins !== a.wins ? b.wins - a.wins : b.pf - a.pf);
 
+            const cols = Math.min(4, Math.max(2, Math.ceil(standingsData.length / 4)));
+
             return React.createElement('div', { style: cardStyle },
                 React.createElement('div', { style: { padding: '20px 20px 0', borderBottom: '1px solid rgba(212,175,55,0.1)', paddingBottom: '12px' } },
                     React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase' } }, 'LEAGUE STANDINGS'),
                 ),
-                React.createElement('div', { style: { padding: '16px 20px', flex: 1, overflowY: 'auto', maxHeight: '300px' } },
+                React.createElement('div', { style: { padding: '16px 20px', flex: 1 } },
                     !standingsData.length
                         ? React.createElement('div', { style: { textAlign: 'center', padding: '40px 0', color: 'var(--silver)', opacity: 0.5 } },
                             React.createElement('div', { style: { fontSize: '0.85rem', fontWeight: 600 } }, 'No standings data available'),
                         )
-                        : React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '2px' } },
+                        : React.createElement('div', { style: { display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: '4px' } },
                             standingsData.map((team, i) =>
                                 React.createElement('div', {
                                     key: team.rosterId || i,
                                     style: {
-                                        display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px',
-                                        background: team.isMe ? 'rgba(212,175,55,0.08)' : 'transparent',
-                                        borderLeft: team.isMe ? '2px solid var(--gold)' : '2px solid transparent',
+                                        display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '6px',
+                                        background: team.isMe ? 'rgba(212,175,55,0.12)' : 'rgba(255,255,255,0.02)',
+                                        border: team.isMe ? '1px solid rgba(212,175,55,0.4)' : '1px solid rgba(255,255,255,0.04)',
                                     }
                                 },
-                                    React.createElement('span', { style: { fontSize: '0.72rem', color: team.isMe ? 'var(--gold)' : 'var(--silver)', fontWeight: 600, minWidth: '18px', textAlign: 'right' } }, (i + 1) + ''),
+                                    React.createElement('span', { style: { fontSize: '0.6rem', color: team.isMe ? 'var(--gold)' : 'rgba(255,255,255,0.3)', fontWeight: 800, minWidth: '12px', fontFamily: 'Rajdhani, sans-serif' } }, (i + 1)),
                                     team.avatar
-                                        ? React.createElement('img', { src: 'https://sleepercdn.com/avatars/thumbs/' + team.avatar, style: { width: '20px', height: '20px', borderRadius: '50%' } })
-                                        : React.createElement('div', { style: { width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(212,175,55,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--gold)' } }, team.name.charAt(0).toUpperCase()),
-                                    React.createElement('span', { style: { flex: 1, fontSize: '0.8rem', color: team.isMe ? 'var(--gold)' : 'var(--white)', fontWeight: team.isMe ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, team.name),
-                                    React.createElement('span', { style: { fontSize: '0.75rem', color: team.isMe ? 'var(--gold)' : 'var(--silver)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' } }, team.wins + '-' + team.losses),
+                                        ? React.createElement('img', { src: 'https://sleepercdn.com/avatars/thumbs/' + team.avatar, style: { width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0 } })
+                                        : React.createElement('div', { style: { width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(212,175,55,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', color: 'var(--gold)', flexShrink: 0 } }, team.name.charAt(0).toUpperCase()),
+                                    React.createElement('div', { style: { flex: 1, minWidth: 0, overflow: 'hidden' } },
+                                        React.createElement('div', { style: { fontSize: '0.7rem', color: team.isMe ? 'var(--gold)' : 'var(--white)', fontWeight: team.isMe ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 } }, team.name),
+                                        React.createElement('div', { style: { fontSize: '0.6rem', color: team.isMe ? 'rgba(212,175,55,0.7)' : 'var(--silver)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2, fontFamily: 'JetBrains Mono, monospace' } }, team.wins + '-' + team.losses),
+                                    ),
                                 ),
                             ),
                         ),

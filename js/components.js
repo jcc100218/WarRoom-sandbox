@@ -117,13 +117,14 @@
                     React.createElement('span', null, '36')
                 )
             ),
-            // Recommendation line — Alex Ingram insight
+            // Recommendation line — Alex Ingram insight (persona-aware)
             React.createElement('div', { style:{ padding:'6px 12px', margin:'0 8px', background:'rgba(212,175,55,0.04)', borderLeft:'3px solid rgba(212,175,55,0.4)', borderRadius:'0 6px 6px 0', display:'flex', gap:'6px', alignItems:'flex-start' } },
                 React.createElement('div', { style:{ width:'18px', height:'18px', borderRadius:'5px', background:'linear-gradient(135deg, #D4AF37, #B8941E)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'0.5rem', fontWeight:800, color:'#0A0A0A', fontFamily:'Rajdhani, sans-serif', marginTop:'2px' } }, 'AI'),
                 React.createElement('div', { style:{ fontSize:'0.78rem', color:'#D0D0D0', lineHeight:1.5 } },
                     (() => {
                         const S = window.S || {};
                         const rosters = S.rosters || [];
+                        const alexStyle = localStorage.getItem('wr_alex_style') || 'default';
                         // Count teams that need this position (only if player is on my team)
                         const needCount = isOnMyTeam ? rosters.filter(r => {
                             if (r.roster_id === S.myRosterId) return false;
@@ -131,12 +132,31 @@
                             return assess?.needs?.some(n => n.pos === nPos);
                         }).length : 0;
 
-                        if (isOnMyTeam && needCount >= 3) return needCount + ' teams need ' + nPos + ' \u2014 strong trade leverage.';
-                        if (isOnMyTeam && peakYrs <= 1 && dhq >= 3000) return 'Sell window closing. Move before value drops.';
-                        if (!isOnMyTeam && peakYrs >= 5 && dhq < 4000) return 'Buy-low candidate \u2014 young with room to grow.';
-                        if (peakYrs >= 4) return 'Long dynasty window \u2014 cornerstone asset.';
-                        if (peakYrs >= 1) return 'In production window.';
-                        return 'Past peak \u2014 value declining.';
+                        // Base insight
+                        let insight = '';
+                        if (isOnMyTeam && needCount >= 3) insight = needCount + ' teams need ' + nPos + ' \u2014 strong trade leverage.';
+                        else if (isOnMyTeam && peakYrs <= 1 && dhq >= 3000) insight = 'Sell window closing. Move before value drops.';
+                        else if (!isOnMyTeam && peakYrs >= 5 && dhq < 4000) insight = 'Buy-low candidate \u2014 young with room to grow.';
+                        else if (peakYrs >= 4) insight = 'Long dynasty window \u2014 cornerstone asset.';
+                        else if (peakYrs >= 1) insight = 'In production window.';
+                        else insight = 'Past peak \u2014 value declining.';
+
+                        // Persona flavor
+                        const flavors = {
+                            general: { sell: 'Execute the trade. No hesitation.', buy: 'Acquire this player. That\'s an order.', hold: 'Hold the line. Don\'t get sentimental.' },
+                            enthusiast: { sell: 'Cash in NOW while you can! This is exciting!', buy: 'OH MAN you gotta get this guy!', hold: 'Love this player! Keep building around them!' },
+                            bayou: { sell: 'Time to let this one swim downstream, cher.', buy: 'Go get \'em before someone else does, ya hear?', hold: 'This one\'s a keeper. Don\'t nobody touch \'em.' },
+                            wit: { sell: 'Your leaguemates still think he\'s worth something. Exploit that.', buy: 'Undervalued. Their loss, your gain.', hold: 'Solid. Try not to overthink it.' },
+                            closer: { sell: 'Sell. Now. Done.', buy: 'Get it done. Close.', hold: 'Hold. Period.' },
+                            strategist: { sell: 'Optimal exit point. Maximize return on declining asset.', buy: 'Favorable risk-reward profile. Recommend acquisition.', hold: 'Asset performing within expected parameters. Maintain position.' },
+                        };
+                        const f = flavors[alexStyle];
+                        if (f) {
+                            const isSell = rec.includes('SELL');
+                            const isBuy = rec.includes('BUY');
+                            insight += ' ' + (isSell ? f.sell : isBuy ? f.buy : f.hold);
+                        }
+                        return insight;
                     })(),
                     trend >= 20 ? ' Trending up '+trend+'%.' : trend <= -15 ? ' Production down '+Math.abs(trend)+'%.' : ''
                 )

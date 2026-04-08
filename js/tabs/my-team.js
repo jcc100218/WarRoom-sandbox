@@ -326,8 +326,25 @@ function MyTeamTab({
       case 'slot': return <div key={colKey} style={{...base}}><span style={{ fontSize:'0.76rem',color:'var(--silver)',opacity:0.65,textTransform:'uppercase' }}>{r.section==='starter'?'STR':r.section==='ir'?'IR':r.section==='taxi'?'TAX':'BN'}</span></div>;
       case 'acquired': {
         const acq = getAcquisitionInfo(r.pid, myRoster?.roster_id);
-        const col = acq.method === 'Drafted' ? 'var(--gold)' : acq.method === 'Traded' ? '#F0A500' : acq.method === 'Waiver' ? '#2ECC71' : acq.method === 'FA' ? '#1ABC9C' : 'var(--silver)';
-        return <div key={colKey} style={{...base}}><span style={{ fontSize: '0.7rem', fontWeight: 600, color: col }}>{acq.method}{acq.cost ? ' ' + acq.cost : ''}</span></div>;
+        const methodColors = { Drafted: '#3498DB', Traded: '#9B59B6', Waiver: 'var(--gold)', FA: '#2ECC71', Original: 'var(--silver)' };
+        const col = methodColors[acq.method] || 'var(--silver)';
+        const methods = ['Drafted', 'Traded', 'Waiver', 'FA'];
+        return <div key={colKey} style={{...base}}><span
+          style={{ fontSize: '0.65rem', fontWeight: 600, color: col, padding: '1px 5px', borderRadius: '3px', border: `1px solid ${col}40`, background: `${col}10`, cursor: 'pointer' }}
+          title="Click to change acquisition method"
+          onClick={e => {
+            e.stopPropagation();
+            const curIdx = methods.indexOf(acq.method);
+            const next = methods[(curIdx + 1) % methods.length];
+            try {
+              const overrides = JSON.parse(localStorage.getItem('wr_acquired_overrides') || '{}');
+              overrides[r.pid] = { method: next, date: acq.date || '\u2014', cost: '' };
+              localStorage.setItem('wr_acquired_overrides', JSON.stringify(overrides));
+              // Force re-render by dispatching a custom event
+              window.dispatchEvent(new Event('resize'));
+            } catch {}
+          }}
+        >{acq.method}{acq.cost ? ' ' + acq.cost : ''}</span></div>;
       }
       case 'acquiredDate': {
         const acq = getAcquisitionInfo(r.pid, myRoster?.roster_id);

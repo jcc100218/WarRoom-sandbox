@@ -69,14 +69,23 @@
 
         // Open full player modal instead of mini card
         // selectPlayer is exposed via SeasonContext AND kept on window for legacy CDN consumers
+        // Also aliased as openPlayerModal so flash-brief, global-view, etc. all use the same entry point
         const selectPlayer = useCallback((pid) => {
-            if (typeof window.openFWPlayerModal === 'function') {
-                window.openFWPlayerModal(pid, playersData, statsData, currentLeague?.scoring_settings || {});
-            } else {
-                setSelectedPlayerPid(pid);
-            }
+            // Close any existing inline card first to prevent nesting
+            setSelectedPlayerPid(null);
+            // Close any existing full modal
+            if (typeof window.closeFWPlayerModal === 'function') window.closeFWPlayerModal();
+            // Small delay to ensure clean close before re-open
+            setTimeout(() => {
+                if (typeof window.openFWPlayerModal === 'function') {
+                    window.openFWPlayerModal(pid, playersData, statsData, currentLeague?.scoring_settings || {});
+                } else {
+                    setSelectedPlayerPid(pid);
+                }
+            }, 10);
         }, [playersData, statsData, currentLeague]);
         window._wrSelectPlayer = selectPlayer;
+        window.openPlayerModal = selectPlayer;
 
         // Derived selectors — modules use these, never compute their own
         const isCurrentYear = timeYear === currentSeason;
@@ -1972,8 +1981,30 @@
 
         // --- My Team Tab helpers ---
         function getAcquisitionInfo(pid, rosterId) {
-            // Check recent transactions (waiver claims, FA adds)
-            const txns = transactions || [];
+            // Check manual override first
+            try {
+                const overrides = JSON.parse(localStorage.getItem('wr_acquired_overrides') || '{}');
+                if (overrides[pid]) return overrides[pid];
+            } catch {}
+
+            // Collect ALL transactions from window.S.transactions (all weeks) + recent list
+            const allTxns = [];
+            const txnMap = window.S?.transactions || {};
+            if (typeof txnMap === 'object' && !Array.isArray(txnMap)) {
+                Object.values(txnMap).forEach(arr => { if (Array.isArray(arr)) allTxns.push(...arr); });
+            }
+            // Also include the component-level transactions
+            if (transactions?.length) allTxns.push(...transactions);
+            // Deduplicate by transaction_id
+            const seen = new Set();
+            const txns = allTxns.filter(t => {
+                const key = t.transaction_id || (t.created + '-' + t.type);
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            }).sort((a, b) => (b.created || 0) - (a.created || 0));
+
+            // Check waiver/FA transactions (most recent first)
             for (const t of txns) {
                 if ((t.type === 'waiver' || t.type === 'free_agent') && t.adds && t.adds[pid] != null) {
                     const cost = t.settings?.waiver_bid || 0;
@@ -1981,7 +2012,7 @@
                     return { method: t.type === 'waiver' ? 'Waiver' : 'FA', date, cost: cost > 0 ? '$' + cost : '', season: '', week: 0 };
                 }
             }
-            // Check trades — search both LI trade history and raw transactions
+            // Check trades — search LI trade history
             const trades = window.App?.LI?.tradeHistory || [];
             for (const t of trades) {
                 if (!t.sides) continue;
@@ -2005,7 +2036,7 @@
             if (draftPick) {
                 return { method: 'Drafted', date: draftPick.season + ' R' + draftPick.round, cost: '', season: draftPick.season, week: 0 };
             }
-            // Default: original/unknown
+            // Default: original/keeper
             return { method: 'Original', date: '\u2014', cost: '', season: '', week: 0 };
         }
 

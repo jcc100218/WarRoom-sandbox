@@ -816,23 +816,33 @@
                             const aiDna = typeof computeWeightedDNA === 'function' ? computeWeightedDNA(rid) : null;
                             const currentDna = ownerDna[a.ownerId] || aiDna?.key || 'NONE';
                             const isOverridden = ownerDna[a.ownerId] && aiDna && ownerDna[a.ownerId] !== aiDna.key;
+                            const isExpanded = expandedDnaOwner === rid;
                             return (
-                                <div key={a.rosterId} className={`tc-dna-card${dnaKey&&dnaKey!=='NONE'?' tc-dna-set':''}`} onClick={() => setExpandedDnaOwner(expandedDnaOwner === rid ? null : rid)} style={{ cursor:'pointer' }}>
+                                <div key={a.rosterId} className={`tc-dna-card${dnaKey&&dnaKey!=='NONE'?' tc-dna-set':''}`} onClick={() => setExpandedDnaOwner(isExpanded ? null : rid)} style={{ cursor:'pointer' }}>
+                                    {/* ── COMPACT VIEW (always visible) ── */}
                                     <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
                                         <div style={{ width:32, height:32, borderRadius:'50%', background:'var(--charcoal)', overflow:'hidden', flexShrink:0, border:'1.5px solid rgba(212,175,55,0.3)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                                             {avatarSrc ? <img src={avatarSrc} alt={a.ownerName} style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e => e.target.style.display='none'} /> : <span style={{ fontSize:'0.75rem', color:'var(--gold)', fontWeight:700 }}>{a.ownerName.charAt(0).toUpperCase()}</span>}
                                         </div>
-                                        <div style={{ overflow:'hidden' }}>
+                                        <div style={{ overflow:'hidden', flex:1 }}>
                                             <div style={{ fontWeight:700, fontSize:'0.82rem', display:'flex', alignItems:'center', gap:'0.35rem' }}>{a.ownerName}{isMyTeam && <span className="tc-my-team-badge">ME</span>}{tradeCount > 0 && <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.6, fontWeight:400 }}>{tradeCount} trades</span>}</div>
                                             <div style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.6 }}>{a.teamName}</div>
                                         </div>
                                         <span className="tc-tier-badge" style={{ marginLeft:'auto', flexShrink:0, color:a.tierColor, borderColor:a.tierColor, background:a.tierBg }}>{a.tier}</span>
                                     </div>
-                                    <div style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
-                                        <span style={{ fontSize:'0.72rem', color:'var(--silver)', opacity:0.65 }}>Posture:</span>
+                                    <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', flexWrap:'wrap' }}>
                                         <span className="tc-posture-badge" style={{ color:posture.color, borderColor:posture.color, background:`${posture.color}18` }}>{posture.label}</span>
+                                        {aiDna && <span style={{ fontSize:'0.7rem', color: DNA_TYPES[aiDna.key]?.color || 'var(--silver)', fontWeight:600 }}>{DNA_TYPES[aiDna.key]?.label || '?'}</span>}
+                                        <div style={{ display:'flex', gap:'0.5rem', marginLeft:'auto', fontSize:'0.72rem' }}>
+                                            <span style={{ color:a.tierColor, fontWeight:600 }}>{a.healthScore}</span>
+                                            <span style={{ color:'var(--silver)', opacity:0.5 }}>{a.wins}-{a.losses}</span>
+                                        </div>
+                                        <span style={{ fontSize:'0.65rem', color:'var(--silver)', opacity:0.4 }}>{isExpanded ? '▲' : '▼'}</span>
                                     </div>
-                                    <div onClick={e => e.stopPropagation()}>
+
+                                    {/* ── EXPANDED VIEW (click to reveal) ── */}
+                                    {isExpanded && (<>
+                                    <div style={{ marginTop:'8px', paddingTop:'8px', borderTop:'1px solid rgba(255,255,255,0.06)' }} onClick={e => e.stopPropagation()}>
                                         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.2rem' }}>
                                             <span style={{ fontSize:'0.7rem', color:'var(--silver)', opacity:0.65, textTransform:'uppercase', letterSpacing:'0.06em' }}>Owner DNA</span>
                                             {(() => { const derived = deriveDNAFromHistory(a.ownerId, grudges); if (!derived) return null; const d = DNA_TYPES[derived]; return (<span style={{ fontSize:'0.78rem', fontWeight:700, padding:'0.1rem 0.35rem', borderRadius:3, border:`1px solid ${d?.color}55`, color:d?.color, background:`${d?.color}10` }}>AUTO: {d?.label}</span>); })()}
@@ -880,6 +890,7 @@
                                         <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Rajdhani, sans-serif', fontSize:'1rem', color:a.panic>=3?'var(--loss-red)':'var(--silver)' }}>{a.panic}/5</div><div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.65 }}>PANIC</div></div>
                                         <div style={{ textAlign:'center' }}><div style={{ fontFamily:'Rajdhani, sans-serif', fontSize:'1rem', color:'var(--silver)' }}>{a.wins}-{a.losses}</div><div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.65 }}>RECORD</div></div>
                                     </div>
+                                    </>)}
                                     {expandedDnaOwner === rid && (() => {
                                         const trades = (window.App?.LI?.tradeHistory || []).filter(t => t.roster_ids?.includes(rid));
                                         const profile = window.App?.LI?.ownerProfiles?.[rid] || {};
