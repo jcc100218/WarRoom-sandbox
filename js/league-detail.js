@@ -2062,6 +2062,7 @@
                         { section: 'LEAGUE' },
                         { label: 'League Map', tab: 'league' },
                         { label: 'Trophy Room', tab: 'trophies' },
+                        { label: 'Calendar', tab: 'calendar' },
                         { section: 'SYSTEM' },
                         { label: 'Settings', action: () => onOpenSettings && onOpenSettings() },
                     ].map((item, i) => {
@@ -2370,6 +2371,9 @@
                     playersData={playersData}
                     myRoster={myRoster}
                     sleeperUserId={sleeperUserId}
+                /> : activeTab === 'calendar' ? <CalendarTab
+                    currentLeague={currentLeague}
+                    myRoster={myRoster}
                 /> : (
                 <DashboardPanel
                     selectedWidgets={selectedWidgets}
