@@ -13,6 +13,29 @@ function TrophyRoomTab({ currentLeague, playersData, myRoster, sleeperUserId }) 
     const [recapStatus, setRecapStatus] = useState(''); // '' | 'generating' | 'done'
     const [recapText, setRecapText] = useState('');
 
+    // ── Export as image ──
+    async function exportAsImage(elementId, filename) {
+        const el = document.getElementById(elementId);
+        if (!el || typeof window.html2canvas !== 'function') {
+            // Fallback: copy text
+            const text = el?.innerText || '';
+            navigator.clipboard?.writeText(text);
+            return;
+        }
+        try {
+            const canvas = await window.html2canvas(el, { backgroundColor: '#0a0a0a', scale: 2, useCORS: true });
+            canvas.toBlob(blob => {
+                if (!blob) return;
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = (filename || 'trophy-card') + '.png';
+                a.click();
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        } catch (e) { console.warn('[TrophyRoom] Export error:', e); }
+    }
+
     // Load chronicles from localStorage
     const CHRONICLES_KEY = 'wr_chronicles_' + (currentLeague?.id || '');
     const [chronicles, setChronicles] = useState(() => {
@@ -49,9 +72,10 @@ function TrophyRoomTab({ currentLeague, playersData, myRoster, sleeperUserId }) 
 
         return React.createElement('div', null,
             // Championship Timeline
-            React.createElement('div', { style: cardStyle },
-                React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+            React.createElement('div', { id: 'trophy-champ-card', style: cardStyle },
+                React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
                     React.createElement('div', { style: { ...headerStyle, flex: 1, marginBottom: 0 } }, 'CHAMPIONSHIP TIMELINE'),
+                    React.createElement('button', { onClick: () => exportAsImage('trophy-champ-card', (currentLeague?.name || 'league') + '-championships'), style: { background: 'none', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', color: 'var(--gold)', fontSize: '0.65rem', fontWeight: 700, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' } }, '\uD83D\uDCF7 Image'),
                     React.createElement('button', { onClick: () => {
                         const text = seasons.map(s => {
                             const c = championships[s];
@@ -61,9 +85,9 @@ function TrophyRoomTab({ currentLeague, playersData, myRoster, sleeperUserId }) 
                         }).join('\n');
                         navigator.clipboard?.writeText(currentLeague?.name + ' Championships\n' + text).then(() => {
                             const btn = document.getElementById('share-champ-btn');
-                            if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Share', 1500); }
+                            if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 1500); }
                         });
-                    }, id: 'share-champ-btn', style: { background: 'none', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', color: 'var(--gold)', fontSize: '0.65rem', fontWeight: 700, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' } }, 'Share'),
+                    }, id: 'share-champ-btn', style: { background: 'none', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', color: 'var(--gold)', fontSize: '0.65rem', fontWeight: 700, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' } }, 'Copy'),
                 ),
                 React.createElement('div', { style: { marginTop: '10px' } }),
                 seasons.length === 0

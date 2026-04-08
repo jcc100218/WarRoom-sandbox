@@ -214,10 +214,14 @@ function DashboardPanel({
         const val = computeKpiValue(kpiKey);
         const clickTab = categoryToTab[opt.category];
         return (
-            <div key={kpiKey + '-' + idx} onClick={() => { if (clickTab && !isEditing && setActiveTab) setActiveTab(clickTab); }} style={{
-                ...kpiCardStyle, position: 'relative', cursor: clickTab ? 'pointer' : 'default',
-                border: isEditing ? '1px solid var(--gold)' : kpiCardStyle.border,
-                gridColumn: 'span 1'
+            <div key={kpiKey + '-' + idx}
+                draggable={!isEditing} onDragStart={e => handleDragStart(e, idx)} onDragOver={handleDragOver} onDrop={e => handleDrop(e, idx)}
+                onClick={() => { if (clickTab && !isEditing && setActiveTab) setActiveTab(clickTab); }}
+                style={{
+                ...kpiCardStyle, position: 'relative', cursor: clickTab ? 'pointer' : 'grab',
+                border: isEditing ? '1px solid var(--gold)' : dragIdx === idx ? '1px dashed var(--gold)' : kpiCardStyle.border,
+                opacity: dragIdx === idx ? 0.5 : 1,
+                gridColumn: 'span 1', transition: 'opacity 0.15s, border 0.15s'
             }}>
                 {/* Edit button */}
                 <button onClick={e => { e.stopPropagation(); setEditingKpi(isEditing ? null : idx); }}
@@ -432,6 +436,27 @@ function DashboardPanel({
                 )}
             </div>
         );
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // DRAG-AND-DROP REORDER
+    // ══════════════════════════════════════════════════════════════
+    const [dragIdx, setDragIdx] = React.useState(null);
+
+    function handleDragStart(e, idx) {
+        setDragIdx(idx);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', idx);
+    }
+    function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+    function handleDrop(e, targetIdx) {
+        e.preventDefault();
+        if (dragIdx === null || dragIdx === targetIdx) return;
+        const updated = [...selectedWidgets];
+        const [moved] = updated.splice(dragIdx, 1);
+        updated.splice(targetIdx, 0, moved);
+        setSelectedWidgets(updated);
+        setDragIdx(null);
     }
 
     // ══════════════════════════════════════════════════════════════

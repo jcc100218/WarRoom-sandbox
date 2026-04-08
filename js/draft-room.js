@@ -264,16 +264,32 @@
                             <div style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>No draft scheduled yet</div>
                         </div>}
 
-                        {/* Draft Class Preview */}
+                        {/* Draft Class Scouting Report */}
                         <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px' }}>
-                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Draft Class Preview</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.6 }}>
-                                Based on PFF and consensus rankings, the strongest position groups in the upcoming draft class are typically available via the AI advisor. Click the War Room Scout panel and ask about specific positions or prospects.
+                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Scouting Report</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '8px' }}>
+                                Full {leagueSeason} rookie class analysis — positions to target, specific prospects, pick strategy, and traps to avoid.
                             </div>
-                            <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
-                                <button onClick={() => { if (typeof setReconPanelOpen === 'function') { setReconPanelOpen(true); sendReconMessage('What are the strongest position groups in the upcoming rookie draft class?'); } }}
-                                    style={{ padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '4px', color: 'var(--gold)', cursor: 'pointer' }}>
-                                    Ask Alex about draft class
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                <button onClick={() => {
+                                    if (typeof setReconPanelOpen !== 'function') return;
+                                    setReconPanelOpen(true);
+                                    const needs = assess?.needs?.slice(0, 4).map(n => (typeof n === 'string' ? n : n.pos) + (n.urgency === 'deficit' ? ' (CRITICAL)' : '')).join(', ') || 'balanced';
+                                    const picks = myPicks.filter(p => p.year === leagueSeason).map(p => 'R' + p.round + '.' + (p.pick || '??')).join(', ') || 'unknown';
+                                    sendReconMessage(
+                                        `SEARCH THE WEB for current ${leagueSeason} NFL draft prospect rankings. Generate a FULL scouting report for my ${currentLeague?.rosters?.length || 12}-team dynasty league.\n\n` +
+                                        `MY NEEDS: ${needs}\nMY PICKS: ${picks}\n\n` +
+                                        `Format as:\n1. TOP 3 POSITIONS TO TARGET — why each, citing roster gaps and class depth\n` +
+                                        `2. DRAFT BOARD — 6 specific rookies with name, pos, NFL team, which of MY picks, and why\n` +
+                                        `3. PICK STRATEGY — trade up/down advice based on value\n` +
+                                        `4. AVOID — positions or rounds with poor returns\n\nBe specific with real prospect names.`
+                                    );
+                                }} style={{ padding: '6px 14px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', color: 'var(--gold)', cursor: 'pointer', fontWeight: 600 }}>
+                                    Generate Full Report
+                                </button>
+                                <button onClick={() => { if (typeof setReconPanelOpen === 'function') { setReconPanelOpen(true); sendReconMessage('What are the strongest position groups in the ' + leagueSeason + ' rookie draft class? Who are the top 3 prospects at each position?'); } }}
+                                    style={{ padding: '6px 14px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--silver)', cursor: 'pointer' }}>
+                                    Class Overview
                                 </button>
                             </div>
                         </div>
