@@ -2374,7 +2374,7 @@
                 /> : activeTab === 'calendar' ? <CalendarTab
                     currentLeague={currentLeague}
                     myRoster={myRoster}
-                /> : (
+                /> : activeTab === 'brief' ? null : (
                 <DashboardPanel
                     selectedWidgets={selectedWidgets}
                     setSelectedWidgets={setSelectedWidgets}

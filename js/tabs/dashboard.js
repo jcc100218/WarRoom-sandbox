@@ -294,10 +294,10 @@ function DashboardPanel({
         const widget = selectedWidgets[idx] || {};
         return (
             <div style={{
-                position: 'absolute', bottom: '100%', left: '-4px', right: '-4px', marginBottom: '4px',
+                position: 'absolute', top: '0', left: '-4px', right: '-4px',
                 background: '#0a0a0a', border: '2px solid rgba(212,175,55,0.4)',
                 borderRadius: '8px', zIndex: 50, maxHeight: '320px', overflowY: 'auto',
-                boxShadow: '0 -8px 32px rgba(0,0,0,0.6)'
+                boxShadow: '0 8px 32px rgba(0,0,0,0.6)'
             }}>
                 {/* Remove widget option */}
                 <div onClick={() => {
@@ -438,7 +438,7 @@ function DashboardPanel({
     return (
         <React.Fragment>
             <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px',
+                display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px',
                 padding: '16px 24px', background: 'var(--black)',
                 borderBottom: '1px solid rgba(212,175,55,0.15)'
             }}>

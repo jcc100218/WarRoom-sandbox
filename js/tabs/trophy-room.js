@@ -160,36 +160,51 @@ function TrophyRoomTab({ currentLeague, playersData, myRoster, sleeperUserId }) 
                 _statBox('Portfolio', Math.round(o.totalDHQ / 1000) + 'k', 'DHQ Value'),
             ),
 
-            // Season Timeline
-            o.seasonHistory.length > 0 && React.createElement('div', { style: cardStyle },
-                React.createElement('div', { style: headerStyle }, 'SEASON TIMELINE'),
-                React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
-                    o.seasonHistory.map(s => React.createElement('div', { key: s.season, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', background: s.finish === 'Champion' ? 'rgba(212,175,55,0.1)' : 'transparent' } },
-                        React.createElement('span', { style: { fontSize: '0.85rem', minWidth: '20px' } }, finishIcon(s.finish)),
-                        React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 600, color: 'var(--white)', minWidth: '40px' } }, s.season),
-                        React.createElement('span', { style: { fontSize: '0.75rem', color: s.finish === 'Champion' ? 'var(--gold)' : 'var(--silver)', flex: 1 } }, s.finish),
-                        s.hadFirstPick && React.createElement('span', { style: goldBadge }, '1.01'),
-                    )),
+            // 3-column: Season Timeline | Best Pick | Rivalries
+            React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginBottom: '12px' } },
+                // Season Timeline (filter out current unfinished year)
+                o.seasonHistory.length > 0 && React.createElement('div', { style: cardStyle },
+                    React.createElement('div', { style: headerStyle }, 'SEASONS'),
+                    React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '2px' } },
+                        o.seasonHistory.filter(s => {
+                            const curYear = String(currentLeague?.season || new Date().getFullYear());
+                            return s.season !== curYear || s.finish === 'Champion' || s.finish === 'Runner-Up';
+                        }).map(s => React.createElement('div', { key: s.season, style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', borderRadius: '4px', background: s.finish === 'Champion' ? 'rgba(212,175,55,0.1)' : 'transparent' } },
+                            React.createElement('span', { style: { fontSize: '0.75rem', minWidth: '16px' } }, finishIcon(s.finish)),
+                            React.createElement('span', { style: { fontSize: '0.72rem', fontWeight: 600, color: 'var(--white)', minWidth: '32px' } }, s.season),
+                            React.createElement('span', { style: { fontSize: '0.68rem', color: s.finish === 'Champion' ? 'var(--gold)' : 'var(--silver)', flex: 1 } }, s.finish),
+                        )),
+                    ),
                 ),
-            ),
 
-            // Best Draft Pick
-            o.bestPick && React.createElement('div', { style: cardStyle },
-                React.createElement('div', { style: headerStyle }, 'BEST DRAFT PICK'),
-                React.createElement('div', { style: { fontSize: '0.85rem', color: 'var(--white)' } }, o.bestPick.name, ' (', o.bestPick.pos, ', R', o.bestPick.round, ' \u2014 ', o.bestPick.season, ')'),
-            ),
+                // Best Draft Pick — highest current DHQ from any drafted player
+                (() => {
+                    const draftOutcomes = window.App?.LI?.draftOutcomes || [];
+                    const myDrafted = draftOutcomes.filter(d => d.roster_id === o.rosterId);
+                    const withDHQ = myDrafted.map(d => ({ ...d, dhq: window.App?.LI?.playerScores?.[d.player_id] || 0 })).filter(d => d.dhq > 0);
+                    const best = withDHQ.sort((a, b) => b.dhq - a.dhq)[0];
+                    if (!best) return null;
+                    return React.createElement('div', { style: cardStyle },
+                        React.createElement('div', { style: headerStyle }, 'BEST DRAFT PICK'),
+                        React.createElement('div', { style: { fontSize: '0.82rem', fontWeight: 600, color: 'var(--white)' } }, best.name),
+                        React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', marginTop: '2px' } }, best.pos, ' \u00B7 R', best.round, ' \u00B7 ', best.season),
+                        React.createElement('div', { style: { fontSize: '1rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'JetBrains Mono, monospace', marginTop: '4px' } }, best.dhq.toLocaleString(), ' DHQ'),
+                    );
+                })(),
 
-            // Rivalries
-            o.rivalries.length > 0 && React.createElement('div', { style: cardStyle },
-                React.createElement('div', { style: headerStyle }, 'RIVALRIES'),
-                React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
-                    o.rivalries.map((r, i) => {
-                        const opp = ownerHistory[r.opponent];
-                        return React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem' } },
-                            React.createElement('span', { style: { color: 'var(--white)', fontWeight: 600, flex: 1 } }, opp?.ownerName || 'Team'),
-                            React.createElement('span', { style: { color: r.wins > r.losses ? '#2ECC71' : r.wins < r.losses ? '#E74C3C' : 'var(--silver)', fontWeight: 700, fontFamily: 'JetBrains Mono, monospace' } }, r.wins, '-', r.losses),
-                        );
-                    }),
+                // Rivalries — fix: use r.rosterId not r.opponent
+                o.rivalries.length > 0 && React.createElement('div', { style: cardStyle },
+                    React.createElement('div', { style: headerStyle }, 'RIVALRIES'),
+                    React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
+                        o.rivalries.map((r, i) => {
+                            const oppRid = r.rosterId || r.opponent;
+                            const opp = ownerHistory[oppRid];
+                            return React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' } },
+                                React.createElement('span', { style: { color: 'var(--white)', fontWeight: 600, flex: 1 } }, opp?.ownerName || ('Team ' + oppRid)),
+                                React.createElement('span', { style: { color: r.wins > r.losses ? '#2ECC71' : r.wins < r.losses ? '#E74C3C' : 'var(--silver)', fontWeight: 700, fontFamily: 'JetBrains Mono, monospace' } }, r.wins, '-', r.losses),
+                            );
+                        }),
+                    ),
                 ),
             ),
         );
@@ -224,7 +239,9 @@ Return ONLY valid JSON with this structure (include only sections that exist in 
 Here is the data:
 ${importText.substring(0, 8000)}`;
 
-            const reply = await window.OD.callAI({ type: 'general', context: prompt });
+            const reply = typeof window.callClaude === 'function'
+                ? await window.callClaude([{ role: 'user', content: prompt }])
+                : await window.OD.callAI({ type: 'general', context: prompt });
             const text = typeof reply === 'string' ? reply : reply?.text || reply?.response || '';
             // Extract JSON from response
             const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -382,7 +399,9 @@ Teams: ${owners.length}
 
 Make it feel like a real sports story. Give it a compelling headline. End with a look-ahead line about next season.`;
 
-            const reply = await window.OD.callAI({ type: 'general', context: prompt });
+            const reply = typeof window.callClaude === 'function'
+                ? await window.callClaude([{ role: 'user', content: prompt }])
+                : await window.OD.callAI({ type: 'general', context: prompt });
             const text = typeof reply === 'string' ? reply : reply?.text || reply?.response || '';
             setRecapText(text);
             setRecapStatus('done');
