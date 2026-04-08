@@ -71,9 +71,11 @@
                     return hasValue || p.team;
                 })
                 .map(([pid, p]) => {
-                    const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+                    let dhq = window.App?.LI?.playerScores?.[pid] || 0;
                     // Enrich with CSV data from The Beast
                     const csv = typeof window.findProspect === 'function' ? window.findProspect((p.first_name || '') + ' ' + (p.last_name || '')) : null;
+                    // For IDP/K rookies with no DHQ from engine, use CSV draftScore as fallback
+                    if (dhq === 0 && csv?.draftScore) dhq = csv.draftScore;
                     return { pid, p, dhq, csv };
                 });
 
@@ -526,7 +528,7 @@
                             else if (k === 'pos') { va = normPos(a.p.position) || ''; vb = normPos(b.p.position) || ''; }
                             else if (k === 'age') { va = a.p.age || (a.p.birth_date ? Math.floor((Date.now() - new Date(a.p.birth_date).getTime()) / 31557600000) : 99); vb = b.p.age || (b.p.birth_date ? Math.floor((Date.now() - new Date(b.p.birth_date).getTime()) / 31557600000) : 99); }
                             else if (k === 'fit') { va = computeFitScore(a).score; vb = computeFitScore(b).score; }
-                            else if (k === 'school') { va = (a.p.college || '').toLowerCase(); vb = (b.p.college || '').toLowerCase(); }
+                            else if (k === 'school') { va = (a.csv?.college || a.p.college || '').toLowerCase(); vb = (b.csv?.college || b.p.college || '').toLowerCase(); }
                             else { va = 0; vb = 0; }
                             if (typeof va === 'string') return va < vb ? -boardSort.dir : va > vb ? boardSort.dir : 0;
                             return ((va || 0) - (vb || 0)) * boardSort.dir;
@@ -575,16 +577,19 @@
                     if (boardPosFilter) myBoardPlayers = myBoardPlayers.filter(r => normPos(r.p.position) === boardPosFilter);
 
                     // Compact board renderer (used for both sides)
+                    const sortArrow = (key) => boardSort.key === key ? (boardSort.dir === -1 ? ' \u25BC' : ' \u25B2') : '';
+                    const toggleSort = (key) => setBoardSort(prev => prev.key === key ? { ...prev, dir: prev.dir * -1 } : { key, dir: key === 'name' || key === 'school' ? 1 : -1 });
+                    const sortHdr = { cursor: 'pointer', userSelect: 'none' };
                     const renderCompactBoard = (players, isDhq) => (
                         <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px', overflow: 'hidden', maxHeight: 'none', overflowY: 'visible' }}>
-                            {/* Header */}
+                            {/* Header — clickable to sort */}
                             <div style={{ display: 'flex', height: '32px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.68rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1 }}>
                                 <div style={{ width: '24px', flexShrink: 0, textAlign: 'center' }}>#</div>
-                                <div style={{ flex: 1, padding: '0 4px', minWidth: 0 }}>Player</div>
-                                <div style={{ width: '30px', flexShrink: 0, textAlign: 'center' }}>Pos</div>
-                                <div style={{ width: '28px', flexShrink: 0, textAlign: 'center' }}>Age</div>
-                                <div style={{ width: '46px', flexShrink: 0, textAlign: 'right' }}>DHQ</div>
-                                <div style={{ width: '60px', flexShrink: 0, padding: '0 4px', overflow: 'hidden' }}>School</div>
+                                <div onClick={() => toggleSort('name')} style={{ ...sortHdr, flex: 1, padding: '0 4px', minWidth: 0 }}>Player{sortArrow('name')}</div>
+                                <div onClick={() => toggleSort('pos')} style={{ ...sortHdr, width: '30px', flexShrink: 0, textAlign: 'center' }}>Pos{sortArrow('pos')}</div>
+                                <div onClick={() => toggleSort('age')} style={{ ...sortHdr, width: '28px', flexShrink: 0, textAlign: 'center' }}>Age{sortArrow('age')}</div>
+                                <div onClick={() => toggleSort('dhq')} style={{ ...sortHdr, width: '46px', flexShrink: 0, textAlign: 'right' }}>DHQ{sortArrow('dhq')}</div>
+                                <div onClick={() => toggleSort('school')} style={{ ...sortHdr, width: '60px', flexShrink: 0, padding: '0 4px', overflow: 'hidden' }}>School{sortArrow('school')}</div>
                                 <div style={{ width: '20px', flexShrink: 0 }}></div>
                                 {!isDhq && <div style={{ width: '28px', flexShrink: 0 }}></div>}
                             </div>

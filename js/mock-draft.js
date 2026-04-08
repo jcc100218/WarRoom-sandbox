@@ -151,7 +151,24 @@ function MockDraftSimulator({ playersData, myRoster, currentLeague, draftRounds:
     const defaultSize = window.S?.rosters?.length || currentLeague?.rosters?.length || 12;
     const [rounds,     setRounds]     = useState(propRounds || 5);
     const [leagueSize, setLeagueSize] = useState(defaultSize);
-    const [draftPos,   setDraftPos]   = useState(Math.min(6, defaultSize));
+
+    // Auto-detect draft position from league standings (worst record = 1st pick)
+    const detectedDraftPos = useMemo(() => {
+        const rosters = window.S?.rosters || currentLeague?.rosters || [];
+        const myRid = myRoster?.roster_id;
+        if (!myRid || rosters.length < 2) return Math.min(6, defaultSize);
+        // Rookie drafts: worst record picks first
+        const sorted = [...rosters].sort((a, b) => {
+            const wa = a.settings?.wins || 0, wb = b.settings?.wins || 0;
+            if (wa !== wb) return wa - wb; // fewer wins = earlier pick
+            const pa = a.settings?.fpts || 0, pb = b.settings?.fpts || 0;
+            return pa - pb; // fewer points = earlier pick
+        });
+        const pos = sorted.findIndex(r => r.roster_id === myRid) + 1;
+        return pos > 0 ? pos : Math.min(6, defaultSize);
+    }, [myRoster, currentLeague]);
+
+    const [draftPos,   setDraftPos]   = useState(detectedDraftPos);
     const [draftType,  setDraftType]  = useState('snake');
 
     /* ── Draft state (single object avoids stale-closure issues) ─ */
@@ -279,7 +296,7 @@ function MockDraftSimulator({ playersData, myRoster, currentLeague, draftRounds:
                 label: 'Your Draft Position', value: draftPos, onChange: e => setDraftPos(+e.target.value),
                 opts: Array.from({ length: leagueSize }, (_, i) => ({
                     v: i + 1,
-                    l: `Pick ${i + 1}${i === 0 ? ' — 1st overall' : i === leagueSize - 1 ? ' — Last' : ''}`,
+                    l: `Pick ${i + 1}${i + 1 === detectedDraftPos ? ' — Your slot (by record)' : i === 0 ? ' — 1st overall' : i === leagueSize - 1 ? ' — Last' : ''}`,
                 })),
             },
             {
