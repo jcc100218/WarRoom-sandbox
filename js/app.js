@@ -20,7 +20,7 @@
         React.useEffect(function() {
             if (!window.OD || !window.OD.loadFieldLog) { setNoSupabase(true); setEntries([]); return; }
             setNoSupabase(false);
-            window.OD.loadFieldLog(null, 60)
+            window.OD.loadFieldLog(window.S?.currentLeagueId || null, 60)
                 .then(function(data) { setEntries(data || []); })
                 .catch(function() { setEntries([]); });
         }, [lastRefresh]);
