@@ -8,7 +8,9 @@
     "cap:ios": "npx cap open ios",
     "cap:android": "npx cap open android",
     "cap:build:android": "npx cap build android",
-    "prepare": "husky"
+    "prepare": "husky",
+    "start": "live-server --port=3001 --no-browser",
+    "dev": "live-server --port=3001"
   },
   "keywords": [
     "fantasy",
@@ -28,7 +30,8 @@
     "@eslint/js": "^10.0.1",
     "eslint": "^10.2.0",
     "husky": "^9.1.7",
-    "lint-staged": "^16.4.0"
+    "lint-staged": "^16.4.0",
+    "live-server": "^1.2.2"
   },
   "lint-staged": {
     "*.js": [
