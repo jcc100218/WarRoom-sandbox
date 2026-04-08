@@ -146,6 +146,7 @@ module.exports = [
         LeagueMapTab: "readonly",
         TrophyRoomTab: "readonly",
         CalendarTab: "readonly",
+        GlobalDashboard: "readonly",
         SettingsModal: "readonly",
         MockDraftPanel: "readonly",
         // ── Analytics / AI helpers ───────────────────────────────────────────

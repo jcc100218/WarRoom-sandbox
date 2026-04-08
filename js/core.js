@@ -133,35 +133,49 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     // ──────────────────────────────────────────────────────────────────────────
 
     // ===== PRODUCT TIER SYSTEM =====
-    // Tiers: 'scout' ($4.99), 'warroom' ($9.99)
+    // Tiers: free → scout → warroom ($9.99) → pro ($12.99) → commissioner ($14.99)
     function getUserTier() {
         try {
             const p = JSON.parse(localStorage.getItem('od_profile_v1') || '{}');
-            if (p.tier === 'warroom' || p.tier === 'commissioner' || p.tier === 'power' || p.tier === 'pro') return 'warroom';
-            if (p.tier === 'scout' || p.tier === 'reconai') return 'scout'; // reconai = legacy pre-rename value
+            if (p.tier === 'commissioner') return 'commissioner';
+            if (p.tier === 'pro' || p.tier === 'power') return 'pro';
+            if (p.tier === 'warroom') return 'warroom';
+            if (p.tier === 'scout' || p.tier === 'reconai') return 'scout';
         } catch(e) { wrLog('getUserTier.parse', e); }
-        // Check if dev mode
-        if (new URLSearchParams(window.location.search).has('dev') || window.location.hostname.includes('sandbox')) return 'warroom';
+        if (new URLSearchParams(window.location.search).has('dev') || window.location.hostname.includes('sandbox')) return 'pro';
         return 'free';
     }
 
+    const WR_FEATURES = new Set(['trade-finder', 'deal-analyzer', 'owner-dna', 'league-map', 'command-view', 'projections',
+        'fa-decision-engine', 'big-board', 'draft-simulation', 'analytics-full', 'intelligence-full']);
+    const PRO_FEATURES = new Set(['global-dashboard', 'cross-league-ai', 'unified-trophy-room', 'synced-calendar',
+        'premium-reporting', 'season-recap', 'enhanced-ai', 'player-exposure']);
+
     const TIER_FEATURES = {
-        // Free gets these
         free: new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings']),
-        // Scout adds these
         scout: new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings',
             'ai-unlimited', 'player-cards-full', 'team-diagnosis-full', 'waiver-targets', 'trade-quick-check']),
-        // War Room gets everything
-        warroom: new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings',
-            'ai-unlimited', 'player-cards-full', 'team-diagnosis-full', 'waiver-targets', 'trade-quick-check',
-            'trade-finder', 'deal-analyzer', 'owner-dna', 'league-map', 'command-view', 'projections',
-            'fa-decision-engine', 'big-board', 'draft-simulation', 'analytics-full', 'intelligence-full']),
+        warroom: new Set([...new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings',
+            'ai-unlimited', 'player-cards-full', 'team-diagnosis-full', 'waiver-targets', 'trade-quick-check']),
+            ...WR_FEATURES]),
+        pro: new Set([...new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings',
+            'ai-unlimited', 'player-cards-full', 'team-diagnosis-full', 'waiver-targets', 'trade-quick-check']),
+            ...WR_FEATURES, ...PRO_FEATURES]),
+        commissioner: new Set([...new Set(['my-roster-basic', 'player-cards-basic', 'team-diagnosis-basic', 'ai-1-per-day', 'draft-rankings',
+            'ai-unlimited', 'player-cards-full', 'team-diagnosis-full', 'waiver-targets', 'trade-quick-check']),
+            ...WR_FEATURES, ...PRO_FEATURES,
+            'league-chronicles', 'rule-simulator', 'trade-auditor', 'league-health', 'opus-analysis']),
     };
 
     function canAccess(feature) {
         const tier = getUserTier();
-        return TIER_FEATURES[tier]?.has(feature) || TIER_FEATURES.warroom.has(feature) && tier === 'warroom';
+        return TIER_FEATURES[tier]?.has(feature) || false;
     }
+
+    function isPro() { const t = getUserTier(); return t === 'pro' || t === 'commissioner'; }
+    function isCommissioner() { return getUserTier() === 'commissioner'; }
+    window.isPro = isPro;
+    window.isCommissioner = isCommissioner;
 
     // One-time taste tracking
     function useTaste() {
