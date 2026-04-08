@@ -52,31 +52,73 @@
             return picks;
         }, [tradedPicks, myRoster]);
 
-        // Find rookies — fixed filter to handle missing years_exp
+        // Find rookies — Sleeper + CSV enrichment from The Beast
         const rookies = useMemo(() => {
-            return Object.entries(playersData)
+            const rp = currentLeague?.roster_positions || [];
+            const leagueHasIDP = rp.some(s => ['DL','DE','DT','LB','DB','CB','S','IDP_FLEX'].includes(s));
+
+            // Step 1: Sleeper rookies
+            const sleeperRookies = Object.entries(playersData)
                 .filter(([pid, p]) => {
-                    const exp = p.years_exp;
-                    const isRookie = exp === 0;
-                    if (!isRookie) return false;
-                    // Must have a real name (not Duplicate, Invalid, DUP, or null placeholder)
+                    if (p.years_exp !== 0) return false;
                     const name = p.full_name || '';
                     if (!name || /Duplicate|Invalid|DUP/i.test(name)) return false;
-                    // Must have a football position (filters out coaches, GMs, etc.)
                     if (!p.position || ['HC','OC','DC','GM'].includes(p.position)) return false;
-                    // Must be active status (filters out stale entries from old years)
                     if (p.status === 'Inactive') return false;
-                    // Must have DHQ value OR be on an NFL team
                     const hasValue = (window.App?.LI?.playerScores?.[pid] || 0) > 0;
-                    // Only include IDP rookies if the league has IDP slots
                     const isIDP = ['DL','DE','DT','NT','IDL','EDGE','LB','OLB','ILB','MLB','DB','CB','S','SS','FS'].includes(p.position);
-                    const rp = currentLeague?.roster_positions || [];
-                    const leagueHasIDP = rp.some(s => ['DL','DE','DT','LB','DB','CB','S','IDP_FLEX'].includes(s));
                     if (isIDP && !leagueHasIDP) return false;
                     return hasValue || p.team;
                 })
-                .map(([pid, p]) => ({ pid, p, dhq: window.App?.LI?.playerScores?.[pid] || 0 }))
-                .sort((a, b) => b.dhq - a.dhq);
+                .map(([pid, p]) => {
+                    const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+                    // Enrich with CSV data from The Beast
+                    const csv = typeof window.findProspect === 'function' ? window.findProspect((p.first_name || '') + ' ' + (p.last_name || '')) : null;
+                    return { pid, p, dhq, csv };
+                });
+
+            // Step 2: CSV-only prospects (from enrichment but not in Sleeper)
+            const sleeperNames = new Set(sleeperRookies.map(r => (r.p.full_name || '').toLowerCase().trim()));
+            const csvOnly = [];
+            if (typeof window.getProspects === 'function') {
+                const allCsv = window.getProspects();
+                if (allCsv && allCsv.length) {
+                    allCsv.forEach(csv => {
+                        if (sleeperNames.has((csv.name || '').toLowerCase().trim())) return;
+                        const pos = normPos(csv.mappedPos || csv.pos) || csv.pos;
+                        const isIDP = ['DL','LB','DB','EDGE'].includes(pos);
+                        if (isIDP && !leagueHasIDP) return;
+                        // Build synthetic player object
+                        const nameParts = (csv.name || '').split(' ');
+                        csvOnly.push({
+                            pid: 'csv_' + (csv.name || '').toLowerCase().replace(/[^a-z]/g, '_'),
+                            p: {
+                                full_name: csv.name,
+                                first_name: nameParts[0] || '',
+                                last_name: nameParts.slice(1).join(' ') || '',
+                                position: csv.pos || 'QB',
+                                college: csv.college,
+                                years_exp: 0,
+                                age: csv.age ? parseFloat(csv.age) : null,
+                                team: null,
+                                height: csv.size ? parseInt(csv.size.replace("'", "").split('"')[0]) * 12 + parseInt((csv.size.match(/'(\d+)/)?.[1]) || 0) : null,
+                                weight: csv.weight ? parseInt(csv.weight) : null,
+                            },
+                            dhq: csv.draftScore || 0,
+                            csv,
+                            isCSVOnly: true,
+                        });
+                    });
+                }
+            }
+
+            return [...sleeperRookies, ...csvOnly].sort((a, b) => {
+                // Sort by CSV rank first (if available), then DHQ
+                const aRank = a.csv?.rank || 9999;
+                const bRank = b.csv?.rank || 9999;
+                if (aRank !== bRank) return aRank - bRank;
+                return b.dhq - a.dhq;
+            });
         }, [playersData, timeRecomputeTs]);
 
         const posColors = window.App.POS_COLORS;
@@ -552,8 +594,8 @@
                                 const isDrafted = draftedPids.has(r.pid);
                                 const tag = boardTags[r.pid];
                                 const isExp = expandedDraftPid === r.pid;
-                                const age = r.p.age || (r.p.birth_date ? Math.floor((Date.now() - new Date(r.p.birth_date).getTime()) / 31557600000) : (r.p.years_exp === 0 ? 21 : null));
-                                const college = r.p.college || r.p.metadata?.college || '';
+                                const age = r.p.age || (r.csv?.age ? parseFloat(r.csv.age) : null) || (r.p.birth_date ? Math.floor((Date.now() - new Date(r.p.birth_date).getTime()) / 31557600000) : (r.p.years_exp === 0 ? 21 : null));
+                                const college = r.csv?.college || r.p.college || r.p.metadata?.college || '';
                                 return (
                                     <React.Fragment key={r.pid}>
                                     <div
@@ -619,22 +661,28 @@
                             const fit = computeFitScore(r);
                             const note = boardNotes[r.pid] || '';
                             const tag = boardTags[r.pid];
-                            const age = r.p.age || (r.p.birth_date ? Math.floor((Date.now() - new Date(r.p.birth_date).getTime()) / 31557600000) : r.p.years_exp === 0 ? 21 : '\u2014');
-                            const college = r.p.college || r.p.metadata?.college || '';
+                            const csv = r.csv;
+                            const age = r.p.age || (csv?.age ? parseFloat(csv.age) : null) || (r.p.birth_date ? Math.floor((Date.now() - new Date(r.p.birth_date).getTime()) / 31557600000) : r.p.years_exp === 0 ? 21 : '\u2014');
+                            const college = csv?.college || r.p.college || r.p.metadata?.college || '';
+                            const size = csv?.size || (r.p.height ? Math.floor(r.p.height/12)+"'"+r.p.height%12+'"' : '');
+                            const weight = csv?.weight || r.p.weight || '';
+                            const speed = csv?.speed || '';
+                            const photoSrc = r.isCSVOnly && csv?.espnId ? `https://a.espncdn.com/combiner/i?img=/i/headshots/nfl/players/full/${csv.espnId}.png&w=96&h=70` : `https://sleepercdn.com/content/nfl/players/${r.pid}.jpg`;
                             return (
                                 <div style={{ border: '2px solid rgba(212,175,55,0.25)', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(212,175,55,0.04), rgba(0,0,0,0.3))', padding: '16px 20px', marginBottom: '14px', animation: 'wrFadeIn 0.2s ease' }}>
                                   <div style={{ display: 'flex', gap: '16px', marginBottom: '14px' }}>
                                     <div style={{ flexShrink: 0, position: 'relative' }}>
-                                      <img className={'wr-ring wr-ring-' + pos} src={'https://sleepercdn.com/content/nfl/players/'+r.pid+'.jpg'} alt="" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} style={{ width: '80px', height: '80px', borderRadius: '10px', objectFit: 'cover', objectPosition: 'top', border: '2px solid rgba(212,175,55,0.3)' }} />
+                                      <img className={'wr-ring wr-ring-' + pos} src={photoSrc} alt="" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} style={{ width: '80px', height: '80px', borderRadius: '10px', objectFit: 'cover', objectPosition: 'top', border: '2px solid rgba(212,175,55,0.3)' }} />
                                       <div style={{ display: 'none', width: '80px', height: '80px', borderRadius: '10px', background: 'var(--charcoal)', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', fontWeight: 700, color: 'var(--silver)', border: '2px solid rgba(212,175,55,0.2)' }}>{(r.p.first_name||'?')[0]}{(r.p.last_name||'?')[0]}</div>
                                       <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7rem', fontWeight: 700, padding: '1px 8px', borderRadius: '8px', background: (posColors[pos]||'#666')+'25', color: posColors[pos]||'var(--silver)', whiteSpace: 'nowrap' }}>{pos}</div>
                                     </div>
                                     <div style={{ flex: 1 }}>
-                                      <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', color: 'var(--white)', letterSpacing: '0.02em', lineHeight: 1.1 }}>{r.p.full_name || pName(r.p)}</div>
+                                      <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', color: 'var(--white)', letterSpacing: '0.02em', lineHeight: 1.1 }}>{r.p.full_name || pName(r.p)}{r.isCSVOnly && <span style={{ fontSize: '0.6rem', marginLeft: '8px', padding: '1px 6px', borderRadius: '3px', background: 'rgba(124,107,248,0.15)', color: '#9b8afb', fontFamily: 'Inter, sans-serif', verticalAlign: 'middle' }}>PROSPECT</span>}</div>
                                       <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginTop: '2px' }}>
                                         {pos} {'\u00B7'} {r.p.team || 'TBD'} {'\u00B7'} Age {age} {'\u00B7'} {college || 'Unknown'}
-                                        {r.p.height ? ' \u00B7 ' + Math.floor(r.p.height/12)+"'"+r.p.height%12+'"' : ''}
-                                        {r.p.weight ? ' \u00B7 ' + r.p.weight + 'lbs' : ''}
+                                        {size ? ' \u00B7 ' + size : ''}
+                                        {weight ? ' \u00B7 ' + weight + 'lbs' : ''}
+                                        {speed ? ' \u00B7 ' + speed + 's' : ''}
                                       </div>
                                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
                                         <span style={{ fontSize: '0.72rem', fontWeight: 700, fontFamily: 'Inter, sans-serif', padding: '2px 10px', borderRadius: '10px', background: dhqColVal + '20', color: dhqColVal }}>{r.dhq > 0 ? r.dhq.toLocaleString() + ' DHQ' : 'No DHQ'}</span>
@@ -654,11 +702,14 @@
                                     {[
                                       { label: 'DHQ', val: r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014', col: dhqColVal, gauge: true },
                                       { label: 'FIT', val: fit.label, col: fitColor(fit.score) },
+                                      csv?.rank ? { label: 'RANK', val: '#' + csv.rank, col: csv.rank <= 10 ? '#2ECC71' : csv.rank <= 32 ? '#D4AF37' : 'var(--silver)' } : null,
+                                      csv?.tier ? { label: 'TIER', val: csv.tier, col: csv.tier === 'ELITE' ? '#2ECC71' : csv.tier === 'BLUE_CHIP' ? '#3498DB' : 'var(--gold)' } : null,
                                       { label: 'AGE', val: age, col: typeof age === 'number' && age <= 22 ? '#2ECC71' : 'var(--silver)' },
-                                      { label: 'EXP', val: (r.p.years_exp || 0) + 'yr', col: 'var(--silver)' },
+                                      size ? { label: 'SIZE', val: size, col: 'var(--silver)' } : null,
+                                      weight ? { label: 'WT', val: weight + 'lbs', col: 'var(--silver)' } : null,
+                                      speed ? { label: '40 YD', val: speed + 's', col: parseFloat(speed) <= 4.45 ? '#2ECC71' : 'var(--silver)' } : null,
                                       { label: 'TEAM', val: r.p.team || 'TBD', col: r.p.team ? '#2ECC71' : 'var(--silver)' },
-                                      { label: 'DEPTH', val: r.p.depth_chart_order != null ? '#' + (r.p.depth_chart_order + 1) : '\u2014', col: r.p.depth_chart_order <= 1 ? '#2ECC71' : 'var(--silver)' },
-                                    ].map((s, i) => {
+                                    ].filter(Boolean).map((s, i) => {
                                       const dhqFilled = s.gauge ? Math.round(Math.min(10, r.dhq / 1000)) : 0;
                                       const dhqGaugeCol = r.dhq >= 7000 ? 'filled-green' : r.dhq >= 4000 ? 'filled' : 'filled-red';
                                       return (
@@ -671,6 +722,13 @@
                                   </div>
 
                                   <InlineCareerStats pid={r.pid} pos={pos} player={r.p} scoringSettings={currentLeague?.scoring_settings} statsData={statsData} />
+
+                                  {csv?.summary && (
+                                  <div style={{ background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.12)', borderRadius: '8px', padding: '12px 14px', marginBottom: '12px' }}>
+                                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Scouting Report</div>
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.7 }}>{csv.summary}</div>
+                                  </div>
+                                  )}
 
                                   <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
                                     <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Scouting Notes</div>

@@ -196,7 +196,7 @@ async function loadPlayersFromCSV() {
         enrichmentRaw.forEach(e => {
           const key = e.name.toLowerCase().trim();
           enrichmentMap[key] = {
-            previousRank: parseInt(e.Number, 10) || null,
+            previousRank: parseInt(e.Rank, 10) || null,
             school: e.school || '',
             espn_id: e.espn_id || '',
             photo_url: e.photo_url || '',

@@ -1282,6 +1282,14 @@
 
                 setLoadStage('');
 
+                // Load rookie prospect data from enrichment CSVs (fire-and-forget)
+                if (typeof window.loadRookieProspects === 'function') {
+                    window.loadRookieProspects().then(cache => {
+                        console.log('[War Room] Rookie enrichment loaded:', cache?.count || 0, 'prospects');
+                        setTimeRecomputeTs(Date.now()); // refresh to show enriched data
+                    }).catch(e => console.warn('[War Room] Rookie data load failed:', e));
+                }
+
                 // Load player tags (syncs with ReconAI)
                 if (window.OD?.loadPlayerTags) {
                     window.OD.loadPlayerTags(currentLeague.id || currentLeague.league_id).then(tags => {
