@@ -5,9 +5,19 @@
 // ══════════════════════════════════════════════════════════════════
 
 function TrophyRoomTab({ currentLeague, playersData, myRoster, sleeperUserId }) {
-    const { useState, useMemo } = React;
+    const { useState, useMemo, useEffect } = React;
     const [selectedOwner, setSelectedOwner] = useState(null);
-    const [view, setView] = useState('league'); // 'league' | 'personal'
+    const [view, setView] = useState('league'); // 'league' | 'personal' | 'chronicles' | 'import'
+    const [importText, setImportText] = useState('');
+    const [importStatus, setImportStatus] = useState(''); // '' | 'parsing' | 'done' | 'error'
+    const [recapStatus, setRecapStatus] = useState(''); // '' | 'generating' | 'done'
+    const [recapText, setRecapText] = useState('');
+
+    // Load chronicles from localStorage
+    const CHRONICLES_KEY = 'wr_chronicles_' + (currentLeague?.id || '');
+    const [chronicles, setChronicles] = useState(() => {
+        try { return JSON.parse(localStorage.getItem(CHRONICLES_KEY) || 'null'); } catch { return null; }
+    });
 
     const ownerHistory = useMemo(() => {
         if (typeof buildOwnerHistory !== 'function') return {};
@@ -194,15 +204,228 @@ function TrophyRoomTab({ currentLeague, playersData, myRoster, sleeperUserId }) 
     }
 
     // ══════════════════════════════════════════════════════════════
+    // CHRONICLES IMPORT
+    // ══════════════════════════════════════════════════════════════
+    async function parseChronicles() {
+        if (!importText.trim()) return;
+        setImportStatus('parsing');
+        try {
+            const prompt = `Parse this fantasy football league historical data into structured JSON. The data may include all-time standings, championship history, custom awards, all-time teams, and defunct/former teams.
+
+Return ONLY valid JSON with this structure (include only sections that exist in the data):
+{
+  "leagueName": "string",
+  "standings": [{"team":"string","owner":"string","fromYear":2020,"toYear":null,"isDefunct":false,"wins":0,"losses":0,"winPct":"0%","playoffsMade":0,"playoffWins":0,"playoffLosses":0,"championships":0,"runnerUps":0,"prizeMoney":"$0","awards":{}}],
+  "championshipHistory": [{"year":2024,"winner":"string","winnerScore":0,"loser":"string","loserScore":0,"hsp":{"offense":{"name":"","points":0},"defense":{"name":"","points":0}}}],
+  "customAwards": [{"name":"string","winners":[{"year":2024,"winner":"string","stats":"string"}]}],
+  "allTimeTeam": [{"pos":"QB","name":"string","team":"string","points":0,"year":2024}]
+}
+
+Here is the data:
+${importText.substring(0, 8000)}`;
+
+            const reply = await window.OD.callAI({ type: 'general', context: prompt });
+            const text = typeof reply === 'string' ? reply : reply?.text || reply?.response || '';
+            // Extract JSON from response
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error('Could not parse response as JSON');
+            const parsed = JSON.parse(jsonMatch[0]);
+            setChronicles(parsed);
+            localStorage.setItem(CHRONICLES_KEY, JSON.stringify(parsed));
+            setImportStatus('done');
+            setTimeout(() => setView('chronicles'), 500);
+        } catch (e) {
+            console.warn('[Chronicles] Parse error:', e);
+            setImportStatus('error');
+        }
+    }
+
+    function renderImportView() {
+        return React.createElement('div', null,
+            React.createElement('button', { onClick: () => setView('league'), style: { background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.78rem', cursor: 'pointer', padding: '0 0 10px', fontFamily: 'inherit', fontWeight: 600 } }, '\u2190 Back'),
+            React.createElement('div', { style: cardStyle },
+                React.createElement('div', { style: headerStyle }, 'IMPORT LEAGUE CHRONICLES'),
+                React.createElement('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '12px' } },
+                    'Paste your league\'s historical data below \u2014 all-time standings, championship history, awards, all-time team. Alex will parse the structure and map it into your Trophy Room.'),
+                React.createElement('textarea', {
+                    value: importText, onChange: e => setImportText(e.target.value),
+                    placeholder: 'Paste your spreadsheet data here...\n\nExample:\nTEAM  FROM  TO  W  L  CHMP  2ND\nSkjjcruz  2021  47  22  2  1\n...',
+                    style: { width: '100%', minHeight: '200px', padding: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'var(--white)', fontSize: '0.78rem', fontFamily: 'JetBrains Mono, monospace', resize: 'vertical', boxSizing: 'border-box' }
+                }),
+                React.createElement('button', {
+                    onClick: parseChronicles, disabled: importStatus === 'parsing' || !importText.trim(),
+                    style: { width: '100%', marginTop: '10px', padding: '10px', background: importStatus === 'parsing' ? 'var(--silver)' : 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700, cursor: importStatus === 'parsing' ? 'wait' : 'pointer', fontFamily: 'inherit' }
+                }, importStatus === 'parsing' ? 'Alex is parsing...' : importStatus === 'done' ? 'Imported!' : importStatus === 'error' ? 'Error \u2014 Try Again' : 'Import with Alex'),
+            ),
+        );
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // CHRONICLES VIEW (imported data)
+    // ══════════════════════════════════════════════════════════════
+    function renderChroniclesView() {
+        if (!chronicles) return React.createElement('div', { style: { color: 'var(--silver)', padding: '20px', textAlign: 'center', fontSize: '0.82rem' } },
+            'No chronicles imported yet. Use the Import button to add your league\'s history.');
+
+        return React.createElement('div', null,
+            React.createElement('button', { onClick: () => setView('league'), style: { background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.78rem', cursor: 'pointer', padding: '0 0 10px', fontFamily: 'inherit', fontWeight: 600 } }, '\u2190 Back'),
+
+            // League name
+            chronicles.leagueName && React.createElement('div', { style: { fontSize: '1.1rem', fontWeight: 800, color: 'var(--gold)', marginBottom: '12px', textAlign: 'center', letterSpacing: '-0.02em' } }, chronicles.leagueName),
+
+            // Championship History
+            chronicles.championshipHistory?.length > 0 && React.createElement('div', { style: cardStyle },
+                React.createElement('div', { style: headerStyle }, 'CHAMPIONSHIP HISTORY'),
+                chronicles.championshipHistory.map((c, i) =>
+                    React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 0', borderBottom: i < chronicles.championshipHistory.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' } },
+                        React.createElement('span', { style: { fontSize: '1rem' } }, '\uD83C\uDFC6'),
+                        React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', minWidth: '35px' } }, c.year),
+                        React.createElement('div', { style: { flex: 1 } },
+                            React.createElement('div', { style: { fontSize: '0.82rem', fontWeight: 600, color: 'var(--white)' } }, c.winner, c.winnerScore ? ' ' + c.winnerScore : ''),
+                            c.loser && React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, 'vs ', c.loser, c.loserScore ? ' ' + c.loserScore : ''),
+                        ),
+                        c.hsp?.offense && React.createElement('div', { style: { textAlign: 'right', fontSize: '0.65rem', color: 'var(--silver)' } },
+                            React.createElement('div', null, 'HSP: ', c.hsp.offense.name),
+                            React.createElement('div', null, c.hsp.offense.points, ' pts'),
+                        ),
+                    )
+                ),
+            ),
+
+            // All-Time Standings
+            chronicles.standings?.length > 0 && React.createElement('div', { style: cardStyle },
+                React.createElement('div', { style: headerStyle }, 'ALL-TIME STANDINGS'),
+                React.createElement('div', { style: { overflowX: 'auto' } },
+                    React.createElement('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' } },
+                        React.createElement('thead', null,
+                            React.createElement('tr', null,
+                                ['Team', 'W', 'L', 'W%', 'Chmp', 'PO'].map(h =>
+                                    React.createElement('th', { key: h, style: { padding: '4px 6px', textAlign: h === 'Team' ? 'left' : 'center', color: 'var(--gold)', fontWeight: 700, borderBottom: '1px solid rgba(212,175,55,0.2)' } }, h)
+                                )
+                            ),
+                        ),
+                        React.createElement('tbody', null,
+                            chronicles.standings.map((s, i) =>
+                                React.createElement('tr', { key: i, style: { opacity: s.isDefunct ? 0.4 : 1 } },
+                                    React.createElement('td', { style: { padding: '4px 6px', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap' } }, s.team || s.owner, s.isDefunct && React.createElement('span', { style: { fontSize: '0.6rem', color: 'var(--silver)', marginLeft: '4px' } }, s.fromYear + '-' + (s.toYear || ''))),
+                                    React.createElement('td', { style: { padding: '4px 6px', textAlign: 'center', color: 'var(--silver)' } }, s.wins),
+                                    React.createElement('td', { style: { padding: '4px 6px', textAlign: 'center', color: 'var(--silver)' } }, s.losses),
+                                    React.createElement('td', { style: { padding: '4px 6px', textAlign: 'center', color: 'var(--silver)' } }, s.winPct),
+                                    React.createElement('td', { style: { padding: '4px 6px', textAlign: 'center', color: s.championships > 0 ? 'var(--gold)' : 'var(--silver)', fontWeight: s.championships > 0 ? 700 : 400 } }, s.championships || 0),
+                                    React.createElement('td', { style: { padding: '4px 6px', textAlign: 'center', color: 'var(--silver)' } }, s.playoffsMade || 0),
+                                )
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+
+            // Custom Awards
+            chronicles.customAwards?.length > 0 && React.createElement('div', { style: cardStyle },
+                React.createElement('div', { style: headerStyle }, 'AWARDS'),
+                chronicles.customAwards.map((award, ai) =>
+                    React.createElement('div', { key: ai, style: { marginBottom: ai < chronicles.customAwards.length - 1 ? '12px' : 0 } },
+                        React.createElement('div', { style: { fontSize: '0.75rem', fontWeight: 700, color: 'var(--gold)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' } }, award.name),
+                        (award.winners || []).map((w, wi) =>
+                            React.createElement('div', { key: wi, style: { display: 'flex', gap: '8px', padding: '3px 0', fontSize: '0.72rem' } },
+                                React.createElement('span', { style: { color: 'var(--silver)', minWidth: '35px' } }, w.year),
+                                React.createElement('span', { style: { color: 'var(--white)', fontWeight: 600, flex: 1 } }, w.winner),
+                                w.stats && React.createElement('span', { style: { color: 'var(--silver)', fontSize: '0.65rem' } }, w.stats),
+                            )
+                        ),
+                    )
+                ),
+            ),
+
+            // All-Time Team
+            chronicles.allTimeTeam?.length > 0 && React.createElement('div', { style: cardStyle },
+                React.createElement('div', { style: headerStyle }, 'ALL-TIME TEAM'),
+                chronicles.allTimeTeam.map((p, i) =>
+                    React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', borderBottom: i < chronicles.allTimeTeam.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none', fontSize: '0.78rem' } },
+                        React.createElement('span', { style: { fontWeight: 700, color: 'var(--gold)', minWidth: '28px' } }, p.pos),
+                        React.createElement('span', { style: { fontWeight: 600, color: 'var(--white)', flex: 1 } }, p.name),
+                        p.team && React.createElement('span', { style: { color: 'var(--silver)', fontSize: '0.68rem' } }, p.team),
+                        p.year && React.createElement('span', { style: { color: 'var(--silver)', fontSize: '0.68rem' } }, p.year),
+                        p.points && React.createElement('span', { style: { color: 'var(--gold)', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem' } }, p.points),
+                    )
+                ),
+            ),
+
+            // Re-import button
+            React.createElement('button', { onClick: () => setView('import'), style: { marginTop: '12px', width: '100%', padding: '8px', background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'var(--silver)', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' } }, 'Re-import Chronicles'),
+        );
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // SEASON RECAP GENERATOR
+    // ══════════════════════════════════════════════════════════════
+    async function generateSeasonRecap() {
+        setRecapStatus('generating');
+        try {
+            const season = currentLeague?.season || new Date().getFullYear();
+            const champs = championships || {};
+            const champData = champs[season] || {};
+            const champOwner = ownerHistory[champData.champion];
+            const runnerOwner = ownerHistory[champData.runnerUp];
+
+            const topTeams = owners.slice(0, 5).map(o => o.ownerName + ' (' + o.record + ')').join(', ');
+            const tradeCount = window.App?.LI?.tradeHistory?.length || 0;
+
+            const prompt = `Write a dramatic, entertaining 300-word season recap for a fantasy football league's ${season} season. Write in the style of a sports journalist covering a championship. Use vivid language and narrative storytelling.
+
+League: ${currentLeague?.name || 'Dynasty League'}
+Champion: ${champOwner?.ownerName || 'Unknown'} (${champOwner?.record || '?'})
+Runner-Up: ${runnerOwner?.ownerName || 'Unknown'} (${runnerOwner?.record || '?'})
+Top teams: ${topTeams}
+Total trades: ${tradeCount}
+Teams: ${owners.length}
+
+Make it feel like a real sports story. Give it a compelling headline. End with a look-ahead line about next season.`;
+
+            const reply = await window.OD.callAI({ type: 'general', context: prompt });
+            const text = typeof reply === 'string' ? reply : reply?.text || reply?.response || '';
+            setRecapText(text);
+            setRecapStatus('done');
+        } catch (e) {
+            console.warn('[Recap] Error:', e);
+            setRecapStatus('');
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════
     // MAIN RENDER
     // ══════════════════════════════════════════════════════════════
+    const tabBtn = (label, tabKey, clickOverride) => React.createElement('button', {
+        onClick: clickOverride || (() => setView(tabKey)),
+        style: { padding: '6px 12px', fontSize: '0.72rem', fontWeight: 700, borderRadius: '6px', border: '1px solid ' + (view === tabKey ? 'var(--gold)' : 'rgba(255,255,255,0.1)'), background: view === tabKey ? 'var(--gold)' : 'transparent', color: view === tabKey ? 'var(--black)' : 'var(--silver)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }
+    }, label);
+
     return React.createElement('div', { style: { padding: '0' } },
         // View toggle
-        React.createElement('div', { style: { display: 'flex', gap: '6px', marginBottom: '12px' } },
-            React.createElement('button', { onClick: () => setView('league'), style: { padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '6px', border: '1px solid ' + (view === 'league' ? 'var(--gold)' : 'rgba(255,255,255,0.1)'), background: view === 'league' ? 'var(--gold)' : 'transparent', color: view === 'league' ? 'var(--black)' : 'var(--silver)', cursor: 'pointer', fontFamily: 'inherit' } }, 'League History'),
-            React.createElement('button', { onClick: () => { setView('personal'); if (!selectedOwner) setSelectedOwner(myRoster?.roster_id); }, style: { padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700, borderRadius: '6px', border: '1px solid ' + (view === 'personal' ? 'var(--gold)' : 'rgba(255,255,255,0.1)'), background: view === 'personal' ? 'var(--gold)' : 'transparent', color: view === 'personal' ? 'var(--black)' : 'var(--silver)', cursor: 'pointer', fontFamily: 'inherit' } }, 'My Trophy Case'),
+        React.createElement('div', { style: { display: 'flex', gap: '6px', marginBottom: '12px', overflowX: 'auto', scrollbarWidth: 'none' } },
+            tabBtn('League', 'league'),
+            tabBtn('My Trophies', 'personal', () => { setView('personal'); if (!selectedOwner) setSelectedOwner(myRoster?.roster_id); }),
+            chronicles && tabBtn('Chronicles', 'chronicles'),
+            tabBtn('Import', 'import'),
         ),
 
-        view === 'league' ? renderLeagueView() : renderPersonalView(),
+        // Season Recap button (show on league view)
+        view === 'league' && React.createElement('div', { style: { marginBottom: '12px' } },
+            recapStatus === 'done' && recapText
+                ? React.createElement('div', { style: { ...cardStyle, whiteSpace: 'pre-wrap' } },
+                    React.createElement('div', { style: headerStyle }, 'SEASON RECAP'),
+                    React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.7 } }, recapText),
+                )
+                : React.createElement('button', {
+                    onClick: generateSeasonRecap, disabled: recapStatus === 'generating',
+                    style: { width: '100%', padding: '10px', background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', color: 'var(--gold)', fontSize: '0.78rem', fontWeight: 600, cursor: recapStatus === 'generating' ? 'wait' : 'pointer', fontFamily: 'inherit' }
+                }, recapStatus === 'generating' ? 'Alex is writing...' : 'Generate Season Recap'),
+        ),
+
+        view === 'league' ? renderLeagueView()
+            : view === 'personal' ? renderPersonalView()
+            : view === 'chronicles' ? renderChroniclesView()
+            : view === 'import' ? renderImportView()
+            : renderLeagueView(),
     );
 }
