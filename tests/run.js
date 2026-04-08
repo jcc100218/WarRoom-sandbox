@@ -64,7 +64,7 @@ function makeStorage() {
 function buildCtx() {
   const ls  = makeStorage();
   const ss  = makeStorage();
-  const loc = { search: '', hostname: 'localhost', href: 'http://localhost/' };
+  const loc = { search: '', hostname: 'test.warroom', href: 'http://test.warroom/' };
   const ctx = {
     // React — only the API surface that core.js touches at module scope
     React: {
