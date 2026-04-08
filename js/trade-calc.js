@@ -12,7 +12,7 @@
         const { IDEAL_ROSTER, DRAFT_ROUNDS, PICK_HORIZON, PICK_IDEAL,
                 LINEUP_STARTERS, MIN_STARTER_QUALITY, NFL_STARTER_POOL,
                 POS_PT_TARGETS, POS_WEIGHTS, TOTAL_WEIGHT,
-                PICK_VALUES, PICK_COLORS } = window.App.PlayerValue;
+                PICK_VALUES, PICK_VALUES_BY_SLOT, PICK_COLORS, resolvePickValue: _resolvePickValue } = window.App.PlayerValue;
         const TC_POS_ORDER = { QB:0, RB:1, WR:2, TE:3, K:4, DL:5, LB:6, DB:7 };
         const MAX_VALUE = 10000;
         const FAAB_RATE = 2.0;
@@ -478,6 +478,37 @@
         const allRosters = currentLeague.rosters || [];
         const leagueUsers = currentLeague.users || [];
         const leagueId = currentLeague.id || currentLeague.league_id;
+
+        // Fetch draft slot maps for accurate pick ownership (slot_to_roster_id from Sleeper)
+        const [draftSlotMaps, setDraftSlotMaps] = useState({});
+        useEffect(() => {
+            if (!leagueId) return;
+            (async () => {
+                try {
+                    const drafts = await fetch('https://api.sleeper.app/v1/league/' + leagueId + '/drafts').then(r => r.ok ? r.json() : []);
+                    if (!drafts?.length) return;
+                    const leagueSeason = parseInt(currentLeague.season || new Date().getFullYear());
+                    const pickYears = Array.from({ length: PICK_HORIZON }, (_, i) => leagueSeason + i);
+                    const relevantDrafts = drafts.filter(d => pickYears.includes(Number(d.season)));
+                    if (!relevantDrafts.length) return;
+                    const details = await Promise.all(relevantDrafts.map(d =>
+                        fetch('https://api.sleeper.app/v1/draft/' + d.draft_id).then(r => r.ok ? r.json() : null).catch(() => null)
+                    ));
+                    const maps = {};
+                    details.forEach((d, i) => {
+                        if (!d?.slot_to_roster_id) return;
+                        const year = Number(relevantDrafts[i].season);
+                        const rosterToSlot = {};
+                        Object.entries(d.slot_to_roster_id).forEach(([slot, rosterId]) => {
+                            rosterToSlot[String(rosterId)] = parseInt(slot);
+                        });
+                        maps[year] = rosterToSlot;
+                    });
+                    setDraftSlotMaps(maps);
+                    console.log('[TradeCalc] Draft slot maps loaded:', Object.keys(maps).length, 'years');
+                } catch (e) { console.warn('[TradeCalc] Draft slot maps failed:', e); }
+            })();
+        }, [leagueId]);
 
         function ownerNameForRosterId(rid) { const r = allRosters.find(x => String(x.roster_id) === String(rid)); if (!r) return null; const u = leagueUsers.find(x => x.user_id === r.owner_id); return u?.display_name || null; }
 
@@ -983,11 +1014,13 @@
         function renderTradeAnalyzer() {
             if (!Object.keys(playersData).length) return <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem' }}>No player data loaded.</div>;
 
+            // Use slot-specific pick values when draftSlotMaps available
+            const pickVal = (pkId) => { const p = pkId.split('-'); const fromRid = p[3] || p[0]; const { value } = typeof _resolvePickValue === 'function' ? _resolvePickValue(p[1], Number(p[2]), fromRid, allRosters, draftSlotMaps) : { value: getPickValue(p[1], Number(p[2]), allRosters.length) }; return value; };
             const totalA = tradeIds.A.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0)
-                + tradePickIds.A.reduce((s, pkId) => { const p = pkId.split('-'); return s + getPickValue(p[1], Number(p[2]), allRosters.length); }, 0)
+                + tradePickIds.A.reduce((s, pkId) => s + pickVal(pkId), 0)
                 + Math.round((tradeFaab.A || 0) * FAAB_RATE);
             const totalB = tradeIds.B.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0)
-                + tradePickIds.B.reduce((s, pkId) => { const p = pkId.split('-'); return s + getPickValue(p[1], Number(p[2]), allRosters.length); }, 0)
+                + tradePickIds.B.reduce((s, pkId) => s + pickVal(pkId), 0)
                 + Math.round((tradeFaab.B || 0) * FAAB_RATE);
             const userGain = totalB - totalA;
             const absDiff = Math.abs(userGain);

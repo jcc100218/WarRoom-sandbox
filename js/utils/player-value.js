@@ -26,6 +26,50 @@ window.App.PlayerValue = (function () {
     const PICK_VALUES = { 1:6250, 2:3150, 3:1650, 4:850, 5:450, 6:225, 7:125 };
     const PICK_COLORS = { 1:'#D4AF37', 2:'#5DADE2', 3:'#2ECC71', 4:'#BB8FCE', 5:'#95A5A6', 6:'#7F8C8D', 7:'#6C7A7D' };
 
+    // Slot-specific values (16-team × 7-round = 112 picks). Top picks carry premium.
+    const PICK_VALUES_BY_SLOT = {
+        1:8500, 2:8000, 3:7500, 4:7100, 5:6700, 6:6400, 7:6200, 8:6000,
+        9:5800, 10:5600, 11:5400, 12:5200, 13:5000, 14:4800, 15:4600, 16:4400,
+        17:4200, 18:4000, 19:3800, 20:3600, 21:3400, 22:3200, 23:3050, 24:2900,
+        25:2750, 26:2600, 27:2450, 28:2300, 29:2150, 30:2000, 31:1900, 32:1800,
+        33:1700, 34:1600, 35:1500, 36:1400, 37:1300, 38:1200, 39:1100, 40:1050,
+        41:1000, 42:950, 43:900, 44:850, 45:800, 46:750, 47:700, 48:650,
+        49:600, 50:560, 51:520, 52:480, 53:450, 54:420, 55:400, 56:380,
+        57:360, 58:340, 59:320, 60:300, 61:280, 62:260, 63:240, 64:220,
+        65:210, 66:200, 67:190, 68:180, 69:170, 70:160, 71:150, 72:140,
+        73:130, 74:125, 75:120, 76:115, 77:110, 78:105, 79:100, 80:95,
+        81:90, 82:85, 83:80, 84:75, 85:70, 86:68, 87:65, 88:62,
+        89:60, 90:58, 91:55, 92:52, 93:50, 94:48, 95:45, 96:42,
+        97:40, 98:38, 99:35, 100:32, 101:30, 102:28, 103:25, 104:22,
+        105:20, 106:18, 107:16, 108:14, 109:12, 110:10, 111:8, 112:6,
+    };
+
+    // Compute overall draft slot from slot_to_roster_id maps
+    // draftSlotMaps = { year: { rosterId: slotInRound } }
+    function getPickOverallSlot(year, round, fromRosterId, allRosters, draftSlotMaps) {
+        if (!fromRosterId || !allRosters?.length) return null;
+        const numTeams = allRosters.length;
+        // Primary: Sleeper's authoritative slot_to_roster_id
+        const yearMap = draftSlotMaps?.[Number(year)];
+        if (yearMap) {
+            const slotInRound = yearMap[String(fromRosterId)];
+            if (slotInRound >= 1) return (round - 1) * numTeams + slotInRound;
+        }
+        // Fallback: waiver_position (set by Sleeper post-season as draft-order proxy)
+        const roster = allRosters.find(r => String(r.roster_id) === String(fromRosterId));
+        if (!roster) return null;
+        const slotInRound = roster.settings?.waiver_position;
+        if (slotInRound >= 1 && slotInRound <= numTeams) return (round - 1) * numTeams + slotInRound;
+        return null;
+    }
+
+    // Resolve pick value — uses slot-specific when available, round-average fallback
+    function resolvePickValue(year, round, fromRosterId, allRosters, draftSlotMaps) {
+        const slot = getPickOverallSlot(year, round, fromRosterId, allRosters, draftSlotMaps);
+        if (slot && PICK_VALUES_BY_SLOT[slot]) return { value: PICK_VALUES_BY_SLOT[slot], slot };
+        return { value: PICK_VALUES[round] || 100, slot: null };
+    }
+
     // ── Aging curves ─────────────────────────────────────────────────
     // Max achievable DHQ per position (caps projection ceiling)
     const POS_CEILINGS = { QB:12000, RB:9000, WR:10500, TE:8500, DL:7000, LB:7000, DB:7000 };
@@ -213,9 +257,12 @@ window.App.PlayerValue = (function () {
         POS_WEIGHTS,
         TOTAL_WEIGHT,
         PICK_VALUES,
+        PICK_VALUES_BY_SLOT,
         PICK_COLORS,
         POS_CEILINGS,
         getPickValue,
+        getPickOverallSlot,
+        resolvePickValue,
         projectPlayerValue,
     };
 })();
