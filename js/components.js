@@ -639,13 +639,14 @@
     }
 
     // ===== DEV MODE =====
-    const DEV_MODE = new URLSearchParams(window.location.search).has('dev') || window.location.hostname.includes('sandbox');
+    const IS_LOCAL = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const DEV_MODE = new URLSearchParams(window.location.search).has('dev') || window.location.hostname.includes('sandbox') || IS_LOCAL;
     const DEV_DEBUG = new URLSearchParams(window.location.search).get('dev') === 'true';
     if (DEV_MODE) {
         console.log('%c[DEV MODE] All features unlocked, auth bypassed','color:#D4AF37;font-weight:bold;font-size:14px');
         const b = document.createElement('div');
         b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#D4AF37;color:#000;font-size:11px;font-weight:700;text-align:center;padding:3px;letter-spacing:.05em;font-family:monospace';
-        b.textContent = 'SANDBOX — changes here do not affect production';
+        b.textContent = IS_LOCAL ? '⚡ LOCAL DEV — bigloco auto-logged in, all features unlocked' : 'SANDBOX — changes here do not affect production';
         document.body.prepend(b);
     }
 
@@ -664,7 +665,7 @@
     let sleeperUsername = '';
     // Dev mode: use URL param or default test username
     if (DEV_MODE) {
-        sleeperUsername = new URLSearchParams(window.location.search).get('user') || 'jcc100218';
+        sleeperUsername = new URLSearchParams(window.location.search).get('user') || 'bigloco';
     }
     try {
         if (legacyAuth && !sleeperUsername) {
