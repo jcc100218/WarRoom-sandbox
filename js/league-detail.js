@@ -33,6 +33,8 @@
         const [stats2025Data, setStats2025Data] = useState({});
         const [currentLeague, setCurrentLeague] = useState(league);
         const [activeYear, setActiveYear] = useState(league.season);
+        // Platform detection — non-Sleeper leagues already have data loaded at connection time
+        const isSleeper = !currentLeague._mfl && !currentLeague._espn && !currentLeague._yahoo;
         const [trending, setTrending] = useState({ adds: [], drops: [] });
         const [localActiveTab, setLocalActiveTab] = useState('brief');
         const activeTab = propActiveTab !== undefined ? propActiveTab : localActiveTab;
@@ -818,8 +820,9 @@
             }
         }, [gmStrategy, currentLeague?.league_id]);
 
-        // Fetch draft info for Brief tab
+        // Fetch draft info for Brief tab (Sleeper only — other platforms don't have this endpoint)
         useEffect(() => {
+            if (!isSleeper) return;
             if (!currentLeague?.id && !currentLeague?.league_id) return;
             fetch('https://api.sleeper.app/v1/league/' + (currentLeague.league_id || currentLeague.id) + '/drafts')
                 .then(r => r.ok ? r.json() : [])
@@ -828,7 +831,7 @@
                     if (upcoming) setBriefDraftInfo(upcoming);
                 })
                 .catch(err => window.wrLog('flashBrief.draftFetch', err));
-        }, [currentLeague]);
+        }, [currentLeague, isSleeper]);
 
         // Auto-generate notifications from league data
         const notifications = useMemo(() => {
@@ -1060,15 +1063,16 @@
                 setLoading(false);
                 setLoadStage('Loading player data...');
 
-                // Fire ALL data fetches in parallel
+                // Fire data fetches — platform-aware (non-Sleeper already has data from connection)
                 const currentWeek = currentLeague.settings?.leg || 1;
+                const _isSleeper = !currentLeague._mfl && !currentLeague._espn && !currentLeague._yahoo;
                 const [stats, projections, prevStats, players, tradedPicks, matchupsData] = await Promise.all([
                     fetchSeasonStats(currentLeague.season).catch(() => ({})),
                     fetchSeasonProjections(currentLeague.season).catch(() => ({})),
                     fetchSeasonStats(STATS_YEAR).catch(() => ({})),
                     fetchAllPlayers().catch(() => ({})),
-                    fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/traded_picks`).catch(() => []),
-                    fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/matchups/${currentWeek}`).catch(() => []),
+                    _isSleeper ? fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/traded_picks`).catch(() => []) : Promise.resolve(window.S?.tradedPicks || []),
+                    _isSleeper ? fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/matchups/${currentWeek}`).catch(() => []) : Promise.resolve([]),
                 ]);
 
                 setStatsData(stats);
@@ -1091,12 +1095,15 @@
                     window.S.tradedPicks = tradedPicks || [];
                     window.S.matchups = matchupsData || [];
                     window.S.myRosterId = myRosterData?.roster_id;
-                    window.S.myUserId = currentLeague._mfl ? (myRosterData?.owner_id || currentLeague._mflFranchiseId) : sleeperUserId;
-                    // Bridge user object so dhqBuildRosterContext can identify the owner
-                    const _userId = currentLeague._mfl ? (myRosterData?.owner_id || currentLeague._mflFranchiseId) : sleeperUserId;
-                    const _userName = currentLeague._mfl ? (myRosterData?._owner_name || 'MFL Owner') : (sleeperUsername || '');
+                    const _isNonSleeper = currentLeague._mfl || currentLeague._espn || currentLeague._yahoo;
+                    window.S.myUserId = _isNonSleeper ? (myRosterData?.owner_id || currentLeague._mflFranchiseId || sleeperUserId) : sleeperUserId;
+                    const _userId = window.S.myUserId;
+                    const _userName = _isNonSleeper ? (myRosterData?._owner_name || 'Owner') : (sleeperUsername || '');
                     window.S.user = { user_id: _userId, display_name: _userName, username: _userName };
                     if (currentLeague._mfl) window.S.platform = 'mfl';
+                    else if (currentLeague._espn) window.S.platform = 'espn';
+                    else if (currentLeague._yahoo) window.S.platform = 'yahoo';
+                    else window.S.platform = 'sleeper';
 
                     // Bridge helper functions for dhq-ai.js context builders
                     const _p = players || {};
@@ -1185,27 +1192,32 @@
                             }
                         }
                     })(),
-                    // Transactions (last 3 weeks)
+                    // Transactions — Sleeper: fetch per-week; non-Sleeper: use data from connection
                     (async () => {
                         try {
                             const nflState = await fetchJSON(`${SLEEPER_BASE_URL}/state/nfl`).catch(() => ({}));
                             if (nflState && window.S) window.S.nflState = nflState;
                             const currentWeek = nflState?.display_week || nflState?.week || 1;
-                            const isOffseason = !nflState?.season_type || nflState.season_type === 'off' || currentWeek <= 1;
-                            const weekFetches = [];
-                            if (isOffseason) {
-                                // During offseason, fetch weeks 0-18 to capture all offseason trades
-                                for (let w = 0; w <= 18; w++) {
-                                    weekFetches.push(fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/transactions/${w}`).catch(() => []));
+                            let allTxns = [];
+
+                            if (_isSleeper) {
+                                // Sleeper: fetch transactions per week
+                                const isOffseason = !nflState?.season_type || nflState.season_type === 'off' || currentWeek <= 1;
+                                const weekFetches = [];
+                                if (isOffseason) {
+                                    for (let w = 0; w <= 18; w++) {
+                                        weekFetches.push(fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/transactions/${w}`).catch(() => []));
+                                    }
+                                } else {
+                                    for (let w = 0; w <= Math.min(18, currentWeek); w++) {
+                                        weekFetches.push(fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/transactions/${w}`).catch(() => []));
+                                    }
                                 }
-                            } else {
-                                // Fetch all weeks 0–currentWeek to capture full-season trade history, not just last 3
-                                for (let w = 0; w <= Math.min(18, currentWeek); w++) {
-                                    weekFetches.push(fetchJSON(`${SLEEPER_BASE_URL}/league/${currentLeague.id}/transactions/${w}`).catch(e => { console.warn('[War Room] txn fetch failed W:'+w, e?.message||e); return []; }));
-                                }
+                                const weekResults = await Promise.all(weekFetches);
+                                allTxns = weekResults.flat().filter(t => t && t.type && t.status !== 'failed').sort((a,b) => (b.created || 0) - (a.created || 0));
                             }
-                            const weekResults = await Promise.all(weekFetches);
-                            let allTxns = weekResults.flat().filter(t => t && t.type && t.status !== 'failed').sort((a,b) => (b.created || 0) - (a.created || 0));
+                            // Non-Sleeper: transactions already in window.S from connection
+                            // (MFL: loaded by mfl-api.js fetchTransactions, ESPN: loaded by espn-api.js fetchTransactions)
                             // Always merge DHQ historical trades (pre-analyzed with value data)
                             // Deduplicate by timestamp so recent Sleeper txns aren't doubled
                             if (window.App?.LI?.tradeHistory?.length > 0) {
@@ -1270,6 +1282,11 @@
 
         async function switchYear(year) {
             if (year === activeYear) return;
+            // Year switching only works for Sleeper leagues (previous_league_id chain)
+            if (currentLeague._mfl || currentLeague._espn || currentLeague._yahoo) {
+                console.warn('[War Room] Year switching not supported for non-Sleeper leagues');
+                return;
+            }
             setLoading(true);
             setError(null);
             setActiveYear(year);
