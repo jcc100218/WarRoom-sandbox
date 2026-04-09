@@ -135,8 +135,16 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     // ===== PRODUCT TIER SYSTEM =====
     // Tiers: free → scout → warroom ($9.99) → pro ($12.99) → commissioner ($14.99)
     function getUserTier() {
+        // Delegate to shared tier system (reconai/shared/tier.js) when available.
+        // getTier() returns 'free' | 'trial' | 'paid'; map to minimum WR tier.
+        if (typeof window.getTier === 'function') {
+            const shared = window.getTier();
+            if (shared === 'paid') return 'scout';
+            if (shared === 'trial') return 'scout';
+            return shared;
+        }
         try {
-            const p = JSON.parse(localStorage.getItem('od_profile_v1') || '{}');
+            const p = JSON.parse(localStorage.getItem((window.STORAGE_KEYS?.OD_PROFILE || 'od_profile_v1')) || '{}');
             if (p.tier === 'commissioner') return 'commissioner';
             if (p.tier === 'pro' || p.tier === 'power') return 'pro';
             if (p.tier === 'warroom') return 'warroom';
@@ -203,8 +211,8 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
     function handleLogout() {
         if (confirm('Are you sure you want to logout?')) {
-            localStorage.removeItem('od_auth_v1');
-            localStorage.removeItem('fw_session_v1');
+            localStorage.removeItem((window.STORAGE_KEYS?.OD_AUTH    || 'od_auth_v1'));
+            localStorage.removeItem((window.STORAGE_KEYS?.FW_SESSION || 'fw_session_v1'));
             window.location.href = 'landing.html';
         }
     }

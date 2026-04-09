@@ -63,10 +63,18 @@ window.App.PlayerValue = (function () {
         return null;
     }
 
-    // Resolve pick value — uses slot-specific when available, round-average fallback
+    // Resolve pick value — prefers shared/pick-value-model.js when available,
+    // then slot-specific table, then round-average fallback.
     function resolvePickValue(year, round, fromRosterId, allRosters, draftSlotMaps) {
         const slot = getPickOverallSlot(year, round, fromRosterId, allRosters, draftSlotMaps);
-        if (slot && PICK_VALUES_BY_SLOT[slot]) return { value: PICK_VALUES_BY_SLOT[slot], slot };
+        if (slot) {
+            if (window.getIndustryPickValue) {
+                const numTeams = allRosters?.length || 12;
+                const val = window.getIndustryPickValue(slot, numTeams, DRAFT_ROUNDS);
+                if (val > 0) return { value: val, slot };
+            }
+            if (PICK_VALUES_BY_SLOT[slot]) return { value: PICK_VALUES_BY_SLOT[slot], slot };
+        }
         return { value: PICK_VALUES[round] || 100, slot: null };
     }
 
@@ -83,6 +91,13 @@ window.App.PlayerValue = (function () {
     function getPickValue(season, round, totalTeams) {
         if (window.App?.LI?.dhqPickValueFn) {
             const val = window.App.LI.dhqPickValueFn(season, round, Math.ceil((totalTeams || 12) / 2));
+            if (val > 0) return val;
+        }
+        if (window.getIndustryPickValue) {
+            const numTeams = totalTeams || 12;
+            // Use mid-round pick as representative slot for a round-level estimate
+            const midPick = (round - 1) * numTeams + Math.ceil(numTeams / 2);
+            const val = window.getIndustryPickValue(midPick, numTeams, DRAFT_ROUNDS);
             if (val > 0) return val;
         }
         return PICK_VALUES[round] || 100;
