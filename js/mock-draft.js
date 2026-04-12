@@ -66,10 +66,7 @@ function mdsBuildPool(playersData) {
         }
         return window.App?.LI?.playerScores?.[pid] || 0;
     };
-    const rp = window.S?.leagues?.find(l => l.league_id === window.S?.currentLeagueId)?.roster_positions || [];
-    const VALID = new Set(['QB', 'RB', 'WR', 'TE']);
-    if (rp.some(s => s === 'K')) VALID.add('K');
-    if (rp.some(s => ['DL','DE','DT','LB','DB','CB','S','IDP_FLEX'].includes(s))) { VALID.add('DL'); VALID.add('LB'); VALID.add('DB'); }
+    const VALID = (typeof getLeaguePositions === 'function') ? getLeaguePositions({ asSet: true }) : new Set(['QB','RB','WR','TE']);
     const src = playersData || window.S?.players || {};
     const live = Object.entries(src)
         .filter(([, p]) => VALID.has(normPos(p.position)) && p.status !== 'Inactive' && (p.first_name || p.full_name))
@@ -499,7 +496,7 @@ function MockDraftSimulator({ playersData, myRoster, currentLeague, draftRounds:
                     <div style={{ ...card, padding: '12px 14px', marginBottom: '12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
                             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 4 }}>Best Available</div>
-                            {['', 'QB', 'RB', 'WR', 'TE'].map(pos => (
+                            {(typeof getLeaguePositions === 'function' ? getLeaguePositions({ withBlank: true }) : ['','QB','RB','WR','TE']).map(pos => (
                                 <button key={pos} onClick={() => setPosFilter(pos)} style={{ padding: '2px 9px', fontSize: '0.66rem', fontFamily: font, borderRadius: '10px', cursor: 'pointer', border: '1px solid ' + (posFilter === pos ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'), background: posFilter === pos ? 'rgba(212,175,55,0.12)' : 'transparent', color: posFilter === pos ? 'var(--gold)' : 'var(--silver)' }}>
                                     {pos || 'ALL'}
                                 </button>

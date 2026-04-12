@@ -168,6 +168,10 @@ module.exports = [
         sleeperUsername: "readonly",
         // ── Board data (draft-room.js) ────────────────────────────────────────
         boardPlayers: "readonly",
+        // ── Shared position helpers (reconai/shared/utils.js) ────────────────
+        normPos: "readonly",
+        getLeaguePositions: "readonly",
+        isValidLeaguePosition: "readonly",
       },
     },
     rules: {
