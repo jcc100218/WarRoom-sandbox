@@ -126,10 +126,8 @@ function mdsGrade(myPicks, originalPool) {
 }
 
 /* ── Position badge ────────────────────────────────────────── */
-const MDS_POS_COLORS = { QB: '#60a5fa', RB: '#34d399', WR: '#D4AF37', TE: '#fbbf24' };
-
 function MdsPosBadge({ pos }) {
-    const c = MDS_POS_COLORS[pos] || '#888';
+    const c = window.App?.POS_COLORS?.[pos] || '#D4AF37';
     return (
         <span style={{
             fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: '3px',
@@ -547,7 +545,7 @@ function MockDraftSimulator({ playersData, myRoster, currentLeague, draftRounds:
                             {myPicks.map((p, i) => (
                                 <span key={i} style={{ padding: '3px 10px', background: 'rgba(212,175,55,0.07)', border: '1px solid rgba(212,175,55,0.18)', borderRadius: '12px', fontSize: '0.7rem', color: 'var(--white)' }}>
                                     R{p.round} {p.name.split(' ').slice(-1)[0]}&nbsp;
-                                    <span style={{ color: MDS_POS_COLORS[p.pos] || 'var(--silver)' }}>{p.pos}</span>
+                                    <span style={{ color: window.App?.POS_COLORS?.[p.pos] || '#D4AF37' }}>{p.pos}</span>
                                 </span>
                             ))}
                         </div>
@@ -578,7 +576,7 @@ function MockDraftSimulator({ playersData, myRoster, currentLeague, draftRounds:
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         {Object.entries(posCounts).map(([pos, ct]) => {
-                            const c = MDS_POS_COLORS[pos] || '#888';
+                            const c = window.App?.POS_COLORS?.[pos] || '#D4AF37';
                             return (
                                 <span key={pos} style={{ padding: '3px 10px', background: c + '18', border: '1px solid ' + c + '44', borderRadius: '10px', fontSize: '0.72rem', fontWeight: 700, color: c }}>
                                     {pos} ×{ct}
