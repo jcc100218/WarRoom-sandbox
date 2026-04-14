@@ -66,10 +66,7 @@ function mdsBuildPool(playersData) {
         }
         return window.App?.LI?.playerScores?.[pid] || 0;
     };
-    const rp = window.S?.leagues?.find(l => l.league_id === window.S?.currentLeagueId)?.roster_positions || [];
-    const VALID = new Set(['QB', 'RB', 'WR', 'TE']);
-    if (rp.some(s => s === 'K')) VALID.add('K');
-    if (rp.some(s => ['DL','DE','DT','LB','DB','CB','S','IDP_FLEX'].includes(s))) { VALID.add('DL'); VALID.add('LB'); VALID.add('DB'); }
+    const VALID = (typeof getLeaguePositions === 'function') ? getLeaguePositions({ asSet: true }) : new Set(['QB','RB','WR','TE']);
     const src = playersData || window.S?.players || {};
     const live = Object.entries(src)
         .filter(([, p]) => VALID.has(normPos(p.position)) && p.status !== 'Inactive' && (p.first_name || p.full_name))
@@ -129,10 +126,8 @@ function mdsGrade(myPicks, originalPool) {
 }
 
 /* ── Position badge ────────────────────────────────────────── */
-const MDS_POS_COLORS = { QB: '#60a5fa', RB: '#34d399', WR: '#D4AF37', TE: '#fbbf24' };
-
 function MdsPosBadge({ pos }) {
-    const c = MDS_POS_COLORS[pos] || '#888';
+    const c = window.App?.POS_COLORS?.[pos] || '#D4AF37';
     return (
         <span style={{
             fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: '3px',
@@ -499,7 +494,7 @@ function MockDraftSimulator({ playersData, myRoster, currentLeague, draftRounds:
                     <div style={{ ...card, padding: '12px 14px', marginBottom: '12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
                             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 4 }}>Best Available</div>
-                            {['', 'QB', 'RB', 'WR', 'TE'].map(pos => (
+                            {(typeof getLeaguePositions === 'function' ? getLeaguePositions({ withBlank: true }) : ['','QB','RB','WR','TE']).map(pos => (
                                 <button key={pos} onClick={() => setPosFilter(pos)} style={{ padding: '2px 9px', fontSize: '0.66rem', fontFamily: font, borderRadius: '10px', cursor: 'pointer', border: '1px solid ' + (posFilter === pos ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'), background: posFilter === pos ? 'rgba(212,175,55,0.12)' : 'transparent', color: posFilter === pos ? 'var(--gold)' : 'var(--silver)' }}>
                                     {pos || 'ALL'}
                                 </button>
@@ -550,7 +545,7 @@ function MockDraftSimulator({ playersData, myRoster, currentLeague, draftRounds:
                             {myPicks.map((p, i) => (
                                 <span key={i} style={{ padding: '3px 10px', background: 'rgba(212,175,55,0.07)', border: '1px solid rgba(212,175,55,0.18)', borderRadius: '12px', fontSize: '0.7rem', color: 'var(--white)' }}>
                                     R{p.round} {p.name.split(' ').slice(-1)[0]}&nbsp;
-                                    <span style={{ color: MDS_POS_COLORS[p.pos] || 'var(--silver)' }}>{p.pos}</span>
+                                    <span style={{ color: window.App?.POS_COLORS?.[p.pos] || '#D4AF37' }}>{p.pos}</span>
                                 </span>
                             ))}
                         </div>
@@ -581,7 +576,7 @@ function MockDraftSimulator({ playersData, myRoster, currentLeague, draftRounds:
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         {Object.entries(posCounts).map(([pos, ct]) => {
-                            const c = MDS_POS_COLORS[pos] || '#888';
+                            const c = window.App?.POS_COLORS?.[pos] || '#D4AF37';
                             return (
                                 <span key={pos} style={{ padding: '3px 10px', background: c + '18', border: '1px solid ' + c + '44', borderRadius: '10px', fontSize: '0.72rem', fontWeight: 700, color: c }}>
                                     {pos} ×{ct}

@@ -140,7 +140,8 @@ module.exports = [
         DashboardWidgetPicker: "readonly",
         WIDGET_MODULES: "readonly",
         StarBtn: "readonly",
-        FlashBriefPanel: "readonly",
+        IntelligenceBriefWidget: "readonly",
+        FieldNotesWidget: "readonly",
         AnalyticsPanel: "readonly",
         MyTeamTab: "readonly",
         FreeAgencyTab: "readonly",
@@ -168,6 +169,10 @@ module.exports = [
         sleeperUsername: "readonly",
         // ── Board data (draft-room.js) ────────────────────────────────────────
         boardPlayers: "readonly",
+        // ── Shared position helpers (reconai/shared/utils.js) ────────────────
+        normPos: "readonly",
+        getLeaguePositions: "readonly",
+        isValidLeaguePosition: "readonly",
       },
     },
     rules: {

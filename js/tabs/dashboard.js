@@ -81,6 +81,22 @@ const WIDGET_MODULES = {
         metrics: [],
         sizes: ['md', 'lg'],
     },
+    'intelligence-brief': {
+        label: 'Intelligence Brief',
+        icon: '🧠',
+        description: "Alex's briefing — greeting, tier read, and action CTAs",
+        accent: '#D4AF37',
+        metrics: [],
+        sizes: ['md', 'lg', 'xl'],
+    },
+    'field-notes': {
+        label: 'Field Notes',
+        icon: '📋',
+        description: 'Intel logged from War Room Scout sessions',
+        accent: '#00c8b4',
+        metrics: [],
+        sizes: ['md', 'lg'],
+    },
 };
 
 // ─── Star widget utilities (exposed globally) ─────────────────────
@@ -153,6 +169,7 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
         sm: { label: 'Small', dims: '1×1', desc: 'One key stat + trend arrow + color coding', w: 80, h: 80 },
         md: { label: 'Medium', dims: '2×1', desc: 'Stat + sparkline + annotation + insight', w: 160, h: 80 },
         lg: { label: 'Large', dims: '2×2', desc: 'Mini-panel: 3-4 stats + chart + drill-down list', w: 160, h: 160 },
+        xl: { label: 'Extra Large', dims: '4×2', desc: 'Full-width premium panel', w: 320, h: 160 },
     };
 
     function handleConfirm() {
@@ -329,6 +346,7 @@ function DashboardPanel({
     getOwnerName,
     getPlayerName,
     timeAgo,
+    briefDraftInfo,
 }) {
     const [pickerOpen, setPickerOpen] = React.useState(false);
     const [editingWidget, setEditingWidget] = React.useState(null); // { widgetId, widget }
@@ -415,9 +433,11 @@ function DashboardPanel({
         const mod = WIDGET_MODULES[moduleKey];
         if (!mod) return null;
 
-        // League standings: reuse existing renderer
+        // Custom renderers for non-KPI modules
         if (moduleKey === 'league-standings') return renderStandings('md');
         if (moduleKey === 'transaction-ticker') return renderTransactionTicker('md');
+        if (moduleKey === 'intelligence-brief') return renderIntelligenceBrief('md');
+        if (moduleKey === 'field-notes') return renderFieldNotes('md');
 
         const key = primaryMetric || mod.metrics?.[0]?.key;
         if (!key) return null;
@@ -484,6 +504,8 @@ function DashboardPanel({
 
         if (moduleKey === 'league-standings') return renderStandings('lg');
         if (moduleKey === 'transaction-ticker') return renderTransactionTicker('lg');
+        if (moduleKey === 'intelligence-brief') return renderIntelligenceBrief('lg');
+        if (moduleKey === 'field-notes') return renderFieldNotes('lg');
 
         const allMetrics = mod.metrics.map(m => ({ ...m, val: kv(m.key) }));
         const primaryKey = primaryMetric || mod.metrics?.[0]?.key;
@@ -547,6 +569,37 @@ function DashboardPanel({
                 </div>
             </div>
         );
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // INTELLIGENCE BRIEF — delegates to window.IntelligenceBriefWidget
+    // defined in js/tabs/flash-brief.js
+    // ══════════════════════════════════════════════════════════════
+    function renderIntelligenceBrief(size) {
+        if (typeof window.IntelligenceBriefWidget !== 'function') {
+            return <div style={{ ...cardBase, padding: '14px 16px' }}>Intelligence brief unavailable</div>;
+        }
+        return React.createElement(window.IntelligenceBriefWidget, {
+            size,
+            myRoster,
+            rankedTeams,
+            sleeperUserId,
+            currentLeague,
+            briefDraftInfo,
+            playersData,
+            setActiveTab,
+        });
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // FIELD NOTES — delegates to window.FieldNotesWidget
+    // defined in js/tabs/flash-brief.js
+    // ══════════════════════════════════════════════════════════════
+    function renderFieldNotes(size) {
+        if (typeof window.FieldNotesWidget !== 'function') {
+            return <div style={{ ...cardBase, padding: '14px 16px' }}>Field notes unavailable</div>;
+        }
+        return React.createElement(window.FieldNotesWidget, { size });
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -679,8 +732,8 @@ function DashboardPanel({
     // ══════════════════════════════════════════════════════════════
     function WidgetShell({ widget, idx, children }) {
         const [showGear, setShowGear] = React.useState(false);
-        const sizeSpan = { sm: 'span 1', md: 'span 2', lg: 'span 2' };
-        const rowSpan = { sm: 'span 1', md: 'span 1', lg: 'span 2' };
+        const sizeSpan = { sm: 'span 1', md: 'span 2', lg: 'span 2', xl: 'span 4' };
+        const rowSpan = { sm: 'span 1', md: 'span 1', lg: 'span 2', xl: 'span 2' };
 
         return (
             <div
@@ -779,6 +832,16 @@ function DashboardPanel({
             return (
                 <WidgetShell key={widget.id || key + idx} widget={widget} idx={idx}>
                     <LargeModuleCard moduleKey={key} primaryMetric={primaryMetric} />
+                </WidgetShell>
+            );
+        }
+        if (size === 'xl') {
+            // xl is full-width; intelligence-brief is currently the only xl consumer
+            return (
+                <WidgetShell key={widget.id || key + idx} widget={widget} idx={idx}>
+                    {key === 'intelligence-brief'
+                        ? renderIntelligenceBrief('xl')
+                        : <LargeModuleCard moduleKey={key} primaryMetric={primaryMetric} />}
                 </WidgetShell>
             );
         }

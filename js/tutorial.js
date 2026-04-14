@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════════════════════
 // js/tutorial.js — War Room First-Time Tutorial
 // Guides new users through: Alex persona setup → GM strategy →
-// app walkthrough (brief, dashboard, trades, roster, league, draft).
+// app walkthrough (dashboard, trades, roster, league, draft).
 // Completion stored in localStorage — only shows once.
 // ══════════════════════════════════════════════════════════════════
 
@@ -15,17 +15,10 @@ const WR_TUTORIAL_STEPS = [
         alexPicker: true, // Show persona picker in this step
     },
     {
-        target: '[data-tab="brief"],.sidebar-item:first-child',
-        tabToOpen: 'brief',
-        title: 'Intelligence Briefing',
-        desc: 'Your daily brief from Alex — personalized team diagnosis, waiver targets, trade opportunities, and league activity. This is your home base.',
-        position: 'right',
-    },
-    {
-        target: '[data-tab="dashboard"],.sidebar-item:nth-child(2)',
+        target: '[data-tab="dashboard"],.sidebar-item:first-child',
         tabToOpen: 'dashboard',
-        title: 'Dashboard',
-        desc: 'Configurable KPI widgets — drag, resize, and arrange your analytics exactly how you want them. Star any card across the app to pin it here.',
+        title: 'Home',
+        desc: "Your home base. Alex's intelligence briefing sits at the top — daily team diagnosis, waiver targets, trade opportunities. Below it, drag and resize KPI widgets to track exactly what matters to you. Star any card across the app to pin it here.",
         position: 'right',
     },
     {
@@ -72,9 +65,9 @@ const WR_TUTORIAL_STEPS = [
     },
     {
         title: 'You\'re Ready',
-        desc: 'Your War Room is set up. Start with the Intelligence Briefing — Alex has your first report ready.',
+        desc: 'Your War Room is set up. Head to your home dashboard — Alex has your first report ready at the top.',
         position: 'center',
-        tabToOpen: 'brief', // Navigate back to brief on final step
+        tabToOpen: 'dashboard',
     },
 ];
 

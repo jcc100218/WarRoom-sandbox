@@ -41,12 +41,12 @@
             COUNTER_LOWBALL:{ label:'Counter — Lowball', impact:-10, color:'#E67E22', icon:'v', cat:'counter', dnaSignal:{ FLEECER:3, DOMINATOR:2 } },
         };
 
-        const POSTURES = {
-            DESPERATE: { label:'Desperate', color:'#BB8FCE', desc:'Panic-mode — will overpay for immediate help.' },
-            BUYER:     { label:'Active Buyer', color:'#F0A500', desc:'Contender upgrading — open to deals.' },
-            NEUTRAL:   { label:'Neutral', color:'#95A5A6', desc:'No strong push. Fair offers only.' },
-            SELLER:    { label:'Active Seller', color:'#5DADE2', desc:'Moving assets for futures.' },
-            LOCKED:    { label:'Locked In', color:'#7F8C8D', desc:'Satisfied roster, high attachment.' },
+        const POSTURES = window.App?.TradeEngine?.POSTURES || {
+            DESPERATE: { key:'DESPERATE', label:'Desperate', color:'#BB8FCE', desc:'Panic-mode — will overpay for immediate help.' },
+            BUYER:     { key:'BUYER',     label:'Active Buyer', color:'#F0A500', desc:'Contender upgrading — open to deals.' },
+            NEUTRAL:   { key:'NEUTRAL',   label:'Neutral', color:'#95A5A6', desc:'No strong push. Fair offers only.' },
+            SELLER:    { key:'SELLER',    label:'Active Seller', color:'#5DADE2', desc:'Moving assets for futures.' },
+            LOCKED:    { key:'LOCKED',    label:'Locked In', color:'#7F8C8D', desc:'Satisfied roster, high attachment.' },
         };
 
         // ── Helper functions ──
@@ -284,44 +284,9 @@
                      faabRemaining, waiverBudget };
         }
 
-        function calcComplementarity(mine, theirs) {
-            if (!mine || !theirs) return 0;
-            let score = 0;
-            for (const n of mine.needs) { const t = theirs.posAssessment[n.pos]; if (t?.status === 'surplus') score += n.urgency === 'deficit' ? 25 : 12; else if (t?.status === 'ok' && n.urgency === 'deficit') score += 6; }
-            for (const n of theirs.needs) { const m = mine.posAssessment[n.pos]; if (m?.status === 'surplus') score += n.urgency === 'deficit' ? 25 : 12; else if (m?.status === 'ok' && n.urgency === 'deficit') score += 6; }
-            if (mine.window !== theirs.window) score += 15;
-            return Math.min(100, score);
-        }
-
-        function calcOwnerPosture(assessment, dnaKey) {
-            if (!assessment) return POSTURES.NEUTRAL;
-            const { tier, panic } = assessment;
-            if (panic >= 4) return POSTURES.DESPERATE;
-            if (tier === 'REBUILDING' || dnaKey === 'ACCEPTOR') return POSTURES.SELLER;
-            if (tier === 'ELITE' && panic <= 1) return POSTURES.LOCKED;
-            if ((tier === 'CONTENDER' || tier === 'CROSSROADS') && panic >= 2) return POSTURES.BUYER;
-            return POSTURES.NEUTRAL;
-        }
-
-        function calcPsychTaxes(myAssess, theirAssess, theirDnaKey, theirPosture) {
-            const taxes = [];
-            const ePct = { FLEECER:10, DOMINATOR:28, STALWART:20, ACCEPTOR:5, DESPERATE:15, NONE:12 }[theirDnaKey] || 12;
-            taxes.push({ name:'Endowment Effect', impact:-Math.round(ePct/2), type:'TAX', desc:`~${ePct}% mental inflation on their own players.` });
-            if (theirAssess?.panic >= 3) taxes.push({ name:'Panic Premium', impact:8+(theirAssess.panic-2)*6, type:'BONUS', desc:`Panic ${theirAssess.panic}/5 — urgency overrides caution.` });
-            if (theirDnaKey === 'DOMINATOR') taxes.push({ name:'Status Tax', impact:-18, type:'TAX', desc:'Must visibly win the trade for ego/status.' });
-            if (['STALWART','DOMINATOR'].includes(theirDnaKey)) taxes.push({ name:'Loss Aversion', impact:-8, type:'TAX', desc:'Losing a familiar player hurts more than gaining a new one.' });
-            if (theirDnaKey === 'ACCEPTOR') taxes.push({ name:'Rebuilding Discount', impact:+10, type:'BONUS', desc:'They mentally discount current starters.' });
-            const myStrengths = myAssess?.strengths || [];
-            const theirNeedPos = theirAssess?.needs?.slice(0,3).map(n=>n.pos) || [];
-            if (theirNeedPos.some(p => myStrengths.includes(p))) taxes.push({ name:'Need Fulfillment', impact:+12, type:'BONUS', desc:'Your surplus fills their critical gap.' });
-            if (myAssess && theirAssess) {
-                if (myAssess.window !== theirAssess.window) taxes.push({ name:'Window Alignment', impact:+8, type:'BONUS', desc:'Opposite windows = natural asset exchange.' });
-                else taxes.push({ name:'Window Friction', impact:-5, type:'TAX', desc:'Same window reduces natural motivation.' });
-            }
-            if (theirPosture?.label === 'Locked In') taxes.push({ name:'Locked Roster Tax', impact:-12, type:'TAX', desc:'High satisfaction + attachment.' });
-            else if (theirPosture?.label === 'Active Seller') taxes.push({ name:'Seller Momentum', impact:+10, type:'BONUS', desc:'Actively shopping. Trade conversations welcomed.' });
-            return taxes;
-        }
+        const calcComplementarity = window.App?.TradeEngine?.calcComplementarity || function(mine, theirs) { if (!mine || !theirs) return 0; let score = 0; for (const n of mine.needs) { const t = theirs.posAssessment[n.pos]; if (t?.status === 'surplus') score += n.urgency === 'deficit' ? 25 : 12; else if (t?.status === 'ok' && n.urgency === 'deficit') score += 6; } for (const n of theirs.needs) { const m = mine.posAssessment[n.pos]; if (m?.status === 'surplus') score += n.urgency === 'deficit' ? 25 : 12; else if (m?.status === 'ok' && n.urgency === 'deficit') score += 6; } if (mine.window !== theirs.window) score += 15; return Math.min(100, score); };
+        const calcOwnerPosture = window.App?.TradeEngine?.calcOwnerPosture || function(assessment, dnaKey) { if (!assessment) return POSTURES.NEUTRAL; const { tier, panic } = assessment; if (panic >= 4) return POSTURES.DESPERATE; if (tier === 'REBUILDING' || dnaKey === 'ACCEPTOR') return POSTURES.SELLER; if (tier === 'ELITE' && panic <= 1) return POSTURES.LOCKED; if ((tier === 'CONTENDER' || tier === 'CROSSROADS') && panic >= 2) return POSTURES.BUYER; return POSTURES.NEUTRAL; };
+        const calcPsychTaxes = window.App?.TradeEngine?.calcPsychTaxes || function(myAssess, theirAssess, theirDnaKey, theirPosture) { const taxes = []; const ePct = { FLEECER:10, DOMINATOR:28, STALWART:20, ACCEPTOR:5, DESPERATE:15, NONE:12 }[theirDnaKey] || 12; taxes.push({ name:'Endowment Effect', impact:-Math.round(ePct/2), type:'TAX', desc:`~${ePct}% mental inflation on their own players.` }); if (theirAssess?.panic >= 3) taxes.push({ name:'Panic Premium', impact:8+(theirAssess.panic-2)*6, type:'BONUS', desc:`Panic ${theirAssess.panic}/5 — urgency overrides caution.` }); if (theirDnaKey === 'DOMINATOR') taxes.push({ name:'Status Tax', impact:-18, type:'TAX', desc:'Must visibly win the trade for ego/status.' }); if (['STALWART','DOMINATOR'].includes(theirDnaKey)) taxes.push({ name:'Loss Aversion', impact:-8, type:'TAX', desc:'Losing a familiar player hurts more than gaining a new one.' }); if (theirDnaKey === 'ACCEPTOR') taxes.push({ name:'Rebuilding Discount', impact:+10, type:'BONUS', desc:'They mentally discount current starters.' }); const myStrengths = myAssess?.strengths || []; const theirNeedPos = theirAssess?.needs?.slice(0,3).map(n=>n.pos) || []; if (theirNeedPos.some(p => myStrengths.includes(p))) taxes.push({ name:'Need Fulfillment', impact:+12, type:'BONUS', desc:'Your surplus fills their critical gap.' }); if (myAssess && theirAssess) { if (myAssess.window !== theirAssess.window) taxes.push({ name:'Window Alignment', impact:+8, type:'BONUS', desc:'Opposite windows = natural asset exchange.' }); else taxes.push({ name:'Window Friction', impact:-5, type:'TAX', desc:'Same window reduces natural motivation.' }); } if (theirPosture?.key === 'LOCKED') taxes.push({ name:'Locked Roster Tax', impact:-12, type:'TAX', desc:'High satisfaction + attachment.' }); else if (theirPosture?.key === 'SELLER') taxes.push({ name:'Seller Momentum', impact:+10, type:'BONUS', desc:'Actively shopping. Trade conversations welcomed.' }); return taxes; };
 
         const grudgeDecay = d => d < 30 ? 1.0 : d < 60 ? 0.6 : d < 90 ? 0.3 : 0.1;
         const GRUDGE_KEY = lid => `od_grudges_v1_${lid}`;

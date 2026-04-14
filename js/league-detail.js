@@ -36,7 +36,7 @@
         // Platform detection — non-Sleeper leagues already have data loaded at connection time
         const isSleeper = !currentLeague._mfl && !currentLeague._espn && !currentLeague._yahoo;
         const [trending, setTrending] = useState({ adds: [], drops: [] });
-        const [localActiveTab, setLocalActiveTab] = useState('brief');
+        const [localActiveTab, setLocalActiveTab] = useState('dashboard');
         const activeTab = propActiveTab !== undefined ? propActiveTab : localActiveTab;
         const setActiveTab = onTabChange || setLocalActiveTab;
         const [tradeSubTab, setTradeSubTab] = useState(null); // when set, TradeCalcTab opens this sub-tab
@@ -423,9 +423,11 @@
             'transaction-ticker': { label: 'Transaction Ticker', icon: '', category: 'League', sizes: ['md', 'lg'], tip: 'Recent league transactions: trades, waivers, and free agent moves' },
             'league-standings':   { label: 'League Standings',   icon: '', category: 'League', sizes: ['md', 'lg'], tip: 'Current league standings with W-L records and DHQ totals' },
         };
-        // Default 5-widget dashboard — module-based format
+        // Default 6-widget dashboard — module-based format. Intelligence brief
+        // sits at the top as a full-width xl widget so new users land on Alex.
         const DEFAULT_WIDGETS = [
-            { id: 'dw1', key: 'roster',            size: 'md', primaryMetric: 'health-score' },
+            { id: 'dw0', key: 'intelligence-brief', size: 'xl' },
+            { id: 'dw1', key: 'roster',             size: 'md', primaryMetric: 'health-score' },
             { id: 'dw2', key: 'competitive',        size: 'sm', primaryMetric: 'contender-rank' },
             { id: 'dw3', key: 'competitive',        size: 'sm', primaryMetric: 'dynasty-rank' },
             { id: 'dw4', key: 'trading',            size: 'md', primaryMetric: 'hit-rate' },
@@ -435,6 +437,7 @@
         function migrateKpisToWidgets(stored) {
             if (!stored || !Array.isArray(stored)) return DEFAULT_WIDGETS;
             if (stored.length === 0) return DEFAULT_WIDGETS;
+            let widgets;
             // Old format v1: array of KPI key strings
             if (typeof stored[0] === 'string') {
                 const keyToModule = {
@@ -447,30 +450,40 @@
                     'transaction-ticker': 'transaction-ticker',
                     'league-standings': 'league-standings',
                 };
-                return stored.map((k, i) => ({ id: 'mig_' + i, key: keyToModule[k] || k, size: 'sm', primaryMetric: k }));
+                widgets = stored.map((k, i) => ({ id: 'mig_' + i, key: keyToModule[k] || k, size: 'sm', primaryMetric: k }));
+            } else {
+                // Old format v2: {key, size} without id or primaryMetric
+                widgets = stored.map((w, i) => {
+                    if (!w.id) w = { ...w, id: 'mig2_' + i };
+                    // Map old KPI keys to module keys
+                    const legacyKpiModules = {
+                        'health-score': 'roster', 'avg-age': 'roster', 'elite-count': 'roster',
+                        'aging-cliff': 'roster', 'bench-quality': 'roster', 'portfolio': 'roster',
+                        'top5-conc': 'roster', 'starter-gap': 'roster', 'roster-turnover': 'roster',
+                        'sched-sos': 'roster',
+                        'contender-rank': 'competitive', 'dynasty-rank': 'competitive', 'window': 'competitive',
+                        'hit-rate': 'trading', 'net-trade': 'trading', 'trade-velocity': 'trading',
+                        'trade-leverage': 'trading', 'partner-wr': 'trading',
+                        'pick-capital': 'draft', 'draft-roi': 'draft',
+                        'faab-efficiency': 'waivers',
+                        'playoff-record': 'competitive', 'playoff-winpct': 'competitive',
+                        'champ-appearances': 'competitive', 'dynasty-score': 'competitive',
+                    };
+                    if (legacyKpiModules[w.key]) {
+                        return { ...w, primaryMetric: w.primaryMetric || w.key, key: legacyKpiModules[w.key] };
+                    }
+                    return w;
+                });
             }
-            // Old format v2: {key, size} without id or primaryMetric
-            return stored.map((w, i) => {
-                if (!w.id) w = { ...w, id: 'mig2_' + i };
-                // Map old KPI keys to module keys
-                const legacyKpiModules = {
-                    'health-score': 'roster', 'avg-age': 'roster', 'elite-count': 'roster',
-                    'aging-cliff': 'roster', 'bench-quality': 'roster', 'portfolio': 'roster',
-                    'top5-conc': 'roster', 'starter-gap': 'roster', 'roster-turnover': 'roster',
-                    'sched-sos': 'roster',
-                    'contender-rank': 'competitive', 'dynasty-rank': 'competitive', 'window': 'competitive',
-                    'hit-rate': 'trading', 'net-trade': 'trading', 'trade-velocity': 'trading',
-                    'trade-leverage': 'trading', 'partner-wr': 'trading',
-                    'pick-capital': 'draft', 'draft-roi': 'draft',
-                    'faab-efficiency': 'waivers',
-                    'playoff-record': 'competitive', 'playoff-winpct': 'competitive',
-                    'champ-appearances': 'competitive', 'dynasty-score': 'competitive',
-                };
-                if (legacyKpiModules[w.key]) {
-                    return { ...w, primaryMetric: w.primaryMetric || w.key, key: legacyKpiModules[w.key] };
-                }
-                return w;
-            });
+            // v3 migration: when the Brief tab was folded into Dashboard, existing
+            // users lost their access point to Alex's briefing. Auto-prepend the
+            // intelligence-brief widget once if it's not already in their layout.
+            // Users who explicitly remove it will keep it removed (the new entry
+            // will be persisted to storage by the useEffect below).
+            if (!widgets.some(w => w.key === 'intelligence-brief')) {
+                widgets = [{ id: 'mig3_brief', key: 'intelligence-brief', size: 'xl' }, ...widgets];
+            }
+            return widgets;
         }
         const [selectedWidgets, setSelectedWidgets] = useState(() =>
             migrateKpisToWidgets(WrStorage.get(WR_KEYS.KPI_SELECTION(currentLeague?.id || ''))) || DEFAULT_WIDGETS
@@ -1122,7 +1135,9 @@
                     window.S.currentLeagueId = currentLeague.id;
                     window.S.season = activeYear;
                     window.S.nflState = { season: activeYear };
-                    window.S.tradedPicks = tradedPicks || [];
+                    window.S.tradedPicks = window.App?.normalizeTradedPicks
+                        ? window.App.normalizeTradedPicks(window.S.rosters, tradedPicks)
+                        : tradedPicks || [];
                     window.S.matchups = matchupsData || [];
                     window.S.myRosterId = myRosterData?.roster_id;
                     const _isNonSleeper = currentLeague._mfl || currentLeague._espn || currentLeague._yahoo;
@@ -1761,11 +1776,9 @@
           const starter = starters[activeTab];
           const chips = starter ? [starter, ...base] : [...base];
 
-          if (activeTab === 'brief') return [...chips,
+          if (activeTab === 'dashboard') return [...chips,
             { label: 'Top 3 moves', prompt: 'What are the top 3 moves I should make right now?' },
             { label: 'League pulse', prompt: 'Give me a quick pulse check on my league — who is rising, falling, and what moves are being made.' },
-          ];
-          if (activeTab === 'dashboard') return [...chips,
             { label: 'League recap', prompt: 'Summarize the key storylines in my league right now.' },
             { label: 'Power rankings', prompt: 'Give me your power rankings for this league with one-line analysis per team.' },
           ];
@@ -2146,7 +2159,7 @@
                                 if (name.toLowerCase().includes(lower)) matches.push({ type: 'player', pid, name, pos: p.position || '?', team: p.team || 'FA' });
                             });
                             // Search tabs
-                            [{ label: 'Intelligence Briefing', tab: 'brief' }, { label: 'Dashboard', tab: 'dashboard' }, { label: 'My Roster', tab: 'myteam' }, { label: 'Trade Center', tab: 'trades' }, { label: 'Free Agency', tab: 'fa' }, { label: 'Draft Command', tab: 'draft' }, { label: 'League Map', tab: 'league' }, { label: 'Trophy Room', tab: 'trophies' }, { label: 'Analytics', tab: 'analytics' }].forEach(t => {
+                            [{ label: 'Home', tab: 'dashboard' }, { label: 'My Roster', tab: 'myteam' }, { label: 'Trade Center', tab: 'trades' }, { label: 'Free Agency', tab: 'fa' }, { label: 'Draft Command', tab: 'draft' }, { label: 'League Map', tab: 'league' }, { label: 'Trophy Room', tab: 'trophies' }, { label: 'Analytics', tab: 'analytics' }].forEach(t => {
                                 if (t.label.toLowerCase().includes(lower)) matches.push({ type: 'tab', label: t.label, tab: t.tab });
                             });
                             setResults(matches.slice(0, 8));
@@ -2187,8 +2200,7 @@
 
                     {/* Nav items — grouped */}
                     {[
-                        { label: 'Brief', tab: 'brief' },
-                        { label: 'Dashboard', tab: 'dashboard' },
+                        { label: 'Home', tab: 'dashboard' },
                         { section: 'STRATEGY' },
                         { label: 'GM Strategy', tab: 'strategy' },
                         { label: 'Analytics', tab: 'analytics' },
@@ -2375,22 +2387,7 @@
                     })()}
                 </div>}
 
-                {/* ── BRIEF TAB ── */}
-                {activeTab === 'brief' && <FlashBriefPanel
-                    myRoster={myRoster}
-                    rankedTeams={rankedTeams}
-                    sleeperUserId={sleeperUserId}
-                    currentLeague={currentLeague}
-                    activeYear={activeYear}
-                    setActiveTab={setActiveTab}
-                    briefDraftInfo={briefDraftInfo}
-                    playersData={playersData}
-                    statsData={statsData}
-                    setReconPanelOpen={setReconPanelOpen}
-                    sendReconMessage={sendReconMessage}
-                />}
-
-                {/* Tab Content Routing */}
+                {/* Tab Content Routing — Brief tab folded into Dashboard as widgets */}
                 {activeTab === 'trades' ? (
                     <TradeCalcTab
                         playersData={playersData}
@@ -2518,7 +2515,7 @@
                     playersData={playersData}
                     gmStrategy={gmStrategy}
                     setGmStrategy={setGmStrategy}
-                /> : activeTab === 'brief' ? null : (
+                /> : (
                 <DashboardPanel
                     selectedWidgets={selectedWidgets}
                     setSelectedWidgets={setSelectedWidgets}
@@ -2537,10 +2534,10 @@
                     getOwnerName={getOwnerName}
                     getPlayerName={getPlayerName}
                     timeAgo={timeAgo}
+                    briefDraftInfo={briefDraftInfo}
                 />
-                )}{/* was: THE ATHLETIC-STYLE DASHBOARD — content moved to DashboardPanel widget grid */}
-                {/* Transaction Ticker + Standings now rendered as widgets inside DashboardPanel */}
-                </div>{/* end marginLeft wrapper — CLEANED: old ticker/standings removed, now in DashboardPanel */}
+                )}
+                </div>{/* end marginLeft wrapper */}
 
             {selectedPlayerPid && typeof window.openFWPlayerModal !== 'function' && <PlayerInlineCard
                 pid={selectedPlayerPid}
