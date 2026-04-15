@@ -15,7 +15,7 @@
         const draftRounds = currentLeague.settings?.draft_rounds || 5;
         const tradedPicks = window.S?.tradedPicks || [];
         const [draftSort, setDraftSort] = useState({ key: 'dhq', dir: -1 });
-        const [draftView, setDraftView] = useState('command'); // 'command' | 'board' | 'mock'
+        const [draftView, setDraftView] = useState('command'); // 'command' | 'board' | 'mock' | 'live'
         const [draftInfo, setDraftInfo] = useState(null);
         const [boardData, setBoardData] = useState(() => WrStorage.get(WR_KEYS.BIGBOARD(currentLeague.id || ''), null));
         const [draftedPids, setDraftedPids] = useState(new Set());
@@ -271,10 +271,11 @@
                 <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '12px' }}>DRAFT ROOM</div>
 
                 {/* Sub-view navigation */}
-                <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px' }}>
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px', flexWrap: 'wrap' }}>
                     <button style={navBtn('command')} onClick={() => setDraftView('command')}>Flash Brief</button>
                     <button style={navBtn('board')} onClick={() => setDraftView('board')}>Big Board</button>
-                    <button style={{...navBtn('mock'), background: activeView === 'mock' ? 'var(--gold)' : 'transparent', color: activeView === 'mock' ? 'var(--black)' : 'var(--gold)', border: activeView === 'mock' ? '2px solid var(--gold)' : '2px solid rgba(212,175,55,0.3)'}} onClick={() => setDraftView('mock')}>Mock Draft</button>
+                    <button style={{...navBtn('mock'), background: activeView === 'mock' ? 'var(--gold)' : 'transparent', color: activeView === 'mock' ? 'var(--black)' : 'var(--gold)', border: activeView === 'mock' ? '2px solid var(--gold)' : '2px solid rgba(212,175,55,0.3)'}} onClick={() => setDraftView('mock')}>Mock Draft Center</button>
+                    <button style={{...navBtn('live'), background: activeView === 'live' ? 'rgba(124,107,248,0.2)' : 'transparent', color: activeView === 'live' ? 'rgba(155,138,251,1)' : 'rgba(155,138,251,0.85)', border: activeView === 'live' ? '2px solid rgba(124,107,248,0.6)' : '2px solid rgba(124,107,248,0.25)'}} onClick={() => setDraftView('live')}>📡 Follow Live Draft</button>
                 </div>
 
                 {/* ═══════════════════ VIEW 1: FLASH BRIEF ═══════════════════ */}
@@ -962,15 +963,46 @@
                     );
                 })()}
 
-                {/* ═══════════════════ VIEW 3: MOCK DRAFT ═══════════════════ */}
-                {activeView === 'mock' && (
-                    <MockDraftPanel
-                        playersData={playersData}
-                        myRoster={myRoster}
-                        currentLeague={currentLeague}
-                        draftRounds={draftRounds}
-                    />
-                )}
+                {/* ═══════════════════ VIEW 3: MOCK DRAFT CENTER ═══════════════════ */}
+                {activeView === 'mock' && (() => {
+                    const DraftCC = window.DraftCommandCenter;
+                    if (typeof DraftCC === 'function') {
+                        return (
+                            <DraftCC
+                                playersData={playersData}
+                                myRoster={myRoster}
+                                currentLeague={currentLeague}
+                                draftRounds={draftRounds}
+                            />
+                        );
+                    }
+                    return (
+                        <div style={{ padding: '20px', color: '#E74C3C', textAlign: 'center', fontSize: '0.9rem' }}>
+                            Mock Draft Center failed to load. Check console for errors.
+                        </div>
+                    );
+                })()}
+
+                {/* ═══════════════════ VIEW 4: FOLLOW LIVE DRAFT ═══════════════════ */}
+                {activeView === 'live' && (() => {
+                    const DraftCC = window.DraftCommandCenter;
+                    if (typeof DraftCC === 'function') {
+                        return (
+                            <DraftCC
+                                playersData={playersData}
+                                myRoster={myRoster}
+                                currentLeague={currentLeague}
+                                draftRounds={draftRounds}
+                                forcedMode="live-sync"
+                            />
+                        );
+                    }
+                    return (
+                        <div style={{ padding: '20px', color: '#E74C3C', textAlign: 'center', fontSize: '0.9rem' }}>
+                            Live Draft Follower failed to load. Check console for errors.
+                        </div>
+                    );
+                })()}
 
             </div>
         );
