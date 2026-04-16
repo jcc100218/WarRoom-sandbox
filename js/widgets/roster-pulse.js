@@ -162,26 +162,47 @@
             );
         }
 
-        // ── LG (2×2): Vital signs grid ──────────────────────────
-        if (size === 'lg' || size === 'tall') {
+        // ── LG / TALL (2×2+): Vital signs grid with league context ──
+        if (size === 'lg' || size === 'tall' || size === 'xxl') {
+            // Compute league ranks for each vital
+            const leagueTotal = (currentLeague?.rosters || []).length || 1;
+            const healthRank = [...allAssess].sort((a, b) => (b.healthScore || 0) - (a.healthScore || 0)).findIndex(a => a.rosterId === myRoster?.roster_id) + 1;
+
             const vitals = [
-                { label: 'HEALTH', value: healthKv.value, color: healthKv.color || healthCol, sub: tier },
-                { label: 'ELITES', value: eliteKv.value, color: eliteKv.color || colors.positive, sub: '' },
-                { label: 'CONTENDER', value: contenderKv.value, color: contenderKv.color || colors.accent, sub: '' },
-                { label: 'DYNASTY', value: dynastyKv.value, color: dynastyKv.color || colors.accent, sub: '' },
-                { label: 'WINDOW', value: windowKv.value, color: windowKv.color || colors.warn, sub: '' },
-                { label: 'AGING CLIFF', value: cliffKv.value, color: cliffKv.color || colors.negative, sub: '' },
+                { label: 'HEALTH', value: healthKv.value, color: healthKv.color || healthCol, sub: tier, rank: healthRank || '—' },
+                { label: 'ELITES', value: eliteKv.value, color: eliteKv.color || colors.positive, sub: '', rank: '' },
+                { label: 'CONTENDER', value: contenderKv.value, color: contenderKv.color || colors.accent, sub: contenderKv.sub || '', rank: '' },
+                { label: 'DYNASTY', value: dynastyKv.value, color: dynastyKv.color || colors.accent, sub: dynastyKv.sub || '', rank: '' },
+                { label: 'WINDOW', value: windowKv.value, color: windowKv.color || colors.warn, sub: '', rank: '' },
+                { label: 'AGING CLIFF', value: cliffKv.value, color: cliffKv.color || colors.negative, sub: '', rank: '' },
             ];
+
+            // Position-level breakdown: starters owned vs ideal by position
+            const posBreakdown = React.useMemo(() => {
+                const scores = window.App?.LI?.playerScores || {};
+                const posAssess = assess?.posAssessment || {};
+                const idealRoster = window.App?.LI?.idealRoster || window.App?.PlayerValue?.IDEAL_ROSTER || { QB: 3, RB: 7, WR: 7, TE: 4, K: 2, DL: 7, LB: 6, DB: 6 };
+                const posOrder = ['QB', 'RB', 'WR', 'TE', 'K', 'DL', 'LB', 'DB'];
+                return posOrder.map(pos => {
+                    const pa = posAssess[pos];
+                    const status = pa?.status || 'ok';
+                    const count = pa?.count || 0;
+                    const ideal = idealRoster[pos] || 3;
+                    const topDHQ = pa?.topDHQ || 0;
+                    return { pos, count, ideal, status, topDHQ };
+                }).filter(p => p.ideal > 0);
+            }, [assess]);
 
             return (
                 <div style={{ ...cardStyle, padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
                     {/* Header */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                         <span style={{ fontSize: '1.1rem' }}>💊</span>
-                        <span style={{ fontFamily: fonts.display, fontSize: fs(1.0), fontWeight: 700, color: colors.accent, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Roster Pulse</span>
+                        <span style={{ fontFamily: fonts.display, fontSize: fs(1.0), fontWeight: 700, color: colors.accent, letterSpacing: '0.07em', textTransform: 'uppercase', flex: 1 }}>Roster Pulse</span>
+                        <Badge label={tier} color={tierCol} theme={theme} />
                     </div>
 
-                    {/* Vital signs grid */}
+                    {/* Vital signs grid — now with league rank context */}
                     <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(3, 1fr)',
@@ -204,62 +225,96 @@
                                     lineHeight: 1.1,
                                 }} className="wr-data-value">{v.value}</div>
                                 <div style={{
-                                    fontSize: fs(0.8),
+                                    fontSize: fs(0.72),
                                     color: colors.textMuted,
                                     textTransform: 'uppercase',
                                     letterSpacing: '0.06em',
                                     marginTop: '3px',
                                     fontFamily: fonts.ui,
                                 }}>{v.label}</div>
-                                {v.sub && <div style={{ fontSize: fs(0.78), color: colors.textFaint, marginTop: '1px' }}>{v.sub}</div>}
+                                {v.sub && <div style={{ fontSize: fs(0.64), color: colors.textFaint, marginTop: '1px', fontFamily: fonts.ui }}>{v.sub}</div>}
                             </div>
                         ))}
                     </div>
 
-                    {/* Needs chips */}
-                    {needs.length > 0 && (
-                        <div style={{ marginBottom: '8px' }}>
-                            <div style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Needs</div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
-                                {needs.slice(0, 5).map((n, i) => {
-                                    const pos = typeof n === 'string' ? n : n?.pos;
-                                    const urgency = typeof n === 'object' ? n?.urgency : null;
-                                    const col = urgency === 'deficit' ? colors.negative : colors.accent;
-                                    return <Badge key={i} label={pos + (urgency === 'deficit' ? '!' : '')} color={col} theme={theme} />;
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Mini health sparkline for lg */}
-                    <div style={{ flex: 1, minHeight: 40 }}>
-                        <MiniBarChart data={healthSparkData} highlight={health} colors={colors} fonts={fonts} fs={fs} height={36} />
-                        <div style={{ fontSize: fs(0.78), color: colors.textFaint, marginTop: '2px', fontFamily: fonts.ui }}>
-                            League health distribution · you: {health}
+                    {/* Position breakdown — starters vs ideal with colored bars */}
+                    <div style={{ marginBottom: '10px' }}>
+                        <div style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', fontFamily: fonts.ui }}>Position Health</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+                            {posBreakdown.map((p, i) => {
+                                const pct = Math.min(100, (p.count / Math.max(p.ideal, 1)) * 100);
+                                const barCol = p.status === 'surplus' ? colors.positive : p.status === 'deficit' ? colors.negative : p.status === 'thin' ? colors.warn : 'rgba(255,255,255,0.25)';
+                                return (
+                                    <div key={i} style={{ textAlign: 'center' }}>
+                                        <div style={{ fontSize: fs(0.64), fontWeight: 700, color: barCol, fontFamily: fonts.ui }}>{p.pos}</div>
+                                        <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden', margin: '2px 0' }}>
+                                            <div style={{ width: pct + '%', height: '100%', background: barCol, transition: '0.3s' }} />
+                                        </div>
+                                        <div style={{ fontSize: fs(0.58), color: colors.textFaint, fontFamily: fonts.mono }}>{p.count}/{p.ideal}</div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    {/* Tall extras: recommendations */}
-                    {size === 'tall' && (
+                    {/* Needs + Strengths side by side */}
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '8px' }}>
+                        {needs.length > 0 && (
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.negative, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Needs</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                                    {needs.slice(0, 4).map((n, i) => {
+                                        const pos = typeof n === 'string' ? n : n?.pos;
+                                        const urgency = typeof n === 'object' ? n?.urgency : null;
+                                        const col = urgency === 'deficit' ? colors.negative : colors.warn;
+                                        return <Badge key={i} label={pos + (urgency === 'deficit' ? '!' : '')} color={col} theme={theme} />;
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                        {strengths.length > 0 && (
+                            <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.positive, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Strengths</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                                    {strengths.slice(0, 4).map((s, i) => {
+                                        const pos = typeof s === 'string' ? s : s?.pos;
+                                        return <Badge key={i} label={pos || '—'} color={colors.positive} theme={theme} />;
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Mini health sparkline */}
+                    <div style={{ flex: 1, minHeight: 36 }}>
+                        <MiniBarChart data={healthSparkData} highlight={health} colors={colors} fonts={fonts} fs={fs} height={32} />
+                        <div style={{ fontSize: fs(0.64), color: colors.textFaint, marginTop: '2px', fontFamily: fonts.ui }}>
+                            League health distribution · you: {health}{healthRank ? ' (#' + healthRank + ')' : ''}
+                        </div>
+                    </div>
+
+                    {/* Tall/XXL extras: actionable recommendation based on actual team state */}
+                    {(size === 'tall' || size === 'xxl') && (
                         <div style={{
-                            marginTop: '12px',
+                            marginTop: '10px',
                             padding: '10px 12px',
                             background: 'rgba(255,255,255,0.02)',
                             border: '1px solid ' + (colors.border || 'rgba(255,255,255,0.06)'),
                             borderRadius: theme.card?.radius === '0px' ? '0' : '6px',
                         }}>
-                            <div style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', fontFamily: fonts.ui }}>Strengths</div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', marginBottom: '8px' }}>
-                                {(strengths.length ? strengths : ['—']).map((s, i) => {
-                                    const pos = typeof s === 'string' ? s : s?.pos;
-                                    return <Badge key={i} label={pos || '—'} color={colors.positive} theme={theme} />;
-                                })}
-                            </div>
-                            <div style={{ fontSize: fs(0.92), color: colors.textMuted, lineHeight: 1.5, fontFamily: fonts.ui }}>
-                                {tier === 'ELITE' ? 'You\'re the team to beat. Protect your core and make surgical upgrades.'
-                                : tier === 'CONTENDER' ? 'Push for a title. Trade future picks for win-now assets.'
-                                : tier === 'CROSSROADS' ? 'Decision time: commit to competing or start a rebuild.'
-                                : 'Accumulate picks and young players. Patience pays.'}
+                            <div style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', fontFamily: fonts.ui }}>Action Plan</div>
+                            <div style={{ fontSize: fs(0.78), color: colors.textMuted, lineHeight: 1.5, fontFamily: fonts.ui }}>
+                                {(() => {
+                                    const topNeed = needs[0];
+                                    const topNeedPos = topNeed ? (typeof topNeed === 'string' ? topNeed : topNeed?.pos) : null;
+                                    const topNeedUrgency = typeof topNeed === 'object' ? topNeed?.urgency : null;
+                                    const topStrength = strengths[0];
+                                    const topStrPos = topStrength ? (typeof topStrength === 'string' ? topStrength : topStrength?.pos) : null;
+                                    if (tier === 'ELITE') return 'Protect your core. ' + (topNeedPos ? 'Surgical upgrade at ' + topNeedPos + ' would lock in your window.' : 'No critical needs — stay disciplined.');
+                                    if (tier === 'CONTENDER') return (topNeedPos && topNeedUrgency === 'deficit' ? topNeedPos + ' is your biggest hole — fill it now or risk a first-round exit.' : 'Close to elite. ') + (topStrPos ? ' Your ' + topStrPos + ' depth gives you trade leverage.' : '');
+                                    if (tier === 'CROSSROADS') return 'Decision time. ' + (topNeedPos ? 'You need ' + topNeedPos + ' help badly. ' : '') + (topStrPos ? 'Sell ' + topStrPos + ' surplus for picks if you\'re rebuilding, or buy a ' + (topNeedPos || 'starter') + ' if you\'re pushing.' : 'Commit one direction or the other.');
+                                    return 'Rebuild mode. Accumulate picks and youth. ' + (topStrPos ? 'Shop your ' + topStrPos + ' depth for draft capital.' : 'Patience pays.');
+                                })()}
                             </div>
                         </div>
                     )}

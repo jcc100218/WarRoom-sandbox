@@ -144,7 +144,52 @@
             );
         }
 
-        // ── LG: full inventory + value comparison ──
+        // ── LG / TALL: full inventory with league rank, year groups, equivalents ──
+
+        // League capital rank — sum each team's pick value
+        const leagueCapitalRank = React.useMemo(() => {
+            const allRosters = currentLeague?.rosters || [];
+            const leagueSeason = parseInt(currentLeague?.season) || new Date().getFullYear();
+            const allTeamCap = allRosters.map(r => {
+                let cap = 0;
+                for (let yr = leagueSeason; yr <= leagueSeason + 2; yr++) {
+                    for (let rd = 1; rd <= draftRounds; rd++) {
+                        const pv = typeof window.getIndustryPickValue === 'function'
+                            ? window.getIndustryPickValue((rd - 1) * totalTeams + Math.ceil(totalTeams / 2), totalTeams, draftRounds)
+                            : window.App?.PlayerValue?.getPickValue?.(yr, rd, totalTeams) || 0;
+                        const tradedAway = (tradedPicks || []).find(p => parseInt(p.season) === yr && p.round === rd && p.roster_id === r.roster_id && p.owner_id !== r.roster_id);
+                        if (!tradedAway) cap += pv;
+                        const acquired = (tradedPicks || []).filter(p => parseInt(p.season) === yr && p.round === rd && p.owner_id === r.roster_id && p.roster_id !== r.roster_id);
+                        acquired.forEach(() => { cap += pv; });
+                    }
+                }
+                return { rid: r.roster_id, cap };
+            }).sort((a, b) => b.cap - a.cap);
+            const rank = allTeamCap.findIndex(t => t.rid === myRid) + 1;
+            return { rank: rank || '—', total: allTeamCap.length };
+        }, [currentLeague, draftRounds, totalTeams, tradedPicks, myRid]);
+
+        // Group picks by year
+        const picksByYear = React.useMemo(() => {
+            const groups = {};
+            picks.forEach(p => {
+                const yr = p.year || p.season || 'Unknown';
+                if (!groups[yr]) groups[yr] = [];
+                groups[yr].push(p);
+            });
+            return Object.entries(groups).sort((a, b) => a[0] - b[0]);
+        }, [picks]);
+
+        // Pick value equivalent label
+        const pickEquiv = (val) => {
+            if (val >= 7000) return 'QB1 / RB1';
+            if (val >= 5000) return 'WR1 / RB1';
+            if (val >= 3000) return 'starter';
+            if (val >= 1500) return 'flex';
+            if (val >= 500) return 'depth';
+            return '';
+        };
+
         return (
             <div style={{ ...cardStyle, padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
@@ -155,42 +200,74 @@
                             fontSize: fs(0.72), fontWeight: 700,
                             color: countdown.live ? colors.positive : colors.accent,
                             fontFamily: fonts.ui,
-                        }}>{countdown.live ? '🔴 ' : '📅 '}{countdown.text}</span>
+                        }}>{countdown.live ? '🔴 ' : ''}{countdown.text}</span>
                     )}
                 </div>
 
-                {/* Pick inventory with value bars */}
-                <div style={{ marginBottom: '12px' }}>
-                    {picks.map((p, i) => (
-                        <div key={i} style={{
-                            display: 'flex', alignItems: 'center', gap: '6px', padding: '3px 0',
-                            borderBottom: '1px solid rgba(255,255,255,0.03)',
-                        }}>
-                            <span style={{ fontSize: fs(0.72), fontWeight: 700, color: p.own ? colors.text : colors.accent, minWidth: 80, fontFamily: fonts.ui }}>
-                                {p.label}
-                            </span>
-                            <div style={{ flex: 1, height: 8, background: 'rgba(255,255,255,0.04)', borderRadius: theme.card?.radius === '0px' ? '0' : '3px', overflow: 'hidden' }}>
-                                <div style={{ width: ((p.value / maxRoundVal) * 100) + '%', height: '100%', background: p.round <= 2 ? colors.accent : colors.textMuted + '66', transition: '0.3s' }} />
-                            </div>
-                            <span style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.textMuted, minWidth: 36, textAlign: 'right', fontFamily: fonts.mono }}>
-                                {p.value >= 1000 ? (p.value / 1000).toFixed(1) + 'k' : p.value}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Total */}
+                {/* League capital rank badge */}
                 <div style={{
-                    padding: '8px 10px',
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    marginBottom: '10px', padding: '6px 10px',
                     background: 'rgba(255,255,255,0.02)',
                     border: '1px solid ' + (colors.border || 'rgba(255,255,255,0.06)'),
                     borderRadius: theme.card?.radius === '0px' ? '0' : '6px',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
-                    <span style={{ fontSize: fs(0.72), color: colors.textMuted, fontFamily: fonts.ui }}>TOTAL CAPITAL</span>
-                    <span style={{ fontSize: fs(1.0), fontWeight: 700, color: valCol, fontFamily: fonts.mono }} className="wr-data-value">
-                        {totalValue >= 1000 ? (totalValue / 1000).toFixed(1) + 'k' : totalValue}
-                    </span>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: fonts.mono, fontSize: fs(1.2), fontWeight: 700, color: valCol, lineHeight: 1 }} className="wr-data-value">
+                            {totalValue >= 1000 ? (totalValue / 1000).toFixed(1) + 'k' : totalValue}
+                        </div>
+                        <div style={{ fontSize: fs(0.58), color: colors.textMuted, fontFamily: fonts.ui }}>TOTAL DHQ</div>
+                    </div>
+                    <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.08)' }} />
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: fonts.mono, fontSize: fs(1.2), fontWeight: 700, color: colors.accent, lineHeight: 1 }}>#{leagueCapitalRank.rank}</div>
+                        <div style={{ fontSize: fs(0.58), color: colors.textMuted, fontFamily: fonts.ui }}>OF {leagueCapitalRank.total}</div>
+                    </div>
+                    <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.08)' }} />
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: fonts.mono, fontSize: fs(1.2), fontWeight: 700, color: colors.text, lineHeight: 1 }}>{pickCount}</div>
+                        <div style={{ fontSize: fs(0.58), color: colors.textMuted, fontFamily: fonts.ui }}>PICKS</div>
+                    </div>
+                </div>
+
+                {/* Pick inventory grouped by year */}
+                <div style={{ marginBottom: '8px', flex: 1 }}>
+                    {picksByYear.map(([year, yearPicks], yi) => {
+                        const yearTotal = yearPicks.reduce((s, p) => s + (p.value || 0), 0);
+                        return (
+                            <div key={year} style={{ marginBottom: yi < picksByYear.length - 1 ? '8px' : 0 }}>
+                                {/* Year header */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                    <span style={{ fontSize: fs(0.68), fontWeight: 700, color: colors.accent, fontFamily: fonts.ui }}>{year}</span>
+                                    <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+                                    <span style={{ fontSize: fs(0.58), color: colors.textMuted, fontFamily: fonts.mono }}>
+                                        {yearTotal >= 1000 ? (yearTotal / 1000).toFixed(1) + 'k' : yearTotal}
+                                    </span>
+                                </div>
+                                {yearPicks.map((p, i) => {
+                                    const equiv = pickEquiv(p.value);
+                                    return (
+                                        <div key={i} style={{
+                                            display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0',
+                                            borderBottom: '1px solid rgba(255,255,255,0.02)',
+                                        }}>
+                                            <span style={{ fontSize: fs(0.72), fontWeight: 700, color: p.own ? colors.text : colors.accent, minWidth: 70, fontFamily: fonts.ui }}>
+                                                {p.label}
+                                            </span>
+                                            {!p.own && <span style={{ fontSize: fs(0.54), fontWeight: 700, color: colors.purple, fontFamily: fonts.ui, padding: '0 4px', background: colors.purple + '18', borderRadius: 3 }}>TRADE</span>}
+                                            <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.04)', borderRadius: 3, overflow: 'hidden' }}>
+                                                <div style={{ width: ((p.value / maxRoundVal) * 100) + '%', height: '100%', background: p.round <= 2 ? colors.accent : colors.textMuted + '66', transition: '0.3s' }} />
+                                            </div>
+                                            <span style={{ fontSize: fs(0.62), fontWeight: 700, color: colors.textMuted, minWidth: 32, textAlign: 'right', fontFamily: fonts.mono }}>
+                                                {p.value >= 1000 ? (p.value / 1000).toFixed(1) + 'k' : p.value}
+                                            </span>
+                                            {equiv && <span style={{ fontSize: fs(0.54), color: colors.textFaint, fontFamily: fonts.ui, minWidth: 44 }}>{equiv}</span>}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         );

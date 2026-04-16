@@ -95,25 +95,80 @@
             );
         }
 
-        // ── LG / TALL / XL: standings + activity ──
+        // ── LG / TALL / XL / XXL: standings + tier summary + activity ──
         const showTx = size !== 'md';
-        const showMovers = size === 'tall' || size === 'xl';
-        const top = size === 'xl' ? powerRanked : powerRanked.slice(0, size === 'tall' ? 12 : 8);
+        const showMore = size === 'tall' || size === 'xl' || size === 'xxl';
+        const top = (size === 'xl' || size === 'xxl') ? powerRanked : powerRanked.slice(0, showMore ? 12 : 8);
+
+        // Tier distribution summary
+        const tierDist = React.useMemo(() => {
+            const dist = { ELITE: 0, CONTENDER: 0, CROSSROADS: 0, REBUILDING: 0 };
+            powerRanked.forEach(a => { if (dist[a.tier] !== undefined) dist[a.tier]++; else dist.CROSSROADS++; });
+            return dist;
+        }, [powerRanked]);
+
+        // My rank + gap to rank above
+        const myRankData = React.useMemo(() => {
+            const scores = window.App?.LI?.playerScores || {};
+            const allDHQ = powerRanked.map((a, i) => {
+                const roster = (currentLeague?.rosters || []).find(r => r.roster_id === a.rosterId);
+                const dhq = (roster?.players || []).reduce((s, pid) => s + (scores[pid] || 0), 0);
+                const isMe = roster?.owner_id === sleeperUserId;
+                return { rank: i + 1, dhq, isMe, name: getOwnerName ? getOwnerName(a.rosterId) : 'Team ' + (i + 1) };
+            });
+            const me = allDHQ.find(t => t.isMe);
+            if (!me) return { rank: '—', gap: 0, aheadName: '' };
+            const ahead = allDHQ.find(t => t.rank === me.rank - 1);
+            return { rank: me.rank, dhq: me.dhq, gap: ahead ? ahead.dhq - me.dhq : 0, aheadName: ahead?.name || '' };
+        }, [powerRanked, currentLeague, sleeperUserId, getOwnerName]);
 
         return (
             <div style={{ ...cardStyle, padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                     <span style={{ fontSize: '1.1rem' }}>🌐</span>
                     <span style={{ fontFamily: fonts.display, fontSize: fs(1.0), fontWeight: 700, color: colors.accent, letterSpacing: '0.07em', textTransform: 'uppercase', flex: 1 }}>League Landscape</span>
                     {transactions && <span style={{ fontSize: fs(0.68), color: colors.textMuted, fontFamily: fonts.ui }}>{transactions.length} moves</span>}
                 </div>
 
-                {/* Standings table */}
-                <div style={{ marginBottom: showTx ? '12px' : 0 }}>
+                {/* Tier distribution summary */}
+                <div style={{
+                    display: 'flex', gap: '8px', marginBottom: '10px', padding: '6px 8px',
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid ' + (colors.border || 'rgba(255,255,255,0.06)'),
+                    borderRadius: theme.card?.radius === '0px' ? '0' : '6px',
+                    flexWrap: 'wrap',
+                }}>
+                    {Object.entries(tierDist).filter(([, n]) => n > 0).map(([t, n]) => (
+                        <div key={t} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div style={{ width: 6, height: 6, borderRadius: 3, background: tierCol(t) }} />
+                            <span style={{ fontSize: fs(0.62), fontWeight: 700, color: tierCol(t), fontFamily: fonts.ui }}>{n}</span>
+                            <span style={{ fontSize: fs(0.58), color: colors.textFaint, fontFamily: fonts.ui }}>{t.slice(0, 5)}</span>
+                        </div>
+                    ))}
+                    {myRankData.gap > 0 && (
+                        <div style={{ marginLeft: 'auto', fontSize: fs(0.62), color: colors.textMuted, fontFamily: fonts.ui }}>
+                            {(myRankData.gap / 1000).toFixed(1)}k behind #{myRankData.rank - 1}
+                        </div>
+                    )}
+                </div>
+
+                {/* Standings table — with roster DHQ column */}
+                <div style={{ marginBottom: showTx ? '10px' : 0 }}>
+                    {/* Column headers */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0 4px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <span style={{ width: 16 }} />
+                        <span style={{ flex: 1, fontSize: fs(0.58), color: colors.textFaint, textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: fonts.ui }}>Owner</span>
+                        <span style={{ fontSize: fs(0.58), color: colors.textFaint, textTransform: 'uppercase', fontFamily: fonts.ui, minWidth: 36, textAlign: 'right' }}>Tier</span>
+                        <span style={{ fontSize: fs(0.58), color: colors.textFaint, textTransform: 'uppercase', fontFamily: fonts.ui, minWidth: 32, textAlign: 'right' }}>DHQ</span>
+                        <span style={{ fontSize: fs(0.58), color: colors.textFaint, textTransform: 'uppercase', fontFamily: fonts.ui, minWidth: 22, textAlign: 'right' }}>HP</span>
+                    </div>
                     {top.map((a, i) => {
                         const isMe = a.rosterId && (currentLeague?.rosters || []).find(r => r.roster_id === a.rosterId)?.owner_id === sleeperUserId;
                         const name = getOwnerName ? getOwnerName(a.rosterId) : ('Team ' + (i + 1));
                         const tc = tierCol(a.tier);
+                        const scores = window.App?.LI?.playerScores || {};
+                        const roster = (currentLeague?.rosters || []).find(r => r.roster_id === a.rosterId);
+                        const rosterDHQ = roster ? (roster.players || []).reduce((s, pid) => s + (scores[pid] || 0), 0) : 0;
                         return (
                             <div key={i} style={{
                                 display: 'flex', alignItems: 'center', gap: '6px', padding: '3px 0',
@@ -121,11 +176,12 @@
                                 background: isMe ? 'rgba(212,175,55,0.04)' : 'transparent',
                             }}>
                                 <span style={{ fontSize: fs(0.68), color: i < 3 ? colors.accent : colors.textMuted, fontWeight: 700, width: 16, textAlign: 'right', fontFamily: fonts.mono }}>{i + 1}</span>
-                                <span style={{ flex: 1, fontSize: fs(0.76), fontWeight: isMe ? 700 : 500, color: isMe ? colors.accent : colors.text, fontFamily: fonts.ui, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {isMe ? '★ ' : ''}{(name || '').slice(0, 18)}
+                                <span style={{ flex: 1, fontSize: fs(0.72), fontWeight: isMe ? 700 : 500, color: isMe ? colors.accent : colors.text, fontFamily: fonts.ui, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {isMe ? '★ ' : ''}{(name || '').slice(0, 16)}
                                 </span>
-                                <span style={{ ...window.WrTheme?.badgeStyle?.(tc) || {}, fontSize: fs(0.78) }}>{(a.tier || '—').slice(0, 4)}</span>
-                                <span style={{ fontSize: fs(0.68), fontWeight: 700, color: colors.textMuted, minWidth: 22, textAlign: 'right', fontFamily: fonts.mono }}>{a.healthScore || 0}</span>
+                                <span style={{ ...window.WrTheme?.badgeStyle?.(tc) || {}, fontSize: fs(0.64), minWidth: 36 }}>{(a.tier || '—').slice(0, 4)}</span>
+                                <span style={{ fontSize: fs(0.62), color: colors.textMuted, minWidth: 32, textAlign: 'right', fontFamily: fonts.mono }}>{rosterDHQ >= 1000 ? Math.round(rosterDHQ / 1000) + 'k' : rosterDHQ}</span>
+                                <span style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.textMuted, minWidth: 22, textAlign: 'right', fontFamily: fonts.mono }}>{a.healthScore || 0}</span>
                             </div>
                         );
                     })}
@@ -137,24 +193,26 @@
                         <div style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Recent Activity</div>
                         {recentTx.map((tx, i) => {
                             const type = tx.type || 'move';
-                            const typeCol = type === 'trade' ? colors.purple : type === 'waiver' ? colors.info : colors.positive;
+                            const typeCol = type === 'trade' ? (colors.purple || '#7C6BF8') : type === 'waiver' ? (colors.info || '#00c8b4') : colors.positive;
+                            // Try to resolve player names
+                            let desc = tx.description || tx.type || '—';
+                            if (tx.adds || tx.drops) {
+                                const addNames = Object.keys(tx.adds || {}).map(pid => playersData?.[pid]?.full_name || pid).slice(0, 2);
+                                const dropNames = Object.keys(tx.drops || {}).map(pid => playersData?.[pid]?.full_name || pid).slice(0, 2);
+                                if (addNames.length && dropNames.length) desc = addNames.join(', ') + ' for ' + dropNames.join(', ');
+                                else if (addNames.length) desc = 'Added ' + addNames.join(', ');
+                                else if (dropNames.length) desc = 'Dropped ' + dropNames.join(', ');
+                            }
                             return (
-                                <div key={i} style={{ display: 'flex', gap: '6px', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.02)', fontSize: fs(0.85), fontFamily: fonts.ui }}>
-                                    <span style={{ ...window.WrTheme?.badgeStyle?.(typeCol) || {}, fontSize: fs(0.76) }}>{type.toUpperCase()}</span>
+                                <div key={i} style={{ display: 'flex', gap: '6px', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.02)', fontSize: fs(0.72), fontFamily: fonts.ui }}>
+                                    <span style={{ ...window.WrTheme?.badgeStyle?.(typeCol) || {}, fontSize: fs(0.62) }}>{type.toUpperCase()}</span>
                                     <span style={{ flex: 1, color: colors.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {tx.description || tx.type || '—'}
+                                        {desc}
                                     </span>
-                                    {tx.created && <span style={{ fontSize: fs(0.76), color: colors.textFaint }}>{timeAgo ? timeAgo(tx.created) : ''}</span>}
+                                    {tx.created && <span style={{ fontSize: fs(0.62), color: colors.textFaint }}>{timeAgo ? timeAgo(tx.created) : ''}</span>}
                                 </div>
                             );
                         })}
-                    </div>
-                )}
-
-                {/* Movers section for tall/xl */}
-                {showMovers && (
-                    <div style={{ marginTop: '12px', fontSize: fs(0.85), color: colors.textFaint, fontStyle: 'italic', fontFamily: fonts.ui }}>
-                        "Who's Moving" trends coming in Phase 3b
                     </div>
                 )}
             </div>

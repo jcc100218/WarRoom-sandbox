@@ -147,7 +147,36 @@
             );
         }
 
-        // ── LG / TALL: trade radar + waiver targets ──
+        // ── LG / TALL: trade radar + waiver targets (enriched) ──
+
+        // Compute best swap suggestion per partner: find a specific player from your surplus that fills their need
+        const myStrengthPositions = (myAssess?.strengths || []).map(s => typeof s === 'string' ? s : s?.pos).filter(Boolean);
+
+        // Find best swap candidates: your surplus players at positions they need
+        const swapSuggestions = React.useMemo(() => {
+            const scores = window.App?.LI?.playerScores || {};
+            const myPlayers = (myRoster?.players || []);
+            const suggestions = {};
+            tradeTargets.slice(0, 4).forEach(t => {
+                const theirNeeds = t.theirNeeds || [];
+                // Find my best player at a position they need that I have surplus in
+                const candidates = myPlayers
+                    .filter(pid => {
+                        const p = playersData?.[pid];
+                        if (!p) return false;
+                        const pos = window.App?.normPos?.(p.position) || p.position || '';
+                        return theirNeeds.includes(pos) && myStrengthPositions.includes(pos);
+                    })
+                    .map(pid => ({ pid, name: (playersData[pid]?.full_name || '').split(' ').pop(), pos: window.App?.normPos?.(playersData[pid]?.position) || '', dhq: scores[pid] || 0 }))
+                    .sort((a, b) => b.dhq - a.dhq);
+                if (candidates.length) suggestions[t.rosterId || t.name] = candidates[0];
+            });
+            return suggestions;
+        }, [tradeTargets, myRoster, playersData, myStrengthPositions]);
+
+        // Which needs do waiver targets fill?
+        const myNeedPositions = (myAssess?.needs || []).map(n => typeof n === 'string' ? n : n?.pos).filter(Boolean);
+
         return (
             <div style={{ ...cardStyle, padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
@@ -156,42 +185,59 @@
                     <span style={{ fontSize: fs(0.68), color: colors.textMuted }}>{dealCount} targets</span>
                 </div>
 
-                {/* Trade partners */}
+                {/* Trade partners — with complementarity bar and swap suggestion */}
                 <div style={{ marginBottom: '12px' }}>
-                    <div style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Trade Partners</div>
-                    {tradeTargets.slice(0, 3).map((t, i) => (
-                        <div key={i} style={{
-                            display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 0',
-                            borderBottom: '1px solid rgba(255,255,255,0.03)',
-                        }}>
-                            <div style={{
-                                width: 4, height: 28, borderRadius: 2,
-                                background: t.compat >= 60 ? colors.positive : t.compat >= 30 ? colors.accent : colors.warn,
-                            }} />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: fs(0.78), fontWeight: 700, color: colors.text, fontFamily: fonts.ui }}>{t.name}</div>
-                                <div style={{ fontSize: fs(0.64), color: colors.textMuted, fontFamily: fonts.ui }}>
-                                    wants {t.theirNeeds.join(', ') || '—'}
+                    <div style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px', fontFamily: fonts.ui }}>Trade Partners</div>
+                    {tradeTargets.slice(0, size === 'tall' ? 5 : 3).map((t, i) => {
+                        const compatCol = t.compat >= 60 ? colors.positive : t.compat >= 30 ? colors.accent : colors.warn;
+                        const swap = swapSuggestions[t.rosterId || t.name];
+                        return (
+                            <div key={i} style={{
+                                padding: '6px 0',
+                                borderBottom: '1px solid rgba(255,255,255,0.03)',
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: fs(0.78), fontWeight: 700, color: colors.text, fontFamily: fonts.ui }}>{t.name}</div>
+                                        <div style={{ fontSize: fs(0.64), color: colors.textMuted, fontFamily: fonts.ui, marginTop: '1px' }}>
+                                            wants {t.theirNeeds.join(', ') || '—'} · you have {t.myOffers.join(', ') || '—'}
+                                        </div>
+                                    </div>
+                                    <span style={{ fontSize: fs(0.68), fontWeight: 700, color: compatCol, fontFamily: fonts.mono }}>{t.compat}%</span>
                                 </div>
+                                {/* Complementarity bar */}
+                                <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden', margin: '4px 0 2px' }}>
+                                    <div style={{ width: t.compat + '%', height: '100%', background: compatCol, transition: '0.3s' }} />
+                                </div>
+                                {/* Best swap suggestion */}
+                                {swap && (
+                                    <div style={{ fontSize: fs(0.64), color: colors.purple, fontFamily: fonts.ui, marginTop: '2px' }}>
+                                        Swap idea: send {swap.name} ({swap.pos}) for their {t.theirNeeds[0] || '?'} depth
+                                    </div>
+                                )}
                             </div>
-                            <span style={{ fontSize: fs(0.68), fontWeight: 700, color: colors.accent, fontFamily: fonts.mono }}>{t.compat}%</span>
-                        </div>
-                    ))}
+                        );
+                    })}
                     {tradeTargets.length === 0 && (
                         <div style={{ fontSize: fs(0.72), color: colors.textFaint, fontStyle: 'italic', padding: '8px 0', fontFamily: fonts.ui }}>No strong complementarity matches</div>
                     )}
                 </div>
 
-                {/* Waiver wire */}
+                {/* Waiver wire — with need-filling context */}
                 <div style={{ marginBottom: '10px' }}>
                     <div style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Waiver Wire</div>
-                    {waiverTargets.map((p, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.02)', fontSize: fs(0.72) }}>
-                            <span style={{ fontWeight: 700, color: colors.text, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: fonts.ui }}>{p.name}</span>
-                            <span style={{ ...window.WrTheme?.badgeStyle?.(window.App?.POS_COLORS?.[p.pos] || colors.accent) || {}, fontSize: fs(0.78) }}>{p.pos}</span>
-                            <span style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.textMuted, fontFamily: fonts.mono }}>{p.dhq >= 1000 ? (p.dhq / 1000).toFixed(1) + 'k' : p.dhq}</span>
-                        </div>
-                    ))}
+                    {waiverTargets.slice(0, size === 'tall' ? 8 : 5).map((p, i) => {
+                        const fillsNeed = myNeedPositions.includes(p.pos);
+                        return (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.02)', fontSize: fs(0.72) }}>
+                                <span style={{ fontWeight: 700, color: colors.text, flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: fonts.ui }}>{p.name}</span>
+                                <span style={{ ...window.WrTheme?.badgeStyle?.(window.App?.POS_COLORS?.[p.pos] || colors.accent) || {}, fontSize: fs(0.72) }}>{p.pos}</span>
+                                {fillsNeed && <span style={{ fontSize: fs(0.58), fontWeight: 700, color: colors.positive, fontFamily: fonts.ui }}>NEED</span>}
+                                <span style={{ fontSize: fs(0.64), color: p.team !== 'FA' ? colors.textMuted : colors.textFaint, fontFamily: fonts.ui, minWidth: 24 }}>{p.team}</span>
+                                <span style={{ fontSize: fs(0.64), fontWeight: 700, color: colors.textMuted, fontFamily: fonts.mono }}>{p.dhq >= 1000 ? (p.dhq / 1000).toFixed(1) + 'k' : p.dhq}</span>
+                            </div>
+                        );
+                    })}
                     {waiverTargets.length === 0 && (
                         <div style={{ fontSize: fs(0.72), color: colors.textFaint, fontStyle: 'italic', fontFamily: fonts.ui }}>Wire is clean</div>
                     )}
@@ -201,7 +247,7 @@
                 <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fs(0.64), color: colors.textMuted, marginBottom: '3px', fontFamily: fonts.ui }}>
                         <span>FAAB BUDGET</span>
-                        <span>${faab.remaining} / ${faab.budget}</span>
+                        <span>${faab.remaining} / ${faab.budget} ({Math.round(faab.pct)}%)</span>
                     </div>
                     <div style={{ height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: theme.card?.radius === '0px' ? '0' : '3px', overflow: 'hidden' }}>
                         <div style={{ width: faab.pct + '%', height: '100%', background: faab.pct > 50 ? colors.positive : faab.pct > 25 ? colors.warn : colors.negative, transition: '0.3s' }} />
