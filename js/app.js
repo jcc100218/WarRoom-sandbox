@@ -760,28 +760,7 @@
                         </div>
                     </div>
 
-                    {/* ──── ESPN ──── */}
-                    <div className="product-card" style={{ borderColor: 'rgba(204,0,0,0.3)', background: 'linear-gradient(135deg, rgba(204,0,0,0.04), transparent)' }}>
-                        <div className="product-card-header">
-                            <div className="product-card-icon" style={{ background: 'linear-gradient(135deg, #cc0000, #990000)', boxShadow: '0 3px 12px rgba(204,0,0,0.25)' }}>
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--white)" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
-                            </div>
-                            <div>
-                                <div className="product-card-title">ESPN</div>
-                                <div className="product-card-subtitle">{espnLeagues.length ? espnLeagues.length + ' league' + (espnLeagues.length !== 1 ? 's' : '') + ' synced' : 'Connect your league'}</div>
-                            </div>
-                        </div>
-                        <div className="product-card-body">
-                            <ESPNConnectCard
-                                leagues={espnLeagues}
-                                connecting={espnConnecting}
-                                error={espnError}
-                                onConnect={handleESPNConnect}
-                                onSelectLeague={handleSelectLeague}
-                                reconBase={RECONAI_BASE}
-                            />
-                        </div>
-                    </div>
+                    {/* ──── ESPN ──── HIDDEN — infrastructure preserved, UI removed */}
 
                     {/* ──── MFL ──── */}
                     <div className="product-card" style={{ borderColor: 'rgba(46,125,50,0.3)', background: 'linear-gradient(135deg, rgba(46,125,50,0.04), transparent)' }}>
@@ -844,22 +823,7 @@
                         </div>
                     </div>
 
-                    {/* ──── YAHOO ──── */}
-                    <div className="product-card" style={{ borderColor: 'rgba(123,0,153,0.3)', background: 'linear-gradient(135deg, rgba(123,0,153,0.04), transparent)' }}>
-                        <div className="product-card-header">
-                            <div className="product-card-icon" style={{ background: 'linear-gradient(135deg, #7B0099, #5a006e)', boxShadow: '0 3px 12px rgba(123,0,153,0.25)' }}>
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="var(--white)" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                            </div>
-                            <div>
-                                <div className="product-card-title">YAHOO</div>
-                                <div className="product-card-subtitle">OAuth connected</div>
-                            </div>
-                        </div>
-                        <div className="product-card-body">
-                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginBottom: '8px' }}>Yahoo leagues connect via OAuth in Scout.</div>
-                            <a href={RECONAI_BASE} className="hub-cta ghost" style={{ textDecoration: 'none' }}>Connect via Scout</a>
-                        </div>
-                    </div>
+                    {/* ──── YAHOO ──── HIDDEN — infrastructure preserved, UI removed */}
 
                 </div>
 
