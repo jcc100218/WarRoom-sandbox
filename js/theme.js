@@ -118,6 +118,57 @@
                 transition:  '0.08s linear',
             },
         },
+
+        madden: {
+            id: 'madden',
+            name: 'Madden 2005',
+            preview: '🏈',
+            fonts: {
+                // Madden used a condensed sans-serif for headers, clean sans for body
+                display: "'Impact', 'Arial Narrow', sans-serif",
+                ui: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+                mono: "'Consolas', 'Courier New', monospace",
+                sizeScale: 1.0,
+            },
+            colors: {
+                // Madden 2005's signature: dark steel/navy gradient bg,
+                // EA Sports gold accent, white text, blue-gray muted
+                bg:         '#1a1f2e',
+                card:       'linear-gradient(180deg, #2a3040 0%, #1a1f2e 100%)',
+                cardHover:  'rgba(218,165,32,0.08)',
+                accent:     '#DAA520',       // EA Sports gold
+                accentDark: '#B8860B',
+                text:       '#FFFFFF',
+                textMuted:  '#8899AA',
+                textFaint:  'rgba(136,153,170,0.4)',
+                positive:   '#4CAF50',
+                negative:   '#F44336',
+                info:       '#42A5F5',
+                warn:       '#FFA726',
+                purple:     '#AB47BC',
+                border:     'rgba(218,165,32,0.3)',
+                borderHover:'rgba(218,165,32,0.6)',
+            },
+            card: {
+                background: 'linear-gradient(180deg, #2a3040 0%, #1a1f2e 100%)',
+                border:     '1px solid rgba(218,165,32,0.3)',
+                borderHover:'1px solid rgba(218,165,32,0.6)',
+                radius:     '4px',           // subtle rounding — Madden had slightly rounded cards
+                shadow:     '0 2px 8px rgba(0,0,0,0.4)',
+                shadowHover:'0 4px 16px rgba(0,0,0,0.5)',
+            },
+            badge: {
+                radius:     '3px',
+                fontWeight:  700,
+            },
+            effects: {
+                scanlines:   false,
+                glow:        false,
+                pixelate:    false,
+                hoverScale:  1.02,           // subtle scale on hover — Madden had that PDA feel
+                transition:  '0.2s ease',
+            },
+        },
     };
 
     // ── Dynamic CSS injection ────────────────────────────────────
