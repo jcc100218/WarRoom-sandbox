@@ -16,7 +16,7 @@ const WIDGET_MODULES = {
         accent: () => T().color?.('accent') || '#D4AF37',
         metrics: [],
         sizes: ['md', 'lg', 'tall', 'xl', 'xxl'],
-        clickTarget: {},  // CTAs handle navigation internally
+        clickTarget: {},
     },
     'roster-pulse': {
         label: 'Roster Pulse',
@@ -28,7 +28,7 @@ const WIDGET_MODULES = {
             { key: 'elite-count', label: 'Elite Players' },
             { key: 'contender-rank', label: 'Contender Rank' },
         ],
-        sizes: ['sm', 'md', 'lg', 'tall'],
+        sizes: ['sm', 'md', 'lg', 'tall', 'xxl'],
         clickTarget: { sm: 'myteam', md: 'myteam' },
     },
     'league-landscape': {
@@ -37,7 +37,7 @@ const WIDGET_MODULES = {
         description: 'Standings, transactions, who is moving',
         accent: () => T().color?.('accent') || '#D4AF37',
         metrics: [],
-        sizes: ['md', 'lg', 'tall', 'xl'],
+        sizes: ['md', 'lg', 'tall', 'xl', 'xxl'],
         clickTarget: { sm: 'league', md: 'league' },
     },
     'market-radar': {
@@ -46,7 +46,7 @@ const WIDGET_MODULES = {
         description: 'Trade opportunities, waiver targets, FAAB',
         accent: () => T().color?.('purple') || '#7C6BF8',
         metrics: [],
-        sizes: ['sm', 'md', 'lg', 'tall'],
+        sizes: ['sm', 'md', 'lg', 'tall', 'xxl'],
         clickTarget: { sm: 'trades', md: 'trades' },
     },
     'draft-capital': {
@@ -55,7 +55,7 @@ const WIDGET_MODULES = {
         description: 'Pick inventory, values, draft countdown',
         accent: () => T().color?.('warn') || '#F0A500',
         metrics: [],
-        sizes: ['sm', 'md', 'lg'],
+        sizes: ['sm', 'md', 'lg', 'xxl'],
         clickTarget: { sm: 'draft', md: 'draft' },
     },
     'field-notes': {
@@ -64,7 +64,7 @@ const WIDGET_MODULES = {
         description: 'Intel logged from War Room Scout sessions',
         accent: () => T().color?.('info') || '#00c8b4',
         metrics: [],
-        sizes: ['slim', 'md', 'lg', 'tall'],
+        sizes: ['slim', 'narrow', 'md', 'lg', 'tall'],
         clickTarget: {},
     },
 };
@@ -149,9 +149,10 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
     const mod = selectedModule ? WIDGET_MODULES[selectedModule] : null;
 
     const SIZE_META = {
-        sm: { label: 'Small', dims: '1×1', desc: 'One key stat + trend arrow + color coding', w: 80, h: 80 },
-        slim: { label: 'Slim', dims: '1×2', desc: 'Narrow tall card — compact text list', w: 80, h: 160 },
-        md: { label: 'Medium', dims: '2×1', desc: 'Stat + sparkline + annotation + insight', w: 160, h: 80 },
+        sm: { label: 'Small', dims: '1×1', desc: 'Single KPI stat', w: 80, h: 80 },
+        slim: { label: 'Slim', dims: '1×2', desc: 'Narrow card', w: 80, h: 160 },
+        narrow: { label: 'Narrow', dims: '1×4', desc: 'Tall narrow column', w: 80, h: 320 },
+        md: { label: 'Medium', dims: '2×1', desc: 'Stat + sparkline', w: 160, h: 80 },
         lg: { label: 'Large', dims: '2×2', desc: 'Mini-panel: 3-4 stats + chart + drill-down list', w: 160, h: 160 },
         tall: { label: 'Tall', dims: '2×4', desc: 'Half-width tall panel — great for text-heavy cards', w: 160, h: 320 },
         xl: { label: 'Extra Large', dims: '4×2', desc: 'Full-width premium panel', w: 320, h: 160 },
@@ -201,77 +202,66 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
                     </div>
                 </div>
 
-                {/* Step 1: Module grid */}
+                {/* Step 1: Module grid — 3×2 compact, no scroll */}
                 {step === 'module' && (
-                    <div style={{ padding: '20px 24px', overflowY: 'auto' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                    <div style={{ padding: '16px 20px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                             {Object.entries(WIDGET_MODULES).map(([key, m]) => (
                                 <div key={key}
                                     onMouseEnter={() => setHoverModule(key)}
                                     onMouseLeave={() => setHoverModule(null)}
                                     onClick={() => { setSelectedModule(key); setSelectedMetric(m.metrics?.[0]?.key || null); setStep('size'); }}
                                     style={{
-                                        background: hoverModule === key ? `rgba(${m.accent === '#2ECC71' ? '46,204,113' : m.accent === '#D4AF37' ? '212,175,55' : m.accent === '#7C6BF8' ? '124,107,248' : m.accent === '#F0A500' ? '240,165,0' : m.accent === '#60A5FA' ? '96,165,250' : '52,211,153'},0.12)` : 'rgba(255,255,255,0.03)',
-                                        border: `1px solid ${hoverModule === key ? m.accent : 'rgba(255,255,255,0.08)'}`,
-                                        borderRadius: '14px', padding: '18px 16px', cursor: 'pointer',
+                                        background: hoverModule === key ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.03)',
+                                        border: '1px solid ' + (hoverModule === key ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'),
+                                        borderRadius: '10px', padding: '14px 12px', cursor: 'pointer',
                                         transition: 'all 0.15s', textAlign: 'center',
                                     }}>
-                                    <div style={{ fontSize: '2rem', marginBottom: '8px', lineHeight: 1 }}>{m.icon}</div>
-                                    <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.95rem', fontWeight: 700, color: 'var(--white)', letterSpacing: '0.04em', marginBottom: '4px' }}>{m.label}</div>
-                                    <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.65, lineHeight: 1.4 }}>{m.description}</div>
-                                    <div style={{ display: 'flex', gap: '3px', justifyContent: 'center', marginTop: '10px' }}>
-                                        {m.sizes.map(s => (
-                                            <span key={s} style={{ fontSize: '0.6rem', padding: '1px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', color: 'var(--silver)', fontWeight: 600 }}>{s.toUpperCase()}</span>
-                                        ))}
-                                    </div>
+                                    <div style={{ fontSize: '1.5rem', marginBottom: '4px', lineHeight: 1 }}>{m.icon}</div>
+                                    <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.88rem', fontWeight: 700, color: 'var(--white)', letterSpacing: '0.04em', marginBottom: '2px' }}>{m.label}</div>
+                                    <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.6, lineHeight: 1.3 }}>{m.description}</div>
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
 
-                {/* Step 2: Size picker */}
+                {/* Step 2: Size picker — compact, no scroll */}
                 {step === 'size' && mod && (
-                    <div style={{ padding: '20px 24px', overflowY: 'auto' }}>
-                        {/* Module info */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px' }}>
-                            <span style={{ fontSize: '2rem' }}>{mod.icon}</span>
+                    <div style={{ padding: '16px 20px' }}>
+                        {/* Module info — compact */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                            <span style={{ fontSize: '1.4rem' }}>{mod.icon}</span>
                             <div>
-                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, color: 'var(--white)', fontSize: '1rem' }}>{mod.label}</div>
-                                <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.7 }}>{mod.description}</div>
+                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontWeight: 700, color: 'var(--white)', fontSize: '0.92rem' }}>{mod.label}</div>
+                                <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.7 }}>{mod.description}</div>
                             </div>
                         </div>
 
-                        {/* Size options */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                        {/* Size options — horizontal wrap grid */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '14px' }}>
                             {mod.sizes.map(sz => {
                                 const sm = SIZE_META[sz];
+                                if (!sm) return null;
                                 const isActive = selectedSize === sz;
+                                const accentCol = typeof mod.accent === 'function' ? mod.accent() : mod.accent;
                                 return (
                                     <div key={sz} onClick={() => setSelectedSize(sz)} style={{
-                                        display: 'flex', alignItems: 'center', gap: '16px',
-                                        padding: '14px 16px', borderRadius: '12px', cursor: 'pointer',
-                                        border: `1.5px solid ${isActive ? mod.accent : 'rgba(255,255,255,0.08)'}`,
-                                        background: isActive ? `${mod.accent}14` : 'rgba(255,255,255,0.02)',
-                                        transition: 'all 0.15s',
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                        padding: '10px 14px', borderRadius: '8px', cursor: 'pointer',
+                                        border: '1.5px solid ' + (isActive ? (accentCol || 'var(--gold)') : 'rgba(255,255,255,0.08)'),
+                                        background: isActive ? 'rgba(212,175,55,0.1)' : 'rgba(255,255,255,0.02)',
+                                        transition: 'all 0.12s', minWidth: 70,
                                     }}>
-                                        {/* Visual preview */}
-                                        <div style={{ flexShrink: 0 }}>
-                                            <div style={{
-                                                width: sm.w / 2, height: sm.h / 2,
-                                                background: isActive ? `${mod.accent}20` : 'rgba(255,255,255,0.06)',
-                                                border: `1px solid ${isActive ? mod.accent : 'rgba(255,255,255,0.12)'}`,
-                                                borderRadius: '6px',
-                                            }} />
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '3px' }}>
-                                                <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', fontWeight: 700, color: isActive ? mod.accent : 'var(--white)' }}>{sm.label}</span>
-                                                <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.5 }}>{sm.dims}</span>
-                                            </div>
-                                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.75, lineHeight: 1.4 }}>{sm.desc}</div>
-                                        </div>
-                                        {isActive && <span style={{ color: mod.accent, fontSize: '1rem' }}>✓</span>}
+                                        {/* Mini visual preview */}
+                                        <div style={{
+                                            width: Math.min(sm.w / 2.5, 50), height: Math.min(sm.h / 2.5, 50),
+                                            background: isActive ? 'rgba(212,175,55,0.2)' : 'rgba(255,255,255,0.06)',
+                                            border: '1px solid ' + (isActive ? 'var(--gold)' : 'rgba(255,255,255,0.1)'),
+                                            borderRadius: '3px', marginBottom: '6px',
+                                        }} />
+                                        <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: isActive ? 'var(--gold)' : 'var(--white)' }}>{sm.label}</div>
+                                        <div style={{ fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.5 }}>{sm.dims}</div>
                                     </div>
                                 );
                             })}
@@ -279,29 +269,32 @@ function DashboardWidgetPicker({ onAdd, onClose, editWidget }) {
 
                         {/* Metric picker (for modules with choices) */}
                         {mod.metrics.length > 1 && (
-                            <div style={{ marginBottom: '20px' }}>
-                                <div style={{ fontSize: '0.72rem', color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600, marginBottom: '8px' }}>Primary Stat</div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                    {mod.metrics.map(m => (
-                                        <button key={m.key} onClick={() => setSelectedMetric(m.key)} style={{
-                                            padding: '5px 12px', borderRadius: '20px', cursor: 'pointer',
-                                            border: `1px solid ${selectedMetric === m.key ? mod.accent : 'rgba(255,255,255,0.12)'}`,
-                                            background: selectedMetric === m.key ? `${mod.accent}20` : 'transparent',
-                                            color: selectedMetric === m.key ? mod.accent : 'var(--silver)',
-                                            fontSize: '0.75rem', fontWeight: selectedMetric === m.key ? 600 : 400,
-                                            transition: 'all 0.12s', fontFamily: 'DM Sans, sans-serif',
-                                        }}>{m.label}</button>
-                                    ))}
+                            <div style={{ marginBottom: '14px' }}>
+                                <div style={{ fontSize: '0.68rem', color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600, marginBottom: '6px' }}>Primary Stat</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                                    {mod.metrics.map(m => {
+                                        const accentCol = typeof mod.accent === 'function' ? mod.accent() : mod.accent;
+                                        return (
+                                            <button key={m.key} onClick={() => setSelectedMetric(m.key)} style={{
+                                                padding: '4px 10px', borderRadius: '14px', cursor: 'pointer',
+                                                border: '1px solid ' + (selectedMetric === m.key ? (accentCol || 'var(--gold)') : 'rgba(255,255,255,0.1)'),
+                                                background: selectedMetric === m.key ? 'rgba(212,175,55,0.15)' : 'transparent',
+                                                color: selectedMetric === m.key ? 'var(--gold)' : 'var(--silver)',
+                                                fontSize: '0.72rem', fontWeight: selectedMetric === m.key ? 600 : 400,
+                                                transition: 'all 0.12s', fontFamily: 'DM Sans, sans-serif',
+                                            }}>{m.label}</button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
 
                         {/* Add button */}
                         <button onClick={handleConfirm} disabled={!selectedSize} style={{
-                            width: '100%', padding: '14px', borderRadius: '12px', cursor: selectedSize ? 'pointer' : 'not-allowed',
-                            background: selectedSize ? mod.accent : 'rgba(255,255,255,0.06)',
+                            width: '100%', padding: '12px', borderRadius: '8px', cursor: selectedSize ? 'pointer' : 'not-allowed',
+                            background: selectedSize ? 'var(--gold)' : 'rgba(255,255,255,0.06)',
                             border: 'none', color: selectedSize ? '#000' : 'var(--silver)',
-                            fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', fontWeight: 700,
+                            fontFamily: 'Rajdhani, sans-serif', fontSize: '0.92rem', fontWeight: 700,
                             letterSpacing: '0.06em', transition: 'all 0.15s',
                         }}>{editWidget ? 'UPDATE WIDGET' : 'ADD TO DASHBOARD'}</button>
                     </div>
@@ -754,8 +747,8 @@ function DashboardPanel({
     // ══════════════════════════════════════════════════════════════
     function WidgetShell({ widget, idx, children }) {
         const [showGear, setShowGear] = React.useState(false);
-        const sizeSpan = { sm: 'span 1', slim: 'span 1', md: 'span 2', lg: 'span 2', tall: 'span 2', xl: 'span 4', xxl: 'span 4' };
-        const rowSpan = { sm: 'span 1', slim: 'span 2', md: 'span 1', lg: 'span 2', tall: 'span 4', xl: 'span 2', xxl: 'span 4' };
+        const sizeSpan = { sm: 'span 1', slim: 'span 1', narrow: 'span 1', md: 'span 2', lg: 'span 2', tall: 'span 2', xl: 'span 4', xxl: 'span 4' };
+        const rowSpan = { sm: 'span 1', slim: 'span 2', narrow: 'span 4', md: 'span 1', lg: 'span 2', tall: 'span 4', xl: 'span 2', xxl: 'span 4' };
 
         return (
             <div
@@ -840,7 +833,7 @@ function DashboardPanel({
         const externalWidget = resolveExternalWidget(key, size, primaryMetric);
         if (externalWidget !== null) {
             // lg+ sizes: wrap with click → drill-down. sm/md: click → tab nav (handled inside widget).
-            const isLargeSize = size === 'slim' || size === 'lg' || size === 'tall' || size === 'xl' || size === 'xxl';
+            const isLargeSize = size === 'slim' || size === 'narrow' || size === 'lg' || size === 'tall' || size === 'xl' || size === 'xxl';
             const openDrillDown = isLargeSize ? () => setDrillDown({ module: key, widget }) : null;
             return (
                 <WidgetShell key={widget.id || key + idx} widget={widget} idx={idx}>
