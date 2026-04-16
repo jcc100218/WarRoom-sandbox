@@ -37,7 +37,7 @@ const WIDGET_MODULES = {
         description: 'Standings, transactions, who is moving',
         accent: () => T().color?.('accent') || '#D4AF37',
         metrics: [],
-        sizes: ['md', 'lg', 'tall', 'xl', 'xxl'],
+        sizes: ['sm', 'md', 'lg', 'tall', 'xl', 'xxl'],
         clickTarget: { sm: 'league', md: 'league' },
     },
     'market-radar': {

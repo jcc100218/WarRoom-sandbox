@@ -40,6 +40,32 @@
         // Tier color
         const tierCol = (tier) => tier === 'ELITE' ? colors.positive : tier === 'CONTENDER' ? colors.accent : tier === 'CROSSROADS' ? colors.warn : colors.negative;
 
+        // ── SM: league rank hero ──
+        if (size === 'sm') {
+            const myRank = powerRanked.findIndex(a => a.rosterId && (currentLeague?.rosters || []).find(r => r.roster_id === a.rosterId)?.owner_id === sleeperUserId) + 1;
+            const total = powerRanked.length || 1;
+            const rankCol = myRank <= 3 ? colors.positive : myRank <= Math.ceil(total / 2) ? colors.accent : colors.negative;
+            return (
+                <div onClick={onClick} style={{
+                    ...cardStyle, padding: '14px 12px', cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center',
+                }}>
+                    <div style={{
+                        fontFamily: fonts.mono, fontSize: fs(1.8), fontWeight: 700,
+                        color: rankCol, lineHeight: 1,
+                    }} className="wr-data-value">
+                        #{myRank || '—'}
+                    </div>
+                    <div style={{ fontSize: fs(0.68), color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '4px', fontFamily: fonts.ui }}>
+                        of {total}
+                    </div>
+                    <div style={{ fontSize: fs(0.64), color: colors.textFaint, marginTop: '4px', fontFamily: fonts.ui }}>
+                        {transactions ? transactions.length + ' moves' : ''}
+                    </div>
+                </div>
+            );
+        }
+
         // ── MD: compact power rankings ──
         if (size === 'md') {
             const top5 = powerRanked.slice(0, 5);
