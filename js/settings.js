@@ -275,6 +275,7 @@
                         {[
                             { id: 'account', label: 'Account' },
                             { id: 'alex', label: 'Alex' },
+                            { id: 'display', label: 'Display' },
                             { id: 'commissioner', label: 'Commish' },
                             { id: 'subscription', label: 'Plan' },
                             { id: 'data', label: 'Data' },
@@ -370,6 +371,59 @@
 
                     {/* ══ ALEX TAB — Coaching Style + Avatar ══ */}
                     {settingsTab === 'alex' && <AlexTab sectionStyle={sectionStyle} sectionTitle={sectionTitle} />}
+
+                    {/* ══ DISPLAY TAB ══ */}
+                    {settingsTab === 'display' && (<>
+                        <div style={sectionStyle}>
+                            <div style={sectionTitle}>DASHBOARD THEME</div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                                Change the visual style of your dashboard widgets.
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                {(window.WrTheme ? window.WrTheme.list() : ['default']).map(themeId => {
+                                    const t = window.WrTheme?.themes?.[themeId] || {};
+                                    const isActive = (window.WrTheme?.current || 'default') === themeId;
+                                    return (
+                                        <button key={themeId} onClick={() => {
+                                            if (window.WrTheme) window.WrTheme.set(themeId);
+                                            // Force re-render by updating a dummy state
+                                            setSettingsTab('display');
+                                        }} style={{
+                                            padding: '16px 14px',
+                                            background: isActive ? 'rgba(212,175,55,0.12)' : 'rgba(255,255,255,0.03)',
+                                            border: isActive ? '2px solid var(--gold)' : '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: t.card?.radius || '8px',
+                                            cursor: 'pointer',
+                                            textAlign: 'center',
+                                            transition: '0.15s',
+                                        }}>
+                                            <div style={{ fontSize: '1.6rem', marginBottom: '6px' }}>{t.preview || '🎨'}</div>
+                                            <div style={{
+                                                fontFamily: 'Rajdhani, sans-serif',
+                                                fontSize: '0.9rem',
+                                                fontWeight: 700,
+                                                color: isActive ? 'var(--gold)' : 'var(--white)',
+                                                letterSpacing: '0.06em',
+                                            }}>{t.name || themeId}</div>
+                                            <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6, marginTop: '4px' }}>
+                                                {themeId === 'default' ? 'Dark gold · classic look' : themeId === 'tecmo' ? 'Retro pixel · CRT scanlines' : 'Custom theme'}
+                                            </div>
+                                            {isActive && (
+                                                <div style={{
+                                                    marginTop: '8px',
+                                                    fontSize: '0.65rem',
+                                                    fontWeight: 700,
+                                                    color: 'var(--gold)',
+                                                    textTransform: 'uppercase',
+                                                    letterSpacing: '0.08em',
+                                                }}>ACTIVE</div>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </>)}
 
                     {/* ══ COMMISSIONER TAB — League Docs ══ */}
                     {settingsTab === 'commissioner' && <CommissionerTab sectionStyle={sectionStyle} sectionTitle={sectionTitle} />}
