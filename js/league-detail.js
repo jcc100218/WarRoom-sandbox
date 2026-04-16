@@ -431,14 +431,17 @@
         };
         // Default 6-widget dashboard — module-based format. Intelligence brief
         // sits at the top as a full-width xl widget so new users land on Alex.
-        // v2 default layout — 6 world-class widgets
+        // v2 default layout — Intel Brief (tall) + Field Notes (slim) top row,
+        // then one of each KPI module below in a compact grid.
+        // Grid is 4 cols: tall=2cols×4rows, slim=1col×2rows → they sit side by side
+        // with the KPI row filling below.
         const DEFAULT_WIDGETS = [
-            { id: 'dw0', key: 'intel-brief',        size: 'xl' },
-            { id: 'dw1', key: 'roster-pulse',       size: 'md', primaryMetric: 'health-score' },
-            { id: 'dw2', key: 'market-radar',       size: 'md' },
-            { id: 'dw3', key: 'league-landscape',   size: 'lg' },
-            { id: 'dw4', key: 'draft-capital',      size: 'md' },
-            { id: 'dw5', key: 'field-notes',        size: 'lg' },
+            { id: 'dw0', key: 'intel-brief',        size: 'tall' },
+            { id: 'dw1', key: 'field-notes',        size: 'slim' },
+            { id: 'dw2', key: 'roster-pulse',       size: 'sm', primaryMetric: 'health-score' },
+            { id: 'dw3', key: 'market-radar',       size: 'sm' },
+            { id: 'dw4', key: 'draft-capital',      size: 'sm' },
+            { id: 'dw5', key: 'league-landscape',   size: 'md' },
         ];
         // Migrate legacy formats to current widget object format
         function migrateKpisToWidgets(stored) {

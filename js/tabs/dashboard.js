@@ -964,11 +964,43 @@ function DashboardPanel({
         );
     }
 
+    // ── First-visit customization hint ──
+    const HINT_KEY = 'wr_dashboard_hint_dismissed';
+    const [showHint, setShowHint] = React.useState(() => {
+        try { return !localStorage.getItem(HINT_KEY); } catch { return true; }
+    });
+    const dismissHint = () => {
+        setShowHint(false);
+        try { localStorage.setItem(HINT_KEY, '1'); } catch {}
+    };
+
     // ══════════════════════════════════════════════════════════════
     // MAIN RENDER
     // ══════════════════════════════════════════════════════════════
     return (
         <React.Fragment>
+            {/* First-visit hint */}
+            {showHint && (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '12px 20px',
+                    background: 'linear-gradient(90deg, rgba(212,175,55,0.1), rgba(212,175,55,0.02))',
+                    borderBottom: '1px solid rgba(212,175,55,0.2)',
+                    fontFamily: dmFont, fontSize: '0.78rem', color: S,
+                }}>
+                    <span style={{ fontSize: '1.1rem' }}>✨</span>
+                    <div style={{ flex: 1, lineHeight: 1.5 }}>
+                        <strong style={{ color: G }}>This dashboard is yours to customize.</strong>
+                        {' '}Hover any widget to resize or remove it. Drag to reorder. Click <strong>+ Add Widget</strong> to build your layout.
+                    </div>
+                    <button onClick={dismissHint} style={{
+                        padding: '5px 14px', fontSize: '0.72rem', fontFamily: dmFont, fontWeight: 600,
+                        background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.3)',
+                        borderRadius: '5px', color: G, cursor: 'pointer', flexShrink: 0,
+                    }}>Got it</button>
+                </div>
+            )}
+
             {/* Widget grid */}
             <div className="wr-dashboard-grid" style={{
                 display: 'grid',
