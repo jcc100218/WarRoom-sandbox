@@ -1073,9 +1073,18 @@
 
         async function loadLeagueDetails() {
             try {
-                // Clear assessment caches so health scores compute fresh
-                if (window.assessTeamFromGlobal?._cache) window.assessTeamFromGlobal._cache = {};
-                if (window.assessAllTeamsFromGlobal?._cache) window.assessAllTeamsFromGlobal._cache = {};
+                // Clear assessment caches for THIS league so health scores compute fresh.
+                // Key by league ID — switching back to a previously-loaded league can
+                // reuse its cache if the underlying data hasn't changed.
+                const leagueKey = currentLeague.league_id || currentLeague.id || '';
+                if (window.assessTeamFromGlobal?._cache) {
+                    // Only clear entries for the current league, not all leagues
+                    const cache = window.assessTeamFromGlobal._cache;
+                    Object.keys(cache).forEach(k => { if (k.startsWith(leagueKey + '_') || !k.includes('_')) delete cache[k]; });
+                }
+                if (window.assessAllTeamsFromGlobal?._cache) {
+                    window.assessAllTeamsFromGlobal._cache[leagueKey] = null;
+                }
 
                 if (!currentLeague.rosters || !currentLeague.users) {
                     throw new Error('League missing roster or user data');
@@ -1334,9 +1343,11 @@
                     })();
                 }
 
-                // Fire DHQ engine in parallel — it's independent of the
-                // transaction merge above so we don't need to block on it.
-                await (async () => {
+                // Fire DHQ engine truly in parallel — don't await.
+                // The dashboard renders immediately with standings + rosters,
+                // and DHQ values fill in asynchronously once loadLeagueIntel completes.
+                // This saves 500-3000ms of blocking time on league switch.
+                (async () => {
                     if (typeof window.App?.loadLeagueIntel === 'function' && !window.App.LI_LOADED) {
                         setDhqStatus({ loading: true, step: 'Analyzing league history...', progress: 20 });
                         try {
@@ -1350,7 +1361,7 @@
                             setDhqStatus({ loading: false, step: 'Error: ' + e.message, progress: 0 });
                         }
                     }
-                })();
+                })(); // fire-and-forget — NOT awaited
 
                 setLoadStage('');
 

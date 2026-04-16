@@ -292,7 +292,9 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         if (_wrPlayersCache) return _wrPlayersCache;
         // Check sessionStorage first (avoid re-fetching 10k players on every load)
         const cached = WrStorage.getSession(WR_KEYS.PLAYERS_CACHE);
-        if (cached && Date.now() - cached.ts < 3600000) { _wrPlayersCache = cached.data; return cached.data; }
+        // 12-hour TTL — player data barely changes during a session. The old 1-hour
+        // TTL caused unnecessary 10k-player refetches on league switches.
+        if (cached && Date.now() - cached.ts < 43200000) { _wrPlayersCache = cached.data; return cached.data; }
         _wrPlayersCache = await fetchJSON(`${SLEEPER_BASE_URL}/players/nfl`);
         WrStorage.setSession(WR_KEYS.PLAYERS_CACHE, { data: _wrPlayersCache, ts: Date.now() });
         return _wrPlayersCache;
