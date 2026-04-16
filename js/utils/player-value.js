@@ -26,23 +26,35 @@ window.App.PlayerValue = (function () {
     const PICK_VALUES = { 1:6250, 2:3150, 3:1650, 4:850, 5:450, 6:225, 7:125 };
     const PICK_COLORS = { 1:'#D4AF37', 2:'#5DADE2', 3:'#2ECC71', 4:'#BB8FCE', 5:'#95A5A6', 6:'#7F8C8D', 7:'#6C7A7D' };
 
-    // Slot-specific values (16-team × 7-round = 112 picks). Top picks carry premium.
-    const PICK_VALUES_BY_SLOT = {
-        1:8500, 2:8000, 3:7500, 4:7100, 5:6700, 6:6400, 7:6200, 8:6000,
-        9:5800, 10:5600, 11:5400, 12:5200, 13:5000, 14:4800, 15:4600, 16:4400,
-        17:4200, 18:4000, 19:3800, 20:3600, 21:3400, 22:3200, 23:3050, 24:2900,
-        25:2750, 26:2600, 27:2450, 28:2300, 29:2150, 30:2000, 31:1900, 32:1800,
-        33:1700, 34:1600, 35:1500, 36:1400, 37:1300, 38:1200, 39:1100, 40:1050,
-        41:1000, 42:950, 43:900, 44:850, 45:800, 46:750, 47:700, 48:650,
-        49:600, 50:560, 51:520, 52:480, 53:450, 54:420, 55:400, 56:380,
-        57:360, 58:340, 59:320, 60:300, 61:280, 62:260, 63:240, 64:220,
-        65:210, 66:200, 67:190, 68:180, 69:170, 70:160, 71:150, 72:140,
-        73:130, 74:125, 75:120, 76:115, 77:110, 78:105, 79:100, 80:95,
-        81:90, 82:85, 83:80, 84:75, 85:70, 86:68, 87:65, 88:62,
-        89:60, 90:58, 91:55, 92:52, 93:50, 94:48, 95:45, 96:42,
-        97:40, 98:38, 99:35, 100:32, 101:30, 102:28, 103:25, 104:22,
-        105:20, 106:18, 107:16, 108:14, 109:12, 110:10, 111:8, 112:6,
-    };
+    // Slot-specific values (16-team × 7-round = 112 picks).
+    // Dynamically generated from pick-value-model.js (industry consensus) when available.
+    // Falls back to hardcoded table only if CDN script fails to load.
+    const PICK_VALUES_BY_SLOT = (function() {
+        if (typeof window.getIndustryPickValue === 'function') {
+            const table = {};
+            for (let pick = 1; pick <= 112; pick++) {
+                table[pick] = window.getIndustryPickValue(pick, 16, 7);
+            }
+            return table;
+        }
+        // Emergency fallback — aligned with pick-value-model.js output
+        return {
+            1:7500, 2:6718, 3:6018, 4:5391, 5:4830, 6:4327, 7:3878, 8:3474,
+            9:3113, 10:2789, 11:2499, 12:2240, 13:2007, 14:1799, 15:1612, 16:1445,
+            17:1395, 18:1347, 19:1300, 20:1255, 21:1212, 22:1170, 23:1130, 24:1091,
+            25:1053, 26:1017, 27:982, 28:948, 29:916, 30:884, 31:854, 32:824,
+            33:796, 34:748, 35:703, 36:661, 37:621, 38:584, 39:549, 40:516,
+            41:485, 42:456, 43:429, 44:403, 45:379, 46:356, 47:335, 48:315,
+            49:296, 50:279, 51:262, 52:247, 53:232, 54:218, 55:205, 56:193,
+            57:182, 58:171, 59:161, 60:151, 61:142, 62:134, 63:126, 64:119,
+            65:112, 66:105, 67:99, 68:93, 69:88, 70:83, 71:78, 72:73,
+            73:69, 74:65, 75:61, 76:58, 77:54, 78:51, 79:48, 80:45,
+            81:43, 82:40, 83:38, 84:36, 85:34, 86:32, 87:30, 88:28,
+            89:27, 90:25, 91:24, 92:22, 93:21, 94:20, 95:19, 96:18,
+            97:17, 98:16, 99:15, 100:14, 101:13, 102:13, 103:12, 104:11,
+            105:11, 106:10, 107:10, 108:9, 109:9, 110:8, 111:8, 112:7,
+        };
+    })();
 
     // Compute overall draft slot from slot_to_roster_id maps
     // draftSlotMaps = { year: { rosterId: slotInRound } }
@@ -67,15 +79,22 @@ window.App.PlayerValue = (function () {
     // then slot-specific table, then round-average fallback.
     function resolvePickValue(year, round, fromRosterId, allRosters, draftSlotMaps) {
         const slot = getPickOverallSlot(year, round, fromRosterId, allRosters, draftSlotMaps);
+        let value = PICK_VALUES[round] || 100;
+        let resolvedSlot = null;
         if (slot) {
             if (window.getIndustryPickValue) {
                 const numTeams = allRosters?.length || 12;
                 const val = window.getIndustryPickValue(slot, numTeams, DRAFT_ROUNDS);
-                if (val > 0) return { value: val, slot };
+                if (val > 0) { value = val; resolvedSlot = slot; }
             }
-            if (PICK_VALUES_BY_SLOT[slot]) return { value: PICK_VALUES_BY_SLOT[slot], slot };
+            if (!resolvedSlot && PICK_VALUES_BY_SLOT[slot]) { value = PICK_VALUES_BY_SLOT[slot]; resolvedSlot = slot; }
         }
-        return { value: PICK_VALUES[round] || 100, slot: null };
+        // Future year discount: 12% per year (matches dhq-engine.js)
+        const curYear = parseInt(window.S?.season) || new Date().getFullYear();
+        const pickYear = parseInt(year) || curYear;
+        const yearsAhead = Math.max(0, pickYear - curYear);
+        if (yearsAhead > 0) value = Math.round(value * Math.pow(0.88, yearsAhead));
+        return { value, slot: resolvedSlot };
     }
 
     // ── Aging curves ─────────────────────────────────────────────────
@@ -89,18 +108,24 @@ window.App.PlayerValue = (function () {
     // ── getPickValue ─────────────────────────────────────────────────
     // Returns DHQ-equivalent value for a draft pick. Delegates to DHQ engine when available.
     function getPickValue(season, round, totalTeams) {
+        // dhqPickValueFn already applies year discount internally
         if (window.App?.LI?.dhqPickValueFn) {
             const val = window.App.LI.dhqPickValueFn(season, round, Math.ceil((totalTeams || 12) / 2));
             if (val > 0) return val;
         }
+        let value = PICK_VALUES[round] || 100;
         if (window.getIndustryPickValue) {
             const numTeams = totalTeams || 12;
-            // Use mid-round pick as representative slot for a round-level estimate
             const midPick = (round - 1) * numTeams + Math.ceil(numTeams / 2);
             const val = window.getIndustryPickValue(midPick, numTeams, DRAFT_ROUNDS);
-            if (val > 0) return val;
+            if (val > 0) value = val;
         }
-        return PICK_VALUES[round] || 100;
+        // Future year discount: 12% per year (matches dhq-engine.js)
+        const curYear = parseInt(window.S?.season) || new Date().getFullYear();
+        const pickYear = parseInt(season) || curYear;
+        const yearsAhead = Math.max(0, pickYear - curYear);
+        if (yearsAhead > 0) value = Math.round(value * Math.pow(0.88, yearsAhead));
+        return value;
     }
 
     // ── Usage signal helpers ─────────────────────────────────────────

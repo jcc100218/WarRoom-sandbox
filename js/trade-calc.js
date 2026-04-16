@@ -1003,21 +1003,21 @@
             const netTaxTotal = psychTaxes.reduce((s,t) => s + t.impact, 0) + grudgeTax.total;
             const fairMargin = Math.round(Math.max(totalA, totalB) * 0.04);
 
+            // Use shared canonical acceptance calculation (same as Scout)
+            const _calcLikelihood = window.App?.TradeEngine?.calcAcceptanceLikelihood;
             let likelihood = 50;
             if (hasTrade && (totalA > 0 || totalB > 0)) {
-                const maxSide = Math.max(totalA, totalB, 1);
-                const normalizedDiff = diff / maxSide;
-                if (otherDnaKey === 'FLEECER') likelihood = normalizedDiff < -0.05 ? 75 + Math.round(Math.abs(normalizedDiff)*40) : Math.max(15, 50 - Math.round(normalizedDiff*150));
-                else if (otherDnaKey === 'DOMINATOR') likelihood = normalizedDiff < -0.10 ? 70 : normalizedDiff < 0 ? 55 : Math.max(10, 40 - Math.round(normalizedDiff*200));
-                else if (otherDnaKey === 'STALWART') likelihood = Math.min(85, Math.max(20, Math.round((1 - Math.abs(normalizedDiff)*3)*80)));
-                else if (otherDnaKey === 'ACCEPTOR') likelihood = Math.min(90, Math.max(30, 60 + Math.round(normalizedDiff*100)));
-                else if (otherDnaKey === 'DESPERATE') { const fitsNeed = theirAssessment?.needs?.some(n => (myAssessment?.strengths||[]).includes(n.pos)); likelihood = fitsNeed ? Math.min(92, 65 + Math.round(Math.abs(normalizedDiff)*20) + 20) : Math.min(75, 55 + Math.round(Math.abs(normalizedDiff)*30)); }
-                else likelihood = Math.round(85 / (1 + Math.exp(normalizedDiff * 8)));
-                const dnaMult = DNA_TYPES[otherDnaKey]?.multiplier ?? 1.0;
-                likelihood = Math.round(likelihood * dnaMult);
-                likelihood += netTaxTotal;
+                if (typeof _calcLikelihood === 'function') {
+                    likelihood = _calcLikelihood(totalA, totalB, otherDnaKey, psychTaxes, myAssessment, theirAssessment);
+                    // Add grudge tax on top (not in shared engine — app-specific persistence)
+                    likelihood = Math.round(Math.max(3, Math.min(95, likelihood + grudgeTax.total)));
+                } else {
+                    // Emergency fallback — sigmoid only
+                    const maxSide = Math.max(totalA, totalB, 1);
+                    const nd = (totalA - totalB) / maxSide;
+                    likelihood = Math.round(Math.max(5, Math.min(95, 5 + 90 / (1 + Math.exp(-7 * nd)))));
+                }
             }
-            likelihood = Math.round(Math.max(5, Math.min(97, likelihood)));
             const likelihoodColor = likelihood >= 70 ? 'var(--win-green)' : likelihood >= 45 ? '#F0A500' : 'var(--loss-red)';
             const verdictColor = userGain > fairMargin ? 'var(--win-green)' : userGain < -fairMargin ? '#E74C3C' : 'var(--gold)';
             const verdictText = userGain > fairMargin ? 'YOU WIN' : userGain < -fairMargin ? 'YOU LOSE' : 'EVEN TRADE';
