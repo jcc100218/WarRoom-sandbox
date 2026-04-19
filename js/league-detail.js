@@ -1227,6 +1227,12 @@
                     window.S.rosters = rosters;
                     window.S.leagueUsers = leagueUsers;
                     window.S.leagues = [{ league_id: currentLeague.id, name: currentLeague.name, scoring_settings: currentLeague.scoring_settings, roster_positions: currentLeague.roster_positions, settings: currentLeague.settings }];
+                    // Invalidate any previously-loaded weekly points from a different
+                    // league before kicking off the fresh fetch below.
+                    if (window.S.weeklyPlayerPointsLeagueId && window.S.weeklyPlayerPointsLeagueId !== currentLeague.id) {
+                        window.S.weeklyPlayerPoints = {};
+                        window.S.weeklyPlayerPointsLeagueId = null;
+                    }
                     window.S.currentLeagueId = currentLeague.id;
                     window.S.season = activeYear;
                     window.S.nflState = hydrated.nflState && Object.keys(hydrated.nflState).length ? hydrated.nflState : nflState;
@@ -1241,18 +1247,27 @@
                     // so we can compute last-N-games PPG for each player. Runs
                     // in the background; consumers listen for wr:weekly-points-loaded.
                     // Only runs for Sleeper (other providers don't have this endpoint shape).
+                    // Single-flight + league-tagged: rapidly switching leagues must not
+                    // let a stale fetch from league A overwrite league B's results.
                     const _wppLeagueId = currentLeague.id || currentLeague.league_id;
                     if (provider.id === 'sleeper' && _wppLeagueId && currentWeek > 0) {
+                        const fetchToken = (window._wppFetchToken = (window._wppFetchToken || 0) + 1);
+                        const fetchLeagueId = _wppLeagueId;
                         (async () => {
                             try {
                                 const weeks = [];
                                 const maxWeek = Math.min(18, Math.max(1, currentWeek));
                                 for (let w = 1; w <= maxWeek; w++) weeks.push(w);
                                 const results = await Promise.all(weeks.map(w =>
-                                    fetch('https://api.sleeper.app/v1/league/' + _wppLeagueId + '/matchups/' + w)
+                                    fetch('https://api.sleeper.app/v1/league/' + fetchLeagueId + '/matchups/' + w)
                                         .then(r => r.ok ? r.json() : [])
                                         .catch(() => [])
                                 ));
+                                // Guard: abort if a newer fetch has started or the
+                                // active league has changed under us.
+                                if (fetchToken !== window._wppFetchToken) return;
+                                const activeLeagueId = window.S?.currentLeagueId;
+                                if (activeLeagueId && activeLeagueId !== fetchLeagueId) return;
                                 const wpp = {};
                                 weeks.forEach((w, i) => {
                                     const wk = {};
@@ -1266,7 +1281,8 @@
                                     wpp[w] = wk;
                                 });
                                 window.S.weeklyPlayerPoints = wpp;
-                                window.dispatchEvent(new CustomEvent('wr:weekly-points-loaded'));
+                                window.S.weeklyPlayerPointsLeagueId = fetchLeagueId;
+                                window.dispatchEvent(new CustomEvent('wr:weekly-points-loaded', { detail: { leagueId: fetchLeagueId } }));
                             } catch (e) { /* non-fatal */ }
                         })();
                     }
@@ -2201,7 +2217,9 @@
                     // Identify partner (other roster on the trade)
                     const partners = (t.roster_ids || Object.keys(t.sides)).filter(r => String(r) !== String(rosterId));
                     const partnerRid = partners[0];
-                    const users = window.S?.users || [];
+                    // window.S.leagueUsers is the canonical key (set in the hydrate
+                    // block above). Using .users used to silently return no match.
+                    const users = window.S?.leagueUsers || [];
                     const rosters = window.S?.rosters || [];
                     const partnerRoster = rosters.find(r => String(r.roster_id) === String(partnerRid));
                     const partnerUser = users.find(u => u.user_id === partnerRoster?.owner_id);

@@ -1457,7 +1457,7 @@
                     {/* FIND mode — auto-generate proposals (ex-Trade Finder tab) */}
                     {_analyzerMode === 'find' && (
                         canAccess('trade-finder')
-                            ? React.createElement(TradeFinderTab, { allRosters, myRosterId, assessments, ownerDna, playersData, picksByOwner, getPlayerValue, getPickValue, calcOwnerPosture, calcPsychTaxes, calcAcceptanceLikelihood: window.App?.calcAcceptanceLikelihood || function(){return 50;}, DNA_TYPES, autoTarget: finderAutoTarget, onAutoTargetConsumed: () => setFinderAutoTarget(null) })
+                            ? React.createElement(TradeFinderTab, { allRosters, myRosterId, assessments, ownerDna, playersData, picksByOwner, getPlayerValue, getPickValue, calcOwnerPosture, calcPsychTaxes, calcAcceptanceLikelihood: (window.App?.TradeEngine?.calcAcceptanceLikelihood) || (window.App?.calcAcceptanceLikelihood) || function(){return 50;}, DNA_TYPES, autoTarget: finderAutoTarget, onAutoTargetConsumed: () => setFinderAutoTarget(null) })
                             : React.createElement(UpgradeGate, { feature:'trade-finder', title:'UNLOCK TRADE FINDER', description:'Auto-generate trade proposals with every team. See acceptance likelihood based on owner psychology. Find deals they\'ll actually accept.', targetTier:'warroom' })
                     )}
 

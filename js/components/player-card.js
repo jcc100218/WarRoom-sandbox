@@ -107,6 +107,33 @@
 
         const { rows: historyRows, loading: historyLoading } = useTeamHistory(pid, p);
 
+        // Custom awards hook must fire unconditionally — hoisted above the early
+        // return so hook count stays stable across renders where p flips between
+        // defined/undefined (otherwise React hook-count mismatch crashes the card).
+        const customAwards = React.useMemo(() => {
+            const matches = [];
+            if (!p) return matches;
+            try {
+                const fullName = (p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || '').toLowerCase();
+                if (!fullName) return matches;
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (!k || !k.startsWith('wr_chronicles_')) continue;
+                    let data;
+                    try { data = JSON.parse(localStorage.getItem(k) || 'null'); } catch (_) { continue; }
+                    if (!data || !Array.isArray(data.customAwards)) continue;
+                    data.customAwards.forEach(a => {
+                        (a.winners || []).forEach(w => {
+                            if ((w.winner || '').toLowerCase() === fullName) {
+                                matches.push({ name: a.name, year: w.year, stats: w.stats, league: data.leagueName || '' });
+                            }
+                        });
+                    });
+                }
+            } catch (_) { /* noop */ }
+            return matches.sort((a, b) => (b.year || 0) - (a.year || 0));
+        }, [pid, p?.full_name, p?.first_name, p?.last_name]);
+
         if (!p) return null;
 
         const pos = p.position || '?';
@@ -144,30 +171,7 @@
         const initials = ((p.first_name || '?')[0] + (p.last_name || '?')[0]).toUpperCase();
         const heightWeight = [p.height, p.weight].filter(Boolean).join(' / ');
 
-        // Phase 9 deferred: surface custom awards from any league's imported Chronicles
-        // whose winner matches this player's full name (case-insensitive).
-        const customAwards = React.useMemo(() => {
-            const matches = [];
-            try {
-                const fullName = (p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || '').toLowerCase();
-                if (!fullName) return matches;
-                for (let i = 0; i < localStorage.length; i++) {
-                    const k = localStorage.key(i);
-                    if (!k || !k.startsWith('wr_chronicles_')) continue;
-                    let data;
-                    try { data = JSON.parse(localStorage.getItem(k) || 'null'); } catch (_) { continue; }
-                    if (!data || !Array.isArray(data.customAwards)) continue;
-                    data.customAwards.forEach(a => {
-                        (a.winners || []).forEach(w => {
-                            if ((w.winner || '').toLowerCase() === fullName) {
-                                matches.push({ name: a.name, year: w.year, stats: w.stats, league: data.leagueName || '' });
-                            }
-                        });
-                    });
-                }
-            } catch (_) { /* noop */ }
-            return matches.sort((a, b) => (b.year || 0) - (a.year || 0));
-        }, [pid, p.full_name, p.first_name, p.last_name]);
+        // customAwards is computed above (hoisted for stable hook order).
 
         // ── Action handlers ────────────────────────────────────────
         function goCompare() {

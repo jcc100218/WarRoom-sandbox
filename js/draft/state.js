@@ -64,6 +64,12 @@
             activeOffer: null,
             proposerDrawer: null,
             completedTrades: [],
+            // Ledger of player + FAAB movement from accepted trades. Keyed by
+            // rosterId. Consumers (opponent intel, roster views, simulator)
+            // can apply this on top of base rosters to derive effective
+            // post-trade state inside the mock draft context.
+            // { [rosterId]: { incomingPlayers: [pid], outgoingPlayers: [pid], faabDelta: number } }
+            tradedAssets: {},
 
             // Analytics (Phase 4)
             analytics: {
@@ -420,9 +426,34 @@
                     if (isTheirGive) return { ...p, rosterId: state.userRosterId, traded: true };
                     return p;
                 });
+                // Record player + FAAB movement so roster/intel views can derive
+                // effective post-trade state. Base rosters live outside state
+                // (window.S.rosters), so we track deltas here rather than mutate.
+                const ta = { ...(state.tradedAssets || {}) };
+                const ensure = (rid) => {
+                    if (!ta[rid]) ta[rid] = { incomingPlayers: [], outgoingPlayers: [], faabDelta: 0 };
+                    return ta[rid];
+                };
+                const userRid = state.userRosterId;
+                const cpuRid = offer.fromRosterId;
+                const myGivePlayers = offer.myGivePlayers || [];
+                const theirGivePlayers = offer.theirGivePlayers || [];
+                const myGiveFaab = offer.myGiveFaab || 0;
+                const theirGiveFaab = offer.theirGiveFaab || 0;
+                if (myGivePlayers.length) {
+                    ensure(userRid).outgoingPlayers = [...ensure(userRid).outgoingPlayers, ...myGivePlayers];
+                    ensure(cpuRid).incomingPlayers = [...ensure(cpuRid).incomingPlayers, ...myGivePlayers];
+                }
+                if (theirGivePlayers.length) {
+                    ensure(cpuRid).outgoingPlayers = [...ensure(cpuRid).outgoingPlayers, ...theirGivePlayers];
+                    ensure(userRid).incomingPlayers = [...ensure(userRid).incomingPlayers, ...theirGivePlayers];
+                }
+                if (myGiveFaab > 0) { ensure(userRid).faabDelta -= myGiveFaab; ensure(cpuRid).faabDelta += myGiveFaab; }
+                if (theirGiveFaab > 0) { ensure(cpuRid).faabDelta -= theirGiveFaab; ensure(userRid).faabDelta += theirGiveFaab; }
                 return {
                     ...state,
                     pickOrder: newPickOrder,
+                    tradedAssets: ta,
                     proposerDrawer: { ...state.proposerDrawer, status: 'accepted' },
                     completedTrades: [
                         ...state.completedTrades,
@@ -591,6 +622,20 @@
         return { letter, totalDHQ, pct: Math.round(pct * 100) };
     }
 
+    // Apply the tradedAssets ledger on top of a base roster to derive the
+    // player-ids the roster effectively controls inside the mock context.
+    function getEffectivePlayers(state, rosterId, basePlayers) {
+        const ledger = state?.tradedAssets?.[rosterId];
+        if (!ledger) return basePlayers || [];
+        const out = new Set(basePlayers || []);
+        (ledger.outgoingPlayers || []).forEach(pid => out.delete(pid));
+        (ledger.incomingPlayers || []).forEach(pid => out.add(pid));
+        return [...out];
+    }
+    function getFaabDelta(state, rosterId) {
+        return state?.tradedAssets?.[rosterId]?.faabDelta || 0;
+    }
+
     window.DraftCC = window.DraftCC || {};
     window.DraftCC.state = {
         DRAFT_STATE_VERSION,
@@ -603,5 +648,7 @@
         loadFromLocal,
         clearLocal,
         gradeDraft,
+        getEffectivePlayers,
+        getFaabDelta,
     };
 })();
