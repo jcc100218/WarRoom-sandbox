@@ -366,7 +366,7 @@
                                 return pk.year + ' ' + pk.round + '.' + (s ? String(s).padStart(2, '0') : '??');
                             };
                             const nextSlot = nextPick ? slotFor(nextPick) : null;
-                            return <div style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.10), rgba(0,0,0,0.5))', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>
+                            return <div style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>
                                 {/* Hero: current slot + "on the clock" indicator */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '14px' }}>
                                     <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#2ECC71', animation: 'pulse 2s infinite', flexShrink: 0 }} />
@@ -611,7 +611,7 @@
                             const speed = csv?.speed || '';
                             const photoSrc = r.isCSVOnly && csv?.espnId ? `https://a.espncdn.com/combiner/i?img=/i/headshots/nfl/players/full/${csv.espnId}.png&w=96&h=70` : `https://sleepercdn.com/content/nfl/players/${r.pid}.jpg`;
                             return (
-                                <div style={{ border: '2px solid rgba(212,175,55,0.25)', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(212,175,55,0.04), rgba(0,0,0,0.3))', padding: '16px 20px', marginBottom: '14px', animation: 'wrFadeIn 0.2s ease' }}>
+                                <div style={{ border: '2px solid rgba(212,175,55,0.25)', borderRadius: '10px', background: 'var(--black)', padding: '16px 20px', marginBottom: '14px', animation: 'wrFadeIn 0.2s ease' }}>
                                   <div style={{ display: 'flex', gap: '16px', marginBottom: '14px' }}>
                                     <div style={{ flexShrink: 0, position: 'relative' }}>
                                       <img className={'wr-ring wr-ring-' + pos} src={photoSrc} alt="" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} style={{ width: '80px', height: '80px', borderRadius: '10px', objectFit: 'cover', objectPosition: 'top', border: '2px solid rgba(212,175,55,0.3)' }} />
@@ -837,7 +837,7 @@
 
                                     {/* Inline expand card */}
                                     {isExp && (
-                                        <div style={{ borderBottom: '2px solid rgba(212,175,55,0.25)', background: 'linear-gradient(135deg, rgba(212,175,55,0.04), rgba(0,0,0,0.3))', padding: '16px 20px', animation: 'wrFadeIn 0.2s ease' }}>
+                                        <div style={{ borderBottom: '2px solid rgba(212,175,55,0.25)', background: 'var(--black)', padding: '16px 20px', animation: 'wrFadeIn 0.2s ease' }}>
                                           {/* Header */}
                                           <div style={{ display: 'flex', gap: '16px', marginBottom: '14px' }}>
                                             <div style={{ flexShrink: 0, position: 'relative' }}>

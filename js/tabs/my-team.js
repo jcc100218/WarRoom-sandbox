@@ -689,7 +689,7 @@ function MyTeamTab({
 
               {/* Inline expand card — Madden/FM style */}
               {isExpanded && (
-                <div style={{ borderBottom: '2px solid rgba(212,175,55,0.25)', background: 'linear-gradient(135deg, rgba(212,175,55,0.04), rgba(0,0,0,0.3))', padding: '16px 20px', animation: 'wrFadeIn 0.2s ease' }}>
+                <div style={{ borderBottom: '2px solid rgba(212,175,55,0.25)', background: 'var(--black)', padding: '16px 20px', animation: 'wrFadeIn 0.2s ease' }}>
                   {/* Top: Photo + Identity + Quick Stats */}
                   <div style={{ display: 'flex', gap: '16px', marginBottom: '14px' }}>
                     <div style={{ flexShrink: 0, position: 'relative' }}>
