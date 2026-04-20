@@ -478,7 +478,7 @@ function DashboardPanel({
         const mod = WIDGET_MODULES[kpiKey];
         const accentColor = mod?.accent || G;
         return (
-            <div style={{ ...cardBase, padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }}>
+            <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
                 {/* Module badge */}
                 <div style={{ fontSize: '0.62rem', color: accentColor, fontFamily: dmFont, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.9 }}>
                     {mod?.icon} {mod?.label || key}
@@ -521,7 +521,7 @@ function DashboardPanel({
         const secondary = mod.metrics.filter(m => m.key !== key).slice(0, 2).map(m => ({ ...m, val: kv(m.key) }));
 
         return (
-            <div style={{ ...cardBase, padding: '14px 16px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', display: 'flex', flexDirection: 'column' }}>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <div style={{ fontFamily: rajFont, fontSize: '0.85rem', fontWeight: 700, color: mod.accent, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
@@ -597,7 +597,7 @@ function DashboardPanel({
         const maxDHQ = allDHQs[0]?.dhq || 1;
 
         return (
-            <div style={{ ...cardBase, padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+            <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                     <span style={{ fontSize: '1.1rem' }}>{mod.icon}</span>
@@ -649,7 +649,7 @@ function DashboardPanel({
     // ══════════════════════════════════════════════════════════════
     function renderIntelligenceBrief(size) {
         if (typeof window.IntelligenceBriefWidget !== 'function') {
-            return <div style={{ ...cardBase, padding: '14px 16px' }}>Intelligence brief unavailable</div>;
+            return <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)' }}>Intelligence brief unavailable</div>;
         }
         return React.createElement(window.IntelligenceBriefWidget, {
             size,
@@ -669,7 +669,7 @@ function DashboardPanel({
     // ══════════════════════════════════════════════════════════════
     function renderFieldNotes(size) {
         if (typeof window.FieldNotesWidget !== 'function') {
-            return <div style={{ ...cardBase, padding: '14px 16px' }}>Field notes unavailable</div>;
+            return <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)' }}>Field notes unavailable</div>;
         }
         return React.createElement(window.FieldNotesWidget, { size });
     }
@@ -679,7 +679,7 @@ function DashboardPanel({
     // ══════════════════════════════════════════════════════════════
     function renderTransactionTicker(size) {
         return (
-            <div style={{ ...cardBase, padding: '14px 16px', maxHeight: size === 'lg' ? '100%' : '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', maxHeight: size === 'lg' ? '100%' : '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ fontFamily: rajFont, fontSize: '0.9rem', fontWeight: 700, color: '#34D399', letterSpacing: '0.07em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     📰 TRANSACTION TICKER
                 </div>
@@ -735,7 +735,7 @@ function DashboardPanel({
         const isCompact = size === 'md';
 
         return (
-            <div style={{ ...cardBase, padding: '14px 16px', overflowY: 'auto' }}>
+            <div style={{ ...cardBase, padding: 'var(--card-pad, 14px 16px)', overflowY: 'auto' }}>
                 <div style={{ fontFamily: rajFont, fontSize: '0.9rem', fontWeight: 700, color: G, letterSpacing: '0.07em', marginBottom: '10px' }}>📊 LEAGUE STANDINGS</div>
                 {divKeys.map(divKey => (
                     <div key={divKey} style={{ marginBottom: hasDivisions ? '14px' : 0 }}>

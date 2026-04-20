@@ -85,7 +85,7 @@
             return (
                 <div onClick={onClick} style={{
                     ...cardStyle,
-                    padding: '14px 12px',
+                    padding: 'var(--card-pad, 14px 16px)',
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
@@ -131,7 +131,7 @@
             return (
                 <div onClick={onClick} style={{
                     ...cardStyle,
-                    padding: '14px 16px',
+                    padding: 'var(--card-pad, 14px 16px)',
                     cursor: 'pointer',
                     display: 'flex',
                     gap: '12px',
@@ -194,7 +194,7 @@
             }, [assess]);
 
             return (
-                <div style={{ ...cardStyle, padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+                <div style={{ ...cardStyle, padding: 'var(--card-pad, 14px 16px)', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
                     {/* Header */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                         <span style={{ fontSize: '1.1rem' }}>💊</span>

@@ -41,11 +41,13 @@
             --space-xl: 24px;
 
             /* Card system — aligned to Sharp-Terminal mockup rhythm.
-               Anything reading these tokens gets the polished spacing for free. */
-            --card-pad: 14px 16px;
+               Anything reading these tokens gets the polished spacing for free.
+               Bumped defaults to 16×18 / 14px gap for a touch more breathing room
+               vs the first pass, which was reading a hair tight against the mock. */
+            --card-pad: 16px 18px;
             --card-pad-sm: 10px 12px;  /* inner sub-cards / list rows */
-            --card-pad-lg: 18px 20px;  /* primary hero cards */
-            --card-gap: 12px;
+            --card-pad-lg: 18px 22px;  /* primary hero cards */
+            --card-gap: 14px;
             --card-radius: 10px;
             --card-radius-sm: 6px;
             --card-border: 1px solid rgba(212,175,55,0.2);
@@ -988,18 +990,18 @@
 <script type="text/babel" src="js/draft-room.js?v=20260418c"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->
-<script type="text/babel" src="js/widgets/roster-pulse.js?v=20260415cd9"></script>
-<script type="text/babel" src="js/widgets/league-landscape.js?v=20260415cd9"></script>
-<script type="text/babel" src="js/widgets/market-radar.js?v=20260415cd9"></script>
-<script type="text/babel" src="js/widgets/draft-capital.js?v=20260415cd9"></script>
+<script type="text/babel" src="js/widgets/roster-pulse.js?v=20260420a"></script>
+<script type="text/babel" src="js/widgets/league-landscape.js?v=20260420a"></script>
+<script type="text/babel" src="js/widgets/market-radar.js?v=20260420a"></script>
+<script type="text/babel" src="js/widgets/draft-capital.js?v=20260420a"></script>
 <!-- SI-3: Tag-driven widgets (Trade Block / Cut Candidates / Waiver Targets) -->
-<script type="text/babel" src="js/widgets/player-tags.js?v=20260418a"></script>
+<script type="text/babel" src="js/widgets/player-tags.js?v=20260420a"></script>
 <!-- Phase 3: League intel widgets (Competitive Tiers, Power Rankings) — ex-League Map -->
-<script type="text/babel" src="js/widgets/competitive-tiers.js?v=20260418a"></script>
-<script type="text/babel" src="js/widgets/power-rankings.js?v=20260418a"></script>
+<script type="text/babel" src="js/widgets/competitive-tiers.js?v=20260420a"></script>
+<script type="text/babel" src="js/widgets/power-rankings.js?v=20260420a"></script>
 <!-- Phase 9: My Trophies widget -->
-<script type="text/babel" src="js/widgets/my-trophies.js?v=20260418a"></script>
-<script type="text/babel" src="js/tabs/dashboard.js?v=20260418c"></script>
+<script type="text/babel" src="js/widgets/my-trophies.js?v=20260420a"></script>
+<script type="text/babel" src="js/tabs/dashboard.js?v=20260420a"></script>
 <script type="text/babel" src="js/tabs/flash-brief.js?v=20260420a"></script>
 <script type="text/babel" src="js/tabs/league-map.js?v=20260420a"></script>
 <script type="text/babel" src="js/tabs/my-team.js?v=20260420a"></script>

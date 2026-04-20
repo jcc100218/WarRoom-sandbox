@@ -47,7 +47,7 @@
             const rankCol = myRank <= 3 ? colors.positive : myRank <= Math.ceil(total / 2) ? colors.accent : colors.negative;
             return (
                 <div onClick={onClick} style={{
-                    ...cardStyle, padding: '14px 12px', cursor: 'pointer',
+                    ...cardStyle, padding: 'var(--card-pad, 14px 16px)', cursor: 'pointer',
                     display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center',
                 }}>
                     <div style={{
@@ -71,7 +71,7 @@
             const top5 = powerRanked.slice(0, 5);
             const maxH = Math.max(...top5.map(a => a.healthScore || 0), 1);
             return (
-                <div onClick={onClick} style={{ ...cardStyle, padding: '14px 16px', cursor: 'pointer' }}>
+                <div onClick={onClick} style={{ ...cardStyle, padding: 'var(--card-pad, 14px 16px)', cursor: 'pointer' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                         <span style={{ fontSize: '1rem' }}>🌐</span>
                         <span style={{ fontFamily: fonts.display, fontSize: fs(0.92), fontWeight: 700, color: colors.accent, letterSpacing: '0.07em', textTransform: 'uppercase' }}>League Landscape</span>
@@ -123,7 +123,7 @@
         }, [powerRanked, currentLeague, sleeperUserId, getOwnerName]);
 
         return (
-            <div style={{ ...cardStyle, padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+            <div style={{ ...cardStyle, padding: 'var(--card-pad, 14px 16px)', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                     <span style={{ fontSize: '1.1rem' }}>🌐</span>
                     <span style={{ fontFamily: fonts.display, fontSize: fs(1.0), fontWeight: 700, color: colors.accent, letterSpacing: '0.07em', textTransform: 'uppercase', flex: 1 }}>League Landscape</span>

@@ -92,7 +92,7 @@
         if (size === 'sm') {
             return (
                 <div onClick={onClick} style={{
-                    ...cardStyle, padding: '14px 12px', cursor: 'pointer',
+                    ...cardStyle, padding: 'var(--card-pad, 14px 16px)', cursor: 'pointer',
                     display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center',
                 }}>
                     <div style={{
@@ -116,7 +116,7 @@
         if (size === 'md') {
             const top = tradeTargets[0];
             return (
-                <div onClick={onClick} style={{ ...cardStyle, padding: '14px 16px', cursor: 'pointer' }}>
+                <div onClick={onClick} style={{ ...cardStyle, padding: 'var(--card-pad, 14px 16px)', cursor: 'pointer' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                         <span style={{ fontSize: '1rem' }}>📡</span>
                         <span style={{ fontFamily: fonts.display, fontSize: fs(0.92), fontWeight: 700, color: colors.purple, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Market Radar</span>
@@ -178,7 +178,7 @@
         const myNeedPositions = (myAssess?.needs || []).map(n => typeof n === 'string' ? n : n?.pos).filter(Boolean);
 
         return (
-            <div style={{ ...cardStyle, padding: '14px 16px', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+            <div style={{ ...cardStyle, padding: 'var(--card-pad, 14px 16px)', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                     <span style={{ fontSize: '1.1rem' }}>📡</span>
                     <span style={{ fontFamily: fonts.display, fontSize: fs(1.0), fontWeight: 700, color: colors.purple, letterSpacing: '0.07em', textTransform: 'uppercase', flex: 1 }}>Market Radar</span>

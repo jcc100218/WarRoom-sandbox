@@ -43,7 +43,7 @@
         const base = {
             background: 'var(--off-black)',
             border: '1px solid rgba(212,175,55,0.15)',
-            borderRadius: '10px', padding: '12px 14px',
+            borderRadius: '10px', padding: 'var(--card-pad, 14px 16px)',
             display: 'flex', flexDirection: 'column', gap: '6px',
             height: '100%', minHeight: 0, cursor: 'pointer',
         };
