@@ -219,7 +219,7 @@ function IntelligenceBriefWidget({
     // Size-responsive styling. xl is the full-width premium layout; md/lg are
     // compact enough to coexist with other widgets on the grid.
     const isCompact = size === 'md';
-    const cardStyle = { background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '14px', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
+    const cardStyle = { background: 'var(--black)', border: 'var(--card-border, 1px solid rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius, 10px)', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
     const btnStyle = { padding: isCompact ? '8px 12px' : '12px 16px', background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '10px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: isCompact ? '0.76rem' : '0.82rem', fontWeight: 500, textAlign: 'left', display: 'flex', alignItems: 'flex-start', gap: '10px', transition: 'all 0.15s', lineHeight: 1.5 };
 
     return React.createElement('div', { style: cardStyle },
@@ -342,7 +342,7 @@ function FieldNotesWidget({ size = 'lg' }) {
     }, []);
 
     const isCompact = size === 'md';
-    const cardStyle = { background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '14px', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
+    const cardStyle = { background: 'var(--black)', border: 'var(--card-border, 1px solid rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius, 10px)', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
 
     return React.createElement('div', { style: cardStyle },
         React.createElement('div', { style: { padding: isCompact ? '12px 16px 8px' : '20px 20px 0', borderBottom: '1px solid rgba(212,175,55,0.1)', paddingBottom: isCompact ? '10px' : '12px' } },

@@ -2479,11 +2479,13 @@
 
                 {/* Main content shifted right */}
                 <div className="wr-main-content" style={{ marginLeft: '160px' }}>
-                {/* Header — includes persistent GM Mode badge (Phase 1) */}
-                <header className="header" style={{ position: 'relative', marginBottom: '0', paddingBottom: '0.75rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                        <div className="header-title">{currentLeague.name}</div>
-                        <button onClick={onBack} style={{ padding: '4px 12px', fontSize: '0.68rem', fontFamily: 'Inter, sans-serif', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap' }}>SWITCH</button>
+                {/* Header — collapsed into a single left-aligned strip.
+                    Removed: redundant "{year} SEASON" subtitle (year picker below handles this)
+                    and the duplicate league-name/team-count in the time context bar. */}
+                <header className="header" style={{ position: 'relative', marginBottom: '0', paddingTop: '0.6rem', paddingBottom: '0.6rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '10px' }}>
+                        <div className="header-title" style={{ fontSize: '1.05rem' }}>{currentLeague.name}</div>
+                        <button onClick={onBack} style={{ padding: '4px 12px', fontSize: '0.66rem', fontFamily: 'Inter, sans-serif', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', background: 'rgba(212,175,55,0.10)', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', cursor: 'pointer', whiteSpace: 'nowrap' }}>SWITCH</button>
                         {(() => {
                             const gm = window.WR?.GmMode?.describe?.(gmStrategy?.mode || 'compete');
                             if (!gm) return null;
@@ -2493,7 +2495,7 @@
                                 title: 'GM Mode — click to edit strategy',
                                 style: {
                                     padding: '4px 10px 4px 8px', display: 'inline-flex', alignItems: 'center', gap: '6px',
-                                    fontSize: '0.68rem', fontFamily: 'Inter, sans-serif', fontWeight: 700,
+                                    fontSize: '0.66rem', fontFamily: 'Inter, sans-serif', fontWeight: 700,
                                     textTransform: 'uppercase', letterSpacing: '0.06em',
                                     background: gm.badgeColor + '22', color: gm.badgeColor,
                                     border: '1px solid ' + gm.badgeColor + '66',
@@ -2504,9 +2506,6 @@
                                 'GM · ' + gm.label
                             );
                         })()}
-                    </div>
-                    <div style={{ textAlign: 'center', color: 'var(--gold)', fontSize: '1.1rem', fontFamily: 'Inter, sans-serif', marginTop: '0.25rem' }}>
-                        {timeYear} SEASON
                     </div>
                 </header>
 
@@ -2542,10 +2541,7 @@
                             }}>{yr}</button>
                         )}
                     </div>
-                    {/* League context */}
-                    <span style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.5 }}>
-                        {currentLeague.name ? currentLeague.name.substring(0, 20) : ''} {'\u00B7'} {currentLeague.rosters?.length || '?'} Teams
-                    </span>
+                    {/* League name/team-count moved to the main header to avoid duplication. */}
                     <div style={{ marginLeft: 'auto' }}></div>
                     {/* Time mode badge */}
                     <span style={{

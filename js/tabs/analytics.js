@@ -69,7 +69,8 @@ function AnalyticsPanel({
         playerStats: _seasonCtx.playerStats || window.S?.playerStats || {},
     };
 
-    const aCardStyle = { background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '10px', padding: '12px 16px', marginBottom: '12px' };
+    // Token-driven card style so padding/radius/border track index.html's spacing scale.
+    const aCardStyle = { background: 'var(--black)', border: 'var(--card-border, 1px solid rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius, 10px)', padding: 'var(--card-pad, 14px 16px)', marginBottom: 'var(--card-gap, 12px)' };
     const aHeaderStyle = { fontFamily: 'Rajdhani, sans-serif', color: 'var(--gold)', fontSize: '1.125rem', fontWeight: 600, letterSpacing: '0.06em', marginBottom: '12px', borderBottom: '1px solid rgba(212,175,55,0.2)', paddingBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' };
     const aValStyle = { fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 500 };
     const goodColor = '#2ECC71';

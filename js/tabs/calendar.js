@@ -169,7 +169,7 @@ function CalendarTab({ currentLeague, myRoster }) {
     }
 
     // ── Styles ──
-    const cardStyle = { background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '12px', overflow: 'hidden' };
+    const cardStyle = { background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: 'var(--card-radius, 10px)', overflow: 'hidden' };
     const headerStyle = { fontFamily: 'Rajdhani, sans-serif', fontSize: '0.85rem', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em' };
 
     const now = Date.now();
