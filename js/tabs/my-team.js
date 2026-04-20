@@ -518,34 +518,7 @@ function MyTeamTab({
             })()}
           </div>
 
-          {/* Phase 2: Per-position peak summary — avg peak years left by position group */}
-          {(() => {
-            const POS_ORDER = ['QB','RB','WR','TE','K','DL','LB','DB'];
-            const stats = {};
-            rows.forEach(r => {
-              if (!stats[r.pos]) stats[r.pos] = { total: 0, count: 0, rising: 0 };
-              if (r.peakYrsLeft > 0) stats[r.pos].total += r.peakYrsLeft;
-              stats[r.pos].count += 1;
-              if (r.peakPhase === 'PRE' || r.peakPhase === 'PRIME') stats[r.pos].rising += 1;
-            });
-            const shown = POS_ORDER.filter(p => stats[p] && stats[p].count > 0);
-            if (!shown.length) return null;
-            return React.createElement('div', {
-              style: { marginTop: '10px', padding: '8px 12px', background: 'var(--black)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '6px', display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center' }
-            },
-              React.createElement('div', { style: { fontSize: '0.62rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, opacity: 0.7 } }, 'PEAKS'),
-              ...shown.map(p => {
-                const s = stats[p];
-                const avg = s.count > 0 ? (s.total / s.count) : 0;
-                const col = avg >= 4 ? '#2ECC71' : avg >= 2 ? 'var(--gold)' : '#E74C3C';
-                return React.createElement('div', { key: p, style: { display: 'flex', alignItems: 'baseline', gap: '4px' } },
-                  React.createElement('span', { style: { fontSize: '0.7rem', fontWeight: 700, color: (window.App?.POS_COLORS?.[p] || 'var(--silver)') } }, p),
-                  React.createElement('span', { style: { fontSize: '0.76rem', fontFamily: 'JetBrains Mono, monospace', color: col } }, avg > 0 ? avg.toFixed(1) + 'yr' : '—'),
-                  React.createElement('span', { style: { fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.5 } }, '(' + s.count + ')')
-                );
-              })
-            );
-          })()}
+          {/* PEAKS summary bar removed — data is available on individual player rows. */}
         </div>;
       })()}
 
@@ -685,7 +658,6 @@ function MyTeamTab({
           const actionClass = _recLower === 'sell now' || _recLower === 'sell' ? 'wr-row-sell' :
             _recLower === 'sell high' ? 'wr-row-sell-high' :
             _recLower === 'hold core' || _recLower === 'build around' ? 'wr-row-core' : '';
-          const ringClass = 'wr-ring wr-ring-' + r.pos;
           const untouchables = (window._wrGmStrategy?.untouchable || []);
           const isUntouchable = untouchables.includes(r.pid);
 
@@ -698,7 +670,7 @@ function MyTeamTab({
                 onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = idx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent'; }}>
                 {/* Frozen player info */}
                 <div style={{ width: '220px', flexShrink: 0, height: '38px', display: 'flex', alignItems: 'center', gap: '6px', padding: '0 6px', borderRight: '2px solid rgba(212,175,55,0.15)', borderLeft: '3px solid ' + statusCol(r.section) }}>
-                  <div className={'wr-ring wr-ring-' + r.pos} style={{ width: '26px', height: '26px', flexShrink: 0 }}><img src={'https://sleepercdn.com/content/nfl/players/thumb/'+r.pid+'.jpg'} alt="" onError={e=>e.target.style.display='none'} style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover' }} /></div>
+                  <div style={{ width: '26px', height: '26px', flexShrink: 0 }}><img src={'https://sleepercdn.com/content/nfl/players/thumb/'+r.pid+'.jpg'} alt="" onError={e=>e.target.style.display='none'} style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover' }} /></div>
                   <div style={{ overflow: 'hidden', flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span style={{ fontWeight: 600, color: 'var(--white)', fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{getPlayerName(r.pid)}</span>
