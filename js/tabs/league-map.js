@@ -375,8 +375,16 @@ function LeagueMapTab({
   activeYear,
   timeRecomputeTs,
   setTimeRecomputeTs,
-  getAcquisitionInfo,
+  getAcquisitionInfo: getAcquisitionInfoProp,
 }) {
+  // Defensive fallback — any render path that mounts LeagueMapTab without a
+  // getAcquisitionInfo function (stale prop chain during initial mount, legacy
+  // deep-link path, any future refactor) must not crash the Analytics embed.
+  // Matches the pattern my-team.js:58 already uses.
+  const getAcquisitionInfo = typeof getAcquisitionInfoProp === 'function'
+    ? getAcquisitionInfoProp
+    : () => ({ method: 'Unknown', date: '\u2014', cost: '', season: '', week: 0 });
+
   const _seasonCtx = React.useContext(window.App.SeasonContext) || {};
   const _sPlayerStats = _seasonCtx.playerStats || window.S?.playerStats || {};
   const _sTradedPicks = _seasonCtx.tradedPicks !== undefined ? _seasonCtx.tradedPicks : (window.S?.tradedPicks || []);
