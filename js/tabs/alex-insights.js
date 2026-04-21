@@ -717,15 +717,86 @@
                 h('div', { style: { fontSize: '0.74rem', fontFamily: 'JetBrains Mono, monospace', color: rightText || 'var(--silver)', textAlign: 'right', fontWeight: 700 } }, valStr)
             );
 
-        const Panel = ({ title, subtitle, children, empty }) => h(Card, { padding: '18px 20px', style: { marginBottom: '12px' } },
-            h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '14px' } },
+        // Panel wraps each chart with its title + Alex-voiced interpretation.
+        // `interpretation` is the differentiator vs. Analytics: the same data
+        // is there, but here Alex tells you what it *means* for your play.
+        const Panel = ({ title, subtitle, interpretation, interpColor, children, empty }) => h(Card, { padding: '18px 20px', style: { marginBottom: '12px' } },
+            h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: interpretation ? '8px' : '14px' } },
                 h('h3', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', fontWeight: 700, margin: 0, letterSpacing: '-0.005em' } }, title),
                 subtitle && h('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'JetBrains Mono, monospace' } }, '\u2014 ' + subtitle)
+            ),
+            interpretation && h('div', {
+                style: {
+                    display: 'flex', alignItems: 'flex-start', gap: '8px',
+                    marginBottom: '14px', padding: '8px 10px',
+                    background: 'rgba(212,175,55,0.04)',
+                    borderLeft: '2px solid ' + (interpColor || 'rgba(212,175,55,0.5)'),
+                    borderRadius: '0 5px 5px 0',
+                    fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.92, lineHeight: 1.5,
+                }
+            },
+                h('span', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '0.64rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', flexShrink: 0, paddingTop: '2px' } }, 'Alex'),
+                h('span', null, interpretation)
             ),
             empty
                 ? h('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, padding: '12px 0', fontStyle: 'italic' } }, empty)
                 : children
         );
+
+        // ── Alex interpretations (computed from data) ──
+        const tradePartnersInterp = (() => {
+            if (!partners.length) return null;
+            const top = partners[0];
+            const top2Share = partners.slice(0, 2).reduce((s, p) => s + p.count, 0) / Math.max(1, myTrades.length);
+            if (partners.length >= 10 && top2Share < 0.5) {
+                return 'Broad network across ' + partners.length + ' partners \u2014 you engage the whole league. ' + top.name + ' is your most frequent dance partner at ' + top.count + ' deals.';
+            }
+            if (top2Share >= 0.6) {
+                return 'Concentrated network \u2014 ' + Math.round(top2Share * 100) + '% of your trades go through 2 managers. Worth broadening; mismatched needs live on the periphery.';
+            }
+            return 'Balanced spread across ' + partners.length + ' partners. ' + top.name + ' is your most frequent counter at ' + top.count + ' deals.';
+        })();
+
+        const tradeValueInterp = (() => {
+            if (!partners.length) return null;
+            const winners = partners.filter(p => p.net > 0);
+            const losers = partners.filter(p => p.net < 0);
+            const biggestLoser = losers.length ? losers.reduce((a, b) => Math.abs(a.net) > Math.abs(b.net) ? a : b) : null;
+            const biggestWinner = winners.length ? winners.reduce((a, b) => a.net > b.net ? a : b) : null;
+            if (biggestLoser && Math.abs(biggestLoser.net) >= 3000) {
+                return 'You profit from ' + winners.length + ' of ' + partners.length + ' partners, but ' + biggestLoser.name + ' has taken you for ' + (biggestLoser.net / 1000).toFixed(1) + 'k DHQ. Run their next proposal through Trade Center\u2019s analyzer before you reply.';
+            }
+            if (biggestWinner && winners.length >= partners.length / 2) {
+                return biggestWinner.name + ' has been your most profitable mark (+' + (biggestWinner.net / 1000).toFixed(1) + 'k). Stay on the offer side with them \u2014 your edge is real.';
+            }
+            return 'Net trade value is scattered. No single partner dominates either direction \u2014 you\u2019re playing the whole market fairly.';
+        })();
+
+        const draftHitInterp = (() => {
+            if (!draftPicks.length) return null;
+            const totalHits = draftPicks.filter(d => (LI.playerScores?.[d.pid] || 0) >= 3000).length;
+            const rate = Math.round(totalHits / draftPicks.length * 100);
+            if (rate === 0) {
+                return 'Zero of your ' + draftPicks.length + ' tracked picks have reached contributor DHQ. Your draft isn\u2019t the engine \u2014 trades are. Consider flipping future rookies for proven veterans.';
+            }
+            if (rate >= 50) {
+                return rate + '% hit rate across ' + draftPicks.length + ' picks \u2014 elite drafting. Hoard picks in trades; they\u2019re compound value in your hands.';
+            }
+            return rate + '% hit rate over ' + draftPicks.length + ' picks. Middle of the pack \u2014 no clear round stands out as your sweet spot yet.';
+        })();
+
+        const draftPosInterp = (() => {
+            if (!draftByPos.length) return null;
+            const top = draftByPos[0];
+            const topPct = Math.round(top.total / draftPicks.length * 100);
+            if (topPct >= 40) {
+                return 'You lean hard on ' + top.pos + ' in drafts (' + topPct + '% of picks). Either a deliberate roster-construction thesis or a bias \u2014 diversifying next draft is cheap insurance.';
+            }
+            return 'Position mix is balanced across ' + draftByPos.length + ' spots. No one position dominates your draft board.';
+        })();
+
+        const partnerInterpColor = partners.some(p => p.net < -3000) ? '#E74C3C' : '#2ECC71';
+        const draftHitInterpColor = draftPicks.length && draftPicks.filter(d => (LI.playerScores?.[d.pid] || 0) >= 3000).length === 0 ? '#E74C3C' : 'var(--gold)';
 
         // ── Render ──
         const maxPartnerCount = Math.max(1, ...partners.map(p => p.count));
@@ -734,11 +805,21 @@
         const maxPosCount = Math.max(1, ...rosterByPos.map(p => p.count));
         const maxWeekCount = Math.max(1, ...txnByWeek.map(w => w.count));
 
+        // Four panels, each narrated by Alex. Roster DHQ allocation and
+        // waiver-activity-by-week were removed — both are league-generic
+        // data views that fully live in the Analytics tab. These four are
+        // all behavior-specific (about how you play, not raw league data).
         return h('div', null,
+            h('div', { style: { marginBottom: '14px', padding: '12px 16px', background: 'rgba(124,107,248,0.04)', border: '1px solid rgba(124,107,248,0.15)', borderRadius: 'var(--card-radius, 10px)' } },
+                h('div', { style: { fontSize: '0.68rem', color: '#9b8afb', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px', fontFamily: 'Rajdhani, sans-serif' } }, 'How this differs from Analytics'),
+                h('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.85, lineHeight: 1.5 } },
+                    'Analytics shows raw numbers. Patterns is Alex reading those numbers back to you \u2014 every chart below includes Alex\u2019s take on what it means for your play style.')
+            ),
             // Trade partners — volume
             h(Panel, {
                 title: 'Trade partners \u2014 who you deal with',
                 subtitle: partners.length + ' partner' + (partners.length === 1 ? '' : 's') + ' over ' + myTrades.length + ' trade' + (myTrades.length === 1 ? '' : 's'),
+                interpretation: tradePartnersInterp,
                 empty: partners.length === 0 ? 'No trade history yet.' : null,
             },
                 partners.slice(0, 12).map(p => h(HBar, {
@@ -754,6 +835,8 @@
             h(Panel, {
                 title: 'Trade value \u2014 who you profit from',
                 subtitle: 'Net DHQ per partner; green = you won, red = they won',
+                interpretation: tradeValueInterp,
+                interpColor: partnerInterpColor,
                 empty: partners.length === 0 ? 'No trade history yet.' : null,
             },
                 partners.slice(0, 12).map(p => h(HBar, {
@@ -770,6 +853,8 @@
             h(Panel, {
                 title: 'Draft hit rate by round',
                 subtitle: draftPicks.length + ' pick' + (draftPicks.length === 1 ? '' : 's') + ' tracked · contributor threshold 3000 DHQ',
+                interpretation: draftHitInterp,
+                interpColor: draftHitInterpColor,
                 empty: draftPicks.length === 0 ? 'No draft history recorded yet.' : null,
             },
                 draftByRound.map(r => h(HBar, {
@@ -785,6 +870,7 @@
             h(Panel, {
                 title: 'Draft position mix',
                 subtitle: 'Where your picks land',
+                interpretation: draftPosInterp,
                 empty: draftByPos.length === 0 ? 'No draft history recorded yet.' : null,
             },
                 draftByPos.map(p => h(HBar, {
@@ -795,38 +881,11 @@
                     max: maxDraftTotal,
                     valStr: p.total + ' pick' + (p.total === 1 ? '' : 's') + ' \u00B7 ' + p.rate + '% hit',
                     barColor: posColor(p.pos),
-                }))
-            ),
-            // Current roster DHQ allocation by position
-            h(Panel, {
-                title: 'Roster DHQ allocation',
-                subtitle: 'Where your value sits today',
-                empty: rosterByPos.length === 0 ? 'Roster data unavailable.' : null,
-            },
-                rosterByPos.map(p => h(HBar, {
-                    key: p.pos,
-                    label: p.pos,
-                    labelColor: posColor(p.pos),
-                    value: p.pct * 100,
-                    max: 100,
-                    valStr: Math.round(p.pct * 100) + '%  ' + (p.dhq / 1000).toFixed(1) + 'k',
-                    barColor: posColor(p.pos),
-                }))
-            ),
-            // Waiver/FA activity by week
-            h(Panel, {
-                title: 'Waiver activity by week',
-                subtitle: myTxns.length + ' transaction' + (myTxns.length === 1 ? '' : 's'),
-                empty: txnByWeek.length === 0 ? 'No weekly transaction data yet.' : null,
-            },
-                txnByWeek.map(w => h(HBar, {
-                    key: w.week,
-                    label: 'Week ' + w.week,
-                    value: w.count,
-                    max: maxWeekCount,
-                    valStr: String(w.count),
-                    barColor: '#3498DB',
-                }))
+                })),
+                // Deep-link to the Analytics draft tab for full tabular detail.
+                h('div', { style: { marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.55 } },
+                    'For full roster and waiver data tables, open ',
+                    h('a', { href: '#', onClick: e => { e.preventDefault(); props?.setActiveTab?.('analytics'); }, style: { color: 'var(--gold)', textDecoration: 'underline' } }, 'Analytics'), '.')
             )
         );
     }
