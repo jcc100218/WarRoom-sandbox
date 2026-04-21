@@ -2403,10 +2403,13 @@
                         { label: 'Settings', action: () => onOpenSettings && onOpenSettings(), icon: '\u2690' },
                     ].map((item, i) => {
                         if (item.section) {
+                            // Hairline divider only — section labels removed for a
+                            // cleaner list. The grouping rhythm still reads via the
+                            // thin rule between clusters. First section renders no
+                            // top rule since there's nothing above it in the nav.
+                            if (i === 0) return null;
                             return (
-                                <div key={i} style={{ padding: i === 0 ? '4px 16px 4px' : '12px 16px 4px', borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
-                                    <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '0.62rem', color: 'rgba(212,175,55,0.5)', letterSpacing: '0.18em', textTransform: 'uppercase' }}>{item.section}</span>
-                                </div>
+                                <div key={i} style={{ height: '1px', margin: '8px 16px', background: 'rgba(255,255,255,0.06)' }} aria-hidden="true" />
                             );
                         }
                         const isActive = item.tab && activeTab === item.tab;
