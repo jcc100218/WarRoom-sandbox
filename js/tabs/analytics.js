@@ -442,7 +442,7 @@ function AnalyticsPanel({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '12px' }}>
                     {/* Left: Position Investment BarChart */}
                     <div style={aCardStyle}>
-                        <div style={aHeaderStyle}><span>POSITION INVESTMENT</span>{typeof StarBtn !== 'undefined' && <StarBtn id="analytics_pos_inv" title="Position Investment" content={`DHQ allocation: ${Object.entries(m?.byPosition||{}).map(([p,v])=>`${p}: ${Math.round((v||0)/((m?.total||1)/100))}%`).join(', ')}`} sourceModule="Analytics" />}</div>
+                        <div style={aHeaderStyle}><span>POSITION INVESTMENT</span></div>
                         <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>Position investment shows what % of your total roster DHQ is allocated to each position. For example, "QB: 18%" means 18% of your total dynasty value is in QBs.</div>
                         <div style={{ marginBottom: '12px' }}>
                             <div style={{ fontSize: '0.7rem', color: 'var(--gold)', fontFamily: 'Inter, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Elite Tier Teams</div>
@@ -460,7 +460,7 @@ function AnalyticsPanel({
 
                     {/* Right: Gap Analysis Visual Cards */}
                     <div style={aCardStyle}>
-                        <div style={aHeaderStyle}><span>GAP ANALYSIS</span>{typeof StarBtn !== 'undefined' && <StarBtn id="analytics_gap" title="Gap Analysis" content={gapsList.length === 0 ? 'No significant gaps vs elite tier' : `${gapsList.length} roster gap${gapsList.length !== 1 ? 's' : ''} vs elite tier`} sourceModule="Analytics" />}</div>
+                        <div style={aHeaderStyle}><span>GAP ANALYSIS</span></div>
                         {gapsList.length === 0 && <div style={{ color: goodColor, fontSize: '0.9rem', padding: '12px 0' }}>Your roster matches the elite tier template closely.</div>}
                         {gapsList.slice().sort((a,b) => { const sevOrder = {critical:0,high:1,medium:2,low:3}; return (sevOrder[a.priority||a.severity]||9) - (sevOrder[b.priority||b.severity]||9); }).slice(0, 6).map((g, i) => {
                             const sev = g.priority || g.severity || 'low';
@@ -528,7 +528,7 @@ function AnalyticsPanel({
                     const tierColor = (tier) => tier === 'Contender' ? goodColor : tier === 'Playoff Team' ? warnColor : badColor;
                     return (
                         <div style={{ ...aCardStyle, marginTop: '12px' }}>
-                            <div style={aHeaderStyle}><span>YOUR 5-YEAR OUTLOOK</span>{typeof StarBtn !== 'undefined' && <StarBtn id="analytics_outlook" title="5-Year Outlook" content={(d?.projection||[]).map(p=>`${p.year}: ${p.tier||'—'}`).join(' · ')} sourceModule="Analytics" />}</div>
+                            <div style={aHeaderStyle}><span>YOUR 5-YEAR OUTLOOK</span></div>
                             {proj.map((p, i) => (
                                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                                     <span style={{ color: 'var(--silver)', fontFamily: 'Inter, sans-serif', minWidth: '40px', fontSize: '0.9rem' }}>{p.year}</span>
@@ -575,7 +575,7 @@ function AnalyticsPanel({
                     if (!arPlayers2.length && arPct2 === 0) return null;
                     return (
                         <div style={{ ...aCardStyle, marginTop: '12px' }}>
-                            <div style={aHeaderStyle}><span>AGING CLIFF ALERT</span>{typeof StarBtn !== 'undefined' && <StarBtn id="analytics_aging_cliff" title="Aging Cliff Alert" content="High-DHQ players within 2 years of peak-end age" sourceModule="Analytics" />}</div>
+                            <div style={aHeaderStyle}><span>AGING CLIFF ALERT</span></div>
                             <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>Players within 2 years of their position's peak-end age with 2000+ DHQ value. These are your highest-risk assets for dynasty value decline.</div>
                             <div style={{ display: 'flex', gap: '24px', marginBottom: '12px' }}>
                                 <div style={{ textAlign: 'center' }}>
@@ -751,7 +751,7 @@ function AnalyticsPanel({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '12px' }}>
                     {/* Hit Rates as BarChart */}
                     <div style={aCardStyle}>
-                        <div style={aHeaderStyle}><span>HIT RATES BY ROUND</span>{typeof StarBtn !== 'undefined' && <StarBtn id="analytics_draft_hr" title="Draft Hit Rates" content="Hit rate % by draft round" sourceModule="Analytics · Draft" />}</div>
+                        <div style={aHeaderStyle}><span>HIT RATES BY ROUND</span></div>
                         <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>Hit rate = % of picks at each round that became starter-quality players (top of their position group). Higher hit rate = better draft scouting.</div>
                         <div style={{ marginBottom: '10px' }}>
                             <div style={{ fontSize: '0.7rem', color: goodColor, fontFamily: 'Inter, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Elite Tier Teams</div>
