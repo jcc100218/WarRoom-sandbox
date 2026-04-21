@@ -141,7 +141,7 @@
                 ctaLabel: 'Review trade history',
             });
         }
-        // NEW: Trade partner diversity
+        // NEW: Trade partner diversity (concentration OR notable breadth)
         if (kpis.tradeCount >= 4 && myRid != null) {
             const partnerCounts = {};
             allTrades.forEach(t => {
@@ -152,14 +152,30 @@
             });
             const partners = Object.entries(partnerCounts).sort((a, b) => b[1] - a[1]);
             const top2Share = partners.length ? (partners.slice(0, 2).reduce((s, p) => s + p[1], 0) / kpis.tradeCount) : 0;
-            if (top2Share >= 0.75 && partners.length >= 3) {
+            if (top2Share >= 0.6 && partners.length >= 3) {
                 out.push({
-                    focus: 'trades', severity: 'pattern', confidence: 74,
+                    focus: 'trades', severity: 'pattern', confidence: 72,
                     title: 'Most of your trades go through just 2 managers',
-                    body: Math.round(top2Share * 100) + '% of your trades are with ' + partners.length + ' owners, concentrated in 2. Broadening the pool opens mismatched-need exchanges that tight partner loops miss.',
+                    body: Math.round(top2Share * 100) + '% of your ' + kpis.tradeCount + ' trades are concentrated with 2 partners out of ' + partners.length + ' total. Broadening the pool opens mismatched-need exchanges that tight partner loops miss.',
                     ctaLabel: 'See all owners',
                 });
+            } else if (partners.length >= Math.min(10, rosterCount - 2)) {
+                out.push({
+                    focus: 'trades', severity: 'edge', confidence: 78,
+                    title: 'You\u2019ve traded with ' + partners.length + ' different owners',
+                    body: 'Broad trade network across ' + kpis.tradeCount + ' deals. You\u2019re reading the whole league, not just a couple of usual suspects \u2014 exactly why your trade DHQ net is positive.',
+                    ctaLabel: 'Keep hunting',
+                });
             }
+        }
+        // NEW: Prolific trader flag
+        if (kpis.tradeCount >= 30) {
+            out.push({
+                focus: 'trades', severity: 'edge', confidence: 75,
+                title: 'You\u2019re a high-volume trader (' + kpis.tradeCount + ' deals)',
+                body: 'Most managers in this league sit under 20. Your activity alone is a signal you read the market differently. Stay disciplined \u2014 volume without net value is churn.',
+                ctaLabel: 'Open Trade Center',
+            });
         }
 
         // ── Waivers / FA ──────────────────────────────────────────
@@ -212,31 +228,33 @@
         }
 
         // ── Draft ─────────────────────────────────────────────────
-        if (kpis.draftHitPct != null && kpis.draftTotal >= 10 && kpis.draftHitPct < 30) {
+        // Relaxed sample thresholds — users often have 5\u20137 picks visible,
+        // not 10+, and still deserve signal when their pattern is clear.
+        if (kpis.draftHitPct != null && kpis.draftTotal >= 5 && kpis.draftHitPct < 30) {
             out.push({
-                focus: 'draft', severity: 'pattern', confidence: 88,
+                focus: 'draft', severity: 'pattern', confidence: 82,
                 title: 'Your draft hit rate (' + kpis.draftHitPct + '%) trails starter caliber',
-                body: 'Only ' + kpis.draftHits + ' of ' + kpis.draftTotal + ' drafted players reached contributor DHQ. Consider leaning on DHQ rankings over gut in rounds 1\u20133.',
+                body: 'Only ' + kpis.draftHits + ' of ' + kpis.draftTotal + ' drafted players reached contributor DHQ (3000+). Consider leaning harder on DHQ rankings over gut in rounds 1\u20133.',
                 ctaLabel: 'Review draft board',
             });
         }
-        if (kpis.draftHitPct != null && kpis.draftTotal >= 10 && kpis.draftHitPct >= 55) {
+        if (kpis.draftHitPct != null && kpis.draftTotal >= 5 && kpis.draftHitPct >= 55) {
             out.push({
-                focus: 'draft', severity: 'edge', confidence: 82,
+                focus: 'draft', severity: 'edge', confidence: 80,
                 title: 'Your drafts hit ' + kpis.draftHitPct + '% \u2014 elite',
                 body: kpis.draftHits + '/' + kpis.draftTotal + ' of your picks reached contributor DHQ. You\u2019re outdrafting the league. Prioritize draft capital in any trade.',
                 ctaLabel: 'See pick values',
             });
         }
-        // NEW: Position bias in drafting
+        // NEW: Position bias in drafting — lowered from 8 picks / 45% to 5 picks / 40%.
         const draftPicks = (LI.draftOutcomes || []).filter(d => String(d.roster_id) === String(myRid));
-        if (draftPicks.length >= 8) {
+        if (draftPicks.length >= 5) {
             const byPos = {};
             draftPicks.forEach(d => { byPos[d.pos] = (byPos[d.pos] || 0) + 1; });
             const topPos = Object.entries(byPos).sort((a, b) => b[1] - a[1])[0];
-            if (topPos && topPos[1] / draftPicks.length > 0.45) {
+            if (topPos && topPos[1] / draftPicks.length >= 0.4) {
                 out.push({
-                    focus: 'draft', severity: 'pattern', confidence: 76,
+                    focus: 'draft', severity: 'pattern', confidence: 74,
                     title: 'You draft ' + topPos[0] + ' ' + Math.round(topPos[1] / draftPicks.length * 100) + '% of the time',
                     body: 'Over ' + draftPicks.length + ' career picks, ' + topPos[1] + ' went to ' + topPos[0] + '. Heavy concentration can starve depth at other positions \u2014 worth checking your roster-construction tier.',
                     ctaLabel: 'Open Roster Analytics',
@@ -326,6 +344,16 @@
                 title: injuredHigh.length + ' high-DHQ players are injured',
                 body: 'Contributor-tier assets stacked in Out/Doubtful/IR status. Deploy IR slots + hunt short-term-upside replacements before the news breaks league-wide.',
                 ctaLabel: 'Open Free Agency',
+            });
+        }
+
+        // NEW: FAAB restraint while winning on the trade market (gmStyle edge)
+        if (budget > 0 && (myFaab / budget) < 0.3 && kpis.tradeCount >= 10 && (kpis.tradeNetDhq || 0) > 0) {
+            out.push({
+                focus: 'gmStyle', severity: 'edge', confidence: 70,
+                title: 'You win value on the trade market without leaning on FAAB',
+                body: 'Only ' + Math.round((myFaab / budget) * 100) + '% of your FAAB spent but your trades net +' + Math.round((kpis.tradeNetDhq || 0) / 1000) + 'k DHQ across ' + kpis.tradeCount + ' deals. Trade-first managers tend to beat FAAB-first managers in dynasty \u2014 you\u2019re in the right bucket.',
+                ctaLabel: 'Keep trading',
             });
         }
 
