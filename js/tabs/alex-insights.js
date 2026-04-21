@@ -621,14 +621,212 @@
         );
     }
 
-    // ── Patterns sub-tab (placeholder / "coming soon" scaffolding) ─
-    function PatternsView() {
-        return h(window.WR.Card, { padding: '32px' },
-            h('div', { style: { textAlign: 'center', color: 'var(--silver)', opacity: 0.75, lineHeight: 1.6 } },
-                h('div', { style: { fontSize: '1.6rem', marginBottom: '8px' } }, '\u301C'),
-                h('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.2rem', color: 'var(--white)', margin: '0 0 8px' } }, 'Patterns'),
-                h('p', { style: { fontSize: '0.85rem', maxWidth: '440px', margin: '0 auto', lineHeight: 1.55 } },
-                    'Deep-dive charts across your draft, trade, and waiver decisions \u2014 binned by position, timing, and counterparty. Shipping after the Overview lands.')
+    // ── Patterns sub-tab ──────────────────────────────────────────
+    // Deep-dive charts over the user's managerial history. Every panel
+    // is computed from window.App.LI + window.S, with soft-fail empty
+    // states when a panel's data source is thin.
+    function PatternsView({ props }) {
+        const { myRoster, currentLeague, playersData } = props || {};
+        const LI = window.App?.LI || {};
+        const myRid = myRoster?.roster_id;
+        const Card = window.WR.Card;
+
+        // ── Data prep ──
+        const myTrades = (LI.tradeHistory || []).filter(t => t.sides && t.sides[myRid]);
+        const partners = (() => {
+            const counts = {}; const nets = {};
+            myTrades.forEach(t => {
+                const myIn = (t.sides[myRid].players || []).reduce((s, pid) => s + (LI.playerScores?.[pid] || 0), 0);
+                Object.entries(t.sides).forEach(([rid, side]) => {
+                    if (String(rid) === String(myRid)) return;
+                    counts[rid] = (counts[rid] || 0) + 1;
+                    const theirGive = (side.players || []).reduce((s, pid) => s + (LI.playerScores?.[pid] || 0), 0);
+                    nets[rid] = (nets[rid] || 0) + (myIn - theirGive) / Object.keys(t.sides).filter(r => String(r) !== String(myRid)).length;
+                });
+            });
+            const rosters = currentLeague?.rosters || [];
+            const users = currentLeague?.users || window.S?.leagueUsers || [];
+            return Object.entries(counts).map(([rid, count]) => {
+                const r = rosters.find(x => String(x.roster_id) === rid);
+                const u = users.find(x => x.user_id === r?.owner_id);
+                return { rid, count, net: Math.round(nets[rid] || 0), name: u?.display_name || u?.metadata?.team_name || ('T' + rid) };
+            }).sort((a, b) => b.count - a.count);
+        })();
+
+        const draftPicks = (LI.draftOutcomes || []).filter(d => String(d.roster_id) === String(myRid));
+        const draftByRound = (() => {
+            const rounds = {};
+            draftPicks.forEach(d => {
+                const r = d.round || 0;
+                if (!rounds[r]) rounds[r] = { total: 0, hits: 0 };
+                rounds[r].total++;
+                if ((LI.playerScores?.[d.pid] || 0) >= 3000) rounds[r].hits++;
+            });
+            return Object.entries(rounds).map(([r, v]) => ({ round: Number(r), ...v, rate: v.total ? Math.round(v.hits / v.total * 100) : 0 })).sort((a, b) => a.round - b.round);
+        })();
+        const draftByPos = (() => {
+            const pos = {};
+            draftPicks.forEach(d => {
+                if (!pos[d.pos]) pos[d.pos] = { total: 0, hits: 0 };
+                pos[d.pos].total++;
+                if ((LI.playerScores?.[d.pid] || 0) >= 3000) pos[d.pos].hits++;
+            });
+            return Object.entries(pos).map(([p, v]) => ({ pos: p, ...v, rate: v.total ? Math.round(v.hits / v.total * 100) : 0 })).sort((a, b) => b.total - a.total);
+        })();
+
+        const myPlayers = myRoster?.players || [];
+        const rosterByPos = (() => {
+            const pos = {};
+            myPlayers.forEach(pid => {
+                const p = playersData?.[pid]; if (!p) return;
+                const ps = p.position || 'UNK';
+                if (!pos[ps]) pos[ps] = { count: 0, dhq: 0 };
+                pos[ps].count++;
+                pos[ps].dhq += LI.playerScores?.[pid] || 0;
+            });
+            const totalDhq = Object.values(pos).reduce((s, x) => s + x.dhq, 0);
+            return Object.entries(pos).map(([p, v]) => ({ pos: p, ...v, pct: totalDhq ? v.dhq / totalDhq : 0 })).sort((a, b) => b.dhq - a.dhq);
+        })();
+
+        const txns = (() => {
+            const arr = []; const txnMap = window.S?.transactions || {};
+            if (txnMap && typeof txnMap === 'object' && !Array.isArray(txnMap)) Object.values(txnMap).forEach(a => { if (Array.isArray(a)) arr.push(...a); });
+            return arr;
+        })();
+        const myTxns = txns.filter(t => {
+            const inAdds = t.adds && Object.values(t.adds).some(r => String(r) === String(myRid));
+            const inDrops = t.drops && Object.values(t.drops).some(r => String(r) === String(myRid));
+            return inAdds || inDrops;
+        });
+        const txnByWeek = (() => {
+            const wk = {};
+            myTxns.forEach(t => { const w = t.leg || t.week || 0; if (!w) return; wk[w] = (wk[w] || 0) + 1; });
+            return Object.entries(wk).map(([w, c]) => ({ week: Number(w), count: c })).sort((a, b) => a.week - b.week);
+        })();
+
+        // ── Chart primitives ──
+        const POS_COLORS = window.App?.POS_COLORS || {};
+        const posColor = (p) => POS_COLORS[p] || '#D0D0D0';
+
+        const HBar = ({ label, labelColor, value, max, valStr, barColor, rightText }) =>
+            h('div', { style: { display: 'grid', gridTemplateColumns: '110px 1fr 60px', gap: '10px', alignItems: 'center', marginBottom: '6px' } },
+                h('div', { style: { fontSize: '0.76rem', color: labelColor || 'var(--silver)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, label),
+                h('div', { style: { height: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '3px', overflow: 'hidden', position: 'relative' } },
+                    h('div', { style: { width: Math.max(0, Math.min(100, (value / max) * 100)) + '%', height: '100%', background: barColor || 'var(--gold)', borderRadius: '3px', transition: 'width 0.2s' } })
+                ),
+                h('div', { style: { fontSize: '0.74rem', fontFamily: 'JetBrains Mono, monospace', color: rightText || 'var(--silver)', textAlign: 'right', fontWeight: 700 } }, valStr)
+            );
+
+        const Panel = ({ title, subtitle, children, empty }) => h(Card, { padding: '18px 20px', style: { marginBottom: '12px' } },
+            h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '14px' } },
+                h('h3', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', fontWeight: 700, margin: 0, letterSpacing: '-0.005em' } }, title),
+                subtitle && h('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'JetBrains Mono, monospace' } }, '\u2014 ' + subtitle)
+            ),
+            empty
+                ? h('div', { style: { fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, padding: '12px 0', fontStyle: 'italic' } }, empty)
+                : children
+        );
+
+        // ── Render ──
+        const maxPartnerCount = Math.max(1, ...partners.map(p => p.count));
+        const maxPartnerAbs = Math.max(1, ...partners.map(p => Math.abs(p.net)));
+        const maxDraftTotal = Math.max(1, ...draftByRound.map(r => r.total));
+        const maxPosCount = Math.max(1, ...rosterByPos.map(p => p.count));
+        const maxWeekCount = Math.max(1, ...txnByWeek.map(w => w.count));
+
+        return h('div', null,
+            // Trade partners — volume
+            h(Panel, {
+                title: 'Trade partners \u2014 who you deal with',
+                subtitle: partners.length + ' partner' + (partners.length === 1 ? '' : 's') + ' over ' + myTrades.length + ' trade' + (myTrades.length === 1 ? '' : 's'),
+                empty: partners.length === 0 ? 'No trade history yet.' : null,
+            },
+                partners.slice(0, 12).map(p => h(HBar, {
+                    key: p.rid,
+                    label: p.name,
+                    value: p.count,
+                    max: maxPartnerCount,
+                    valStr: String(p.count),
+                    barColor: 'var(--gold)',
+                }))
+            ),
+            // Trade partners — net DHQ (fleecer vs fleeced)
+            h(Panel, {
+                title: 'Trade value \u2014 who you profit from',
+                subtitle: 'Net DHQ per partner; green = you won, red = they won',
+                empty: partners.length === 0 ? 'No trade history yet.' : null,
+            },
+                partners.slice(0, 12).map(p => h(HBar, {
+                    key: p.rid,
+                    label: p.name,
+                    value: Math.abs(p.net),
+                    max: maxPartnerAbs,
+                    valStr: (p.net > 0 ? '+' : '') + (p.net / 1000).toFixed(1) + 'k',
+                    barColor: p.net > 0 ? '#2ECC71' : p.net < 0 ? '#E74C3C' : 'var(--silver)',
+                    rightText: p.net > 0 ? '#2ECC71' : p.net < 0 ? '#E74C3C' : 'var(--silver)',
+                }))
+            ),
+            // Draft — hit rate by round
+            h(Panel, {
+                title: 'Draft hit rate by round',
+                subtitle: draftPicks.length + ' pick' + (draftPicks.length === 1 ? '' : 's') + ' tracked · contributor threshold 3000 DHQ',
+                empty: draftPicks.length === 0 ? 'No draft history recorded yet.' : null,
+            },
+                draftByRound.map(r => h(HBar, {
+                    key: r.round,
+                    label: 'Round ' + r.round,
+                    value: r.hits,
+                    max: maxDraftTotal,
+                    valStr: r.hits + '/' + r.total + '  ' + r.rate + '%',
+                    barColor: r.rate >= 50 ? '#2ECC71' : r.rate >= 25 ? '#F0A500' : '#E74C3C',
+                }))
+            ),
+            // Draft — position mix
+            h(Panel, {
+                title: 'Draft position mix',
+                subtitle: 'Where your picks land',
+                empty: draftByPos.length === 0 ? 'No draft history recorded yet.' : null,
+            },
+                draftByPos.map(p => h(HBar, {
+                    key: p.pos,
+                    label: p.pos,
+                    labelColor: posColor(p.pos),
+                    value: p.total,
+                    max: maxDraftTotal,
+                    valStr: p.total + ' pick' + (p.total === 1 ? '' : 's') + ' \u00B7 ' + p.rate + '% hit',
+                    barColor: posColor(p.pos),
+                }))
+            ),
+            // Current roster DHQ allocation by position
+            h(Panel, {
+                title: 'Roster DHQ allocation',
+                subtitle: 'Where your value sits today',
+                empty: rosterByPos.length === 0 ? 'Roster data unavailable.' : null,
+            },
+                rosterByPos.map(p => h(HBar, {
+                    key: p.pos,
+                    label: p.pos,
+                    labelColor: posColor(p.pos),
+                    value: p.pct * 100,
+                    max: 100,
+                    valStr: Math.round(p.pct * 100) + '%  ' + (p.dhq / 1000).toFixed(1) + 'k',
+                    barColor: posColor(p.pos),
+                }))
+            ),
+            // Waiver/FA activity by week
+            h(Panel, {
+                title: 'Waiver activity by week',
+                subtitle: myTxns.length + ' transaction' + (myTxns.length === 1 ? '' : 's'),
+                empty: txnByWeek.length === 0 ? 'No weekly transaction data yet.' : null,
+            },
+                txnByWeek.map(w => h(HBar, {
+                    key: w.week,
+                    label: 'Week ' + w.week,
+                    value: w.count,
+                    max: maxWeekCount,
+                    valStr: String(w.count),
+                    barColor: '#3498DB',
+                }))
             )
         );
     }
@@ -797,7 +995,7 @@
                 ]
             }),
             subTab === 'overview' && h(OverviewView, { kpis, insights, props }),
-            subTab === 'patterns' && h(PatternsView),
+            subTab === 'patterns' && h(PatternsView, { props }),
             subTab === 'history' && h(HistoryView),
             subTab === 'settings' && h(SettingsView, { settings, setSettings })
         );
