@@ -2383,18 +2383,18 @@
                         );
                     })}
 
-                    {/* Nav items — grouped to match the placement mockup: ROSTER / LEAGUE / INTEL / SETTINGS. */}
+                    {/* Nav items — grouped: FRONT OFFICE / LEAGUE / DOSSIER / SETTINGS. */}
                     {[
-                        { section: 'ROSTER' },
+                        { section: 'FRONT OFFICE' },
                         { label: 'Home', tab: 'dashboard', icon: '\u2302' },
                         { label: 'My Roster', tab: 'myteam', icon: '\u25C7' },
                         { label: 'Compare', tab: 'compare', icon: '\u25CE' },
                         { section: 'LEAGUE' },
                         { label: 'Trade Center', tab: 'trades', icon: '\u21C6' },
                         { label: 'Free Agency', tab: 'fa', icon: '$' },
-                        { label: 'Analytics', tab: 'analytics', icon: '\u25F0' },
                         { label: 'Draft', tab: 'draft', icon: '\u25B2' },
-                        { section: 'INTEL' },
+                        { label: 'Analytics', tab: 'analytics', icon: '\u25F0' },
+                        { section: 'DOSSIER' },
                         { label: 'Alex Insights', tab: 'alex', icon: '\uD83E\uDDE0', isNew: true },
                         { label: 'Trophy Room', tab: 'trophies', icon: '\u265B' },
                         { label: 'Calendar', tab: 'calendar', icon: '\u25A4' },
