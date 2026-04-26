@@ -221,6 +221,7 @@
         // Lifted tab state for browser history navigation
         const [activeTab, setActiveTab] = useState('dashboard');
         const isNavigatingRef = React.useRef(false);
+        const initialRouteAppliedRef = React.useRef(false);
         // ESPN state
         const [espnLeagues, setEspnLeagues] = useState([]);
         const [espnConnecting, setEspnConnecting] = useState(false);
@@ -262,6 +263,30 @@
         }, [sleeperLeagues, sleeperUser]);
 
         const AVAILABLE_YEARS = ['2023', '2024', '2025', '2026'];
+
+        // ── Browser History Navigation ──
+        function buildHash(leagueId, tab) {
+            return '#league=' + leagueId + '&tab=' + (tab || 'dashboard');
+        }
+        function routeUrl(hash) {
+            const query = new URLSearchParams(window.location.search || '');
+            query.delete('league');
+            query.delete('leagueId');
+            query.delete('tab');
+            const qs = query.toString();
+            return window.location.pathname + (qs ? '?' + qs : '') + (hash || '');
+        }
+        function parseHash(hash) {
+            const params = new URLSearchParams((hash || '').replace('#', ''));
+            const query = new URLSearchParams(window.location.search || '');
+            // Legacy 'brief' tab was folded into dashboard — redirect old bookmarks
+            const rawTab = params.get('tab') || query.get('tab') || 'dashboard';
+            const tab = rawTab === 'brief' ? 'dashboard' : rawTab;
+            return {
+                leagueId: params.get('league') || query.get('league') || query.get('leagueId'),
+                tab,
+            };
+        }
 
         useEffect(() => {
             if (sleeperUsername) loadSleeperData();
@@ -330,13 +355,16 @@
             function onPopState(e) {
                 isNavigatingRef.current = true;
                 const state = e.state;
-                if (state && state.view === 'league' && state.leagueId) {
+                const hashRoute = parseHash(window.location.hash);
+                const nextState = state || (hashRoute.leagueId ? { view: 'league', leagueId: hashRoute.leagueId, tab: hashRoute.tab } : null);
+                if (nextState && nextState.view === 'league' && nextState.leagueId) {
                     const allLeagues = [...sleeperLeagues, ...espnLeagues, ...mflLeagues];
-                    const league = allLeagues.find(l => l.id === state.leagueId);
+                    const league = allLeagues.find(l => String(l.id) === String(nextState.leagueId));
                     if (league) {
+                        setActiveLeagueId(league.id);
                         setSelectedLeague(league);
                         // Legacy 'brief' tab folded into dashboard
-                        const restoredTab = state.tab === 'brief' ? 'dashboard' : (state.tab || 'dashboard');
+                        const restoredTab = nextState.tab === 'brief' ? 'dashboard' : (nextState.tab || 'dashboard');
                         setActiveTab(restoredTab);
                     }
                 } else {
@@ -346,9 +374,44 @@
                 setTimeout(() => { isNavigatingRef.current = false; }, 0);
             }
             window.addEventListener('popstate', onPopState);
-            if (!history.state) history.replaceState({ view: 'hub' }, '', window.location.pathname);
+            if (!history.state) {
+                const route = parseHash(window.location.hash);
+                const state = route.leagueId
+                    ? { view: 'league', leagueId: route.leagueId, tab: route.tab }
+                    : { view: 'hub' };
+                history.replaceState(state, '', routeUrl(window.location.hash));
+            }
             return () => window.removeEventListener('popstate', onPopState);
         }, [sleeperLeagues, espnLeagues, mflLeagues]);
+
+        React.useEffect(() => {
+            if (initialRouteAppliedRef.current) return;
+            const route = parseHash(window.location.hash);
+            if (!route.leagueId) {
+                if (!loading) initialRouteAppliedRef.current = true;
+                return;
+            }
+            const allLeagues = [...sleeperLeagues, ...espnLeagues, ...mflLeagues];
+            if (!allLeagues.length) return;
+            const league = allLeagues.find(l => String(l.id) === String(route.leagueId));
+            if (!league) {
+                if (!loading) initialRouteAppliedRef.current = true;
+                return;
+            }
+            initialRouteAppliedRef.current = true;
+            isNavigatingRef.current = true;
+            setActiveLeagueId(league.id);
+            setSelectedLeague(league);
+            setActiveTab(route.tab || 'dashboard');
+            WrStorage.set(WR_KEYS.LAST_LEAGUE_ID, league.id);
+            WrStorage.set(WR_KEYS.LAST_LEAGUE_NAME, league.name);
+            history.replaceState(
+                { view: 'league', leagueId: league.id, tab: route.tab || 'dashboard' },
+                '',
+                routeUrl(buildHash(league.id, route.tab || 'dashboard'))
+            );
+            setTimeout(() => { isNavigatingRef.current = false; }, 0);
+        }, [loading, sleeperLeagues, espnLeagues, mflLeagues]);
 
         // Show Empire Dashboard (Pro mode)
         // eslint-disable-next-line no-undef
@@ -416,7 +479,7 @@
                         onBack={() => {
                             setProMode(false);
                             if (!isNavigatingRef.current) {
-                                history.pushState({ view: 'hub' }, '', window.location.pathname);
+                                history.pushState({ view: 'hub' }, '', routeUrl(''));
                             }
                         }}
                     />
@@ -436,7 +499,7 @@
                             setActiveTab('dashboard');
                             // Return to Empire Dashboard if Pro mode was active, otherwise hub
                             if (!isNavigatingRef.current) {
-                                history.pushState({ view: proMode ? 'pro' : 'hub' }, '', window.location.pathname);
+                                history.pushState({ view: proMode ? 'pro' : 'hub' }, '', routeUrl(''));
                             }
                         }}
                         activeTab={activeTab}
@@ -574,16 +637,6 @@
             );
         }
 
-        // ── Browser History Navigation ──
-        function buildHash(leagueId, tab) { return '#league=' + leagueId + '&tab=' + (tab || 'dashboard'); }
-        function parseHash(hash) {
-            const params = new URLSearchParams((hash || '').replace('#', ''));
-            // Legacy 'brief' tab was folded into dashboard — redirect old bookmarks
-            const rawTab = params.get('tab') || 'dashboard';
-            const tab = rawTab === 'brief' ? 'dashboard' : rawTab;
-            return { leagueId: params.get('league'), tab };
-        }
-
         function handleSelectLeague(league) {
             setActiveLeagueId(league.id);
             setSelectedLeague(league);
@@ -591,14 +644,14 @@
             WrStorage.set(WR_KEYS.LAST_LEAGUE_ID, league.id);
             WrStorage.set(WR_KEYS.LAST_LEAGUE_NAME, league.name);
             if (!isNavigatingRef.current) {
-                history.pushState({ view: 'league', leagueId: league.id, tab: 'dashboard' }, '', buildHash(league.id, 'dashboard'));
+                history.pushState({ view: 'league', leagueId: league.id, tab: 'dashboard' }, '', routeUrl(buildHash(league.id, 'dashboard')));
             }
         }
 
         function handleTabChange(tab) {
             setActiveTab(tab);
             if (!isNavigatingRef.current && selectedLeague) {
-                history.pushState({ view: 'league', leagueId: selectedLeague.id, tab }, '', buildHash(selectedLeague.id, tab));
+                history.pushState({ view: 'league', leagueId: selectedLeague.id, tab }, '', routeUrl(buildHash(selectedLeague.id, tab)));
             }
         }
 

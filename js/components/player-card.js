@@ -5,7 +5,7 @@
 // Used by: My Roster, Free Agency, Compare, Draft big boards, Trade Center, Home widgets.
 // ══════════════════════════════════════════════════════════════════
 (function () {
-    const { useState, useEffect, useMemo, useRef } = React;
+    const { useState, useEffect, useRef } = React;
 
     // ── Shared helpers ────────────────────────────────────────────
     function normPos(pos) {
@@ -180,13 +180,19 @@
         const depthChart = typeof p.depth_chart_order === 'number'
             ? (pos + (p.depth_chart_order + 1))
             : null;
+        const dhqContext = meta.statusReason
+            ? (meta.statusReason + (meta.roleLabel ? ' · ' + meta.roleLabel : ''))
+            : [meta.roleLabel, meta.opportunityLabel].filter(Boolean).join(' · ');
+        const dhqContextCol = meta.statusReason ? '#E74C3C'
+            : meta.roleMult && meta.roleMult < 0.9 ? '#F0A500'
+                : meta.opportunityMult && meta.opportunityMult < 1 ? '#F0A500'
+                    : '#7d8291';
 
         // Roster context
         const S = window.S || {};
         const myRoster = (S.rosters || []).find(r => r.roster_id === S.myRosterId);
         const isOnMyTeam = !!myRoster?.players?.includes(pid);
 
-        const initials = ((p.first_name || '?')[0] + (p.last_name || '?')[0]).toUpperCase();
         const heightWeight = [p.height, p.weight].filter(Boolean).join(' / ');
 
         // customAwards is computed above (hoisted for stable hook order).
@@ -253,6 +259,18 @@
                         React.createElement('div', { style: { fontSize: '0.65rem', color: '#7d8291', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '3px' } }, s.l)
                     ))
                 ),
+                dhqContext && React.createElement('div', {
+                    style: {
+                        margin: '12px 20px 0',
+                        padding: '9px 11px',
+                        border: '1px solid rgba(212,175,55,0.16)',
+                        borderRadius: '7px',
+                        background: 'rgba(255,255,255,0.025)',
+                        color: dhqContextCol,
+                        fontSize: '0.76rem',
+                        lineHeight: 1.45,
+                    }
+                }, dhqContext),
                 // Age curve
                 React.createElement('div', { style: { padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' } },
                     React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
@@ -461,12 +479,20 @@
     function PlayerCardHost() {
         const [state, setState] = useState(null); // { pid, options }
 
-        useEffect(() => {
-            window.WR = window.WR || {};
-            window.WR.openPlayerCard = function (pid, options) {
-                if (!pid) return;
-                setState({ pid, options: options || {} });
-            };
+	        useEffect(() => {
+	            window.WR = window.WR || {};
+	            window.WR.openPlayerCard = function (pid, options) {
+	                if (!pid) return;
+	                window.OD?.track?.('player_modal_opened', {
+	                    platform: 'warroom',
+	                    module: window.S?.activeTab || null,
+	                    leagueId: window.S?.currentLeagueId || null,
+	                    entityType: 'player',
+	                    entityId: pid,
+	                    metadata: { source: options?.context || 'player_card' },
+	                });
+	                setState({ pid, options: options || {} });
+	            };
             window.WR.closePlayerCard = function () { setState(null); };
             return () => { /* Do not clear globals on unmount; host is persistent */ };
         }, []);

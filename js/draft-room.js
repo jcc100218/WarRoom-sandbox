@@ -39,6 +39,104 @@
         });
 
         const normPos = window.App.normPos;
+        const [rookieMarket, setRookieMarket] = useState({ rows: {}, ladders: {}, scaleFactor: 1 });
+
+        useEffect(() => {
+            let cancelled = false;
+            const scoring = currentLeague?.scoring_settings || {};
+            const rosterPositions = currentLeague?.roster_positions || [];
+            const isSF = rosterPositions.some(slot => ['SUPER_FLEX', 'QB_FLEX', 'OP'].includes(String(slot).toUpperCase()));
+            const pprVal = scoring.rec != null && scoring.rec >= 0.9 ? 1 : scoring.rec != null && scoring.rec >= 0.4 ? 0.5 : 0;
+            const totalTeams = currentLeague?.rosters?.length || window.S?.rosters?.length || 12;
+            const url = `https://api.fantasycalc.com/values/current?isDynasty=true&numQbs=${isSF ? 2 : 1}&numTeams=${totalTeams}&ppr=${pprVal}`;
+            fetch(url)
+                .then(r => r.ok ? r.json() : [])
+                .then(data => {
+                    if (cancelled || !Array.isArray(data) || !data.length) return;
+                    const scores = window.App?.LI?.playerScores || {};
+                    const matched = data
+                        .filter(d => {
+                            const sid = d.player?.sleeperId;
+                            return sid && d.player?.position !== 'PICK' && d.value > 0 && scores[sid] > 0 && playersData?.[sid]?.years_exp !== 0;
+                        })
+                        .map(d => ({ sid: d.player.sleeperId, fcVal: d.value, dhqVal: scores[d.player.sleeperId] }))
+                        .sort((a, b) => b.fcVal - a.fcVal);
+                    let scaleFactor = 1;
+                    if (matched.length >= 10) {
+                        const ratios = matched.slice(0, 20).map(m => m.dhqVal / m.fcVal).sort((a, b) => a - b);
+                        scaleFactor = ratios[Math.floor(ratios.length / 2)] || 1;
+                    }
+                    const rows = {};
+                    data.forEach(d => {
+                        const sid = d.player?.sleeperId;
+                        if (!sid || d.player?.position === 'PICK' || !d.value) return;
+                        rows[sid] = {
+                            value: d.value,
+                            scaled: Math.round(d.value * scaleFactor),
+                            overallRank: d.overallRank || 999,
+                            positionRank: d.positionRank || 999,
+                        };
+                    });
+                    const meta = window.App?.LI?.playerMeta || {};
+                    const ladders = {};
+                    ['QB', 'RB', 'WR', 'TE'].forEach(pos => {
+                        ladders[pos] = Object.entries(scores)
+                            .filter(([sid, score]) => {
+                                if (!score || score <= 0) return false;
+                                if (playersData?.[sid]?.years_exp === 0) return false;
+                                const playerPos = normPos(meta[sid]?.pos || playersData?.[sid]?.position || '');
+                                return playerPos === pos;
+                            })
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([, score]) => score);
+                    });
+                    window.App._rookieMarketRows = rows;
+                    setRookieMarket({ rows, ladders, scaleFactor });
+                })
+                .catch(e => { if (window.wrLog) window.wrLog('draft.rookieMarket', e); });
+            return () => { cancelled = true; };
+        }, [currentLeague?.league_id, currentLeague?.id, currentLeague?.season, playersData, timeRecomputeTs]);
+
+        const rookiePeerMultiplier = (pos, positionRank) => {
+            if (pos === 'RB') {
+                if (positionRank <= 5) return 1.08;
+                if (positionRank <= 12) return 1.00;
+                if (positionRank <= 24) return 0.94;
+                return 0.86;
+            }
+            if (pos === 'WR') {
+                if (positionRank <= 12) return 1.02;
+                if (positionRank <= 24) return 0.96;
+                if (positionRank <= 36) return 0.90;
+                return 0.82;
+            }
+            if (pos === 'QB') {
+                if (positionRank <= 12) return 0.96;
+                if (positionRank <= 24) return 0.90;
+                return 0.80;
+            }
+            if (pos === 'TE') {
+                if (positionRank <= 6) return 0.96;
+                if (positionRank <= 18) return 0.88;
+                return 0.80;
+            }
+            return 0.90;
+        };
+
+        const calibratedRookieDHQ = (pid, player, engineDHQ) => {
+            const row = rookieMarket.rows?.[pid];
+            const pos = normPos(player?.position);
+            if (!row || !['QB', 'RB', 'WR', 'TE'].includes(pos)) return engineDHQ || 0;
+            const marketDHQ = row.scaled || row.value || 0;
+            if (!marketDHQ) return engineDHQ || 0;
+            const ladder = rookieMarket.ladders?.[pos] || [];
+            const peerDHQ = ladder[Math.max(0, row.positionRank - 1)] || 0;
+            const peerTarget = peerDHQ ? Math.round(peerDHQ * rookiePeerMultiplier(pos, row.positionRank)) : 0;
+            const base = peerTarget || marketDHQ;
+            const marketGuard = row.value ? Math.round(row.value * (pos === 'RB' ? 0.85 : pos === 'WR' ? 0.82 : 0.72)) : 0;
+            const calibrated = Math.round(base * 0.80 + marketDHQ * 0.20);
+            return Math.min(10000, Math.max(marketGuard, calibrated));
+        };
 
         // Build my picks
         const myPicks = useMemo(() => {
@@ -77,23 +175,17 @@
                 })
                 .map(([pid, p]) => {
                     const csv = typeof window.findProspect === 'function' ? window.findProspect((p.first_name || '') + ' ' + (p.last_name || '')) : null;
-                    // Rookie DHQ blend: 50% FantasyCalc market + 25% our consensus rank + 25% actual draft pick.
-                    // FC alone undervalues high-pedigree top picks (e.g., Mendoza R1.01 < Taylen Green R6.182)
-                    // and overvalues hyped-but-fell prospects. Blending in our rank + actual NFL capital
-                    // restores nuance.
+                    // The DHQ engine is the canonical value. Consensus rank and NFL
+                    // capital are context on the card, not a second scoring pass.
                     const fcVal = window.App?.LI?.playerScores?.[pid] || 0;
                     let dhq;
-                    if (csv) {
-                        const rankV = csv.rankValue || 0;
-                        const pickV = csv.draftCapitalValue || 0;
-                        if (fcVal > 0) {
-                            dhq = Math.round(0.50 * fcVal + 0.25 * rankV + 0.25 * pickV);
-                        } else {
-                            // No FC data → use our rank+capital blend (60/40)
-                            dhq = csv.dynastyValue || 0;
-                        }
+                    if (fcVal > 0) {
+                        dhq = calibratedRookieDHQ(pid, p, fcVal);
+                    } else if (csv) {
+                        // No engine/market score yet: fall back to the scouting model.
+                        dhq = csv.dynastyValue || 0;
                     } else {
-                        dhq = fcVal;
+                        dhq = 0;
                     }
                     dhq = Math.min(10000, Math.max(0, dhq));
                     return { pid, p, dhq, csv };
@@ -150,7 +242,7 @@
                 if (aRank !== bRank) return aRank - bRank;
                 return b.dhq - a.dhq;
             });
-        }, [playersData, timeRecomputeTs]);
+        }, [playersData, timeRecomputeTs, rookieMarket]);
 
         const posColors = window.App.POS_COLORS;
 
@@ -624,7 +716,16 @@
                                         onDragStart={!isDhq ? () => handleDragStart(r.pid) : undefined}
                                         onDragOver={!isDhq ? handleDragOver : undefined}
                                         onDrop={!isDhq ? () => handleDrop(r.pid) : undefined}
-                                        onClick={() => setExpandedDraftPid(prev => prev === r.pid ? null : r.pid)}
+                                        onClick={() => setExpandedDraftPid(prev => {
+                                            const next = prev === r.pid ? null : r.pid;
+                                            if (next) window.OD?.trackDraftPlayerExpanded?.(r.pid, {
+                                                platform: 'warroom',
+                                                module: 'draft',
+                                                leagueId: window.S?.currentLeagueId || null,
+                                                metadata: { boardMode, source: 'draft_board' },
+                                            });
+                                            return next;
+                                        })}
                                         style={{ display: 'flex', alignItems: 'center', height: '34px', opacity: isDrafted ? 0.3 : 1, borderBottom: isExp ? 'none' : '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', background: isExp ? 'rgba(212,175,55,0.06)' : idx % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent', transition: 'background 0.1s', position: 'relative' }}
                                         onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = 'rgba(212,175,55,0.04)'; }}
                                         onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = isExp ? 'rgba(212,175,55,0.06)' : idx % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent'; }}>
@@ -898,7 +999,16 @@
                                         onDragStart={() => handleDragStart(r.pid)}
                                         onDragOver={handleDragOver}
                                         onDrop={() => handleDrop(r.pid)}
-                                        onClick={() => setExpandedDraftPid(prev => prev === r.pid ? null : r.pid)}
+                                        onClick={() => setExpandedDraftPid(prev => {
+                                            const next = prev === r.pid ? null : r.pid;
+                                            if (next) window.OD?.trackDraftPlayerExpanded?.(r.pid, {
+                                                platform: 'warroom',
+                                                module: 'draft',
+                                                leagueId: window.S?.currentLeagueId || null,
+                                                metadata: { boardMode, source: 'my_board' },
+                                            });
+                                            return next;
+                                        })}
                                         style={{ display: 'flex', opacity: isDrafted ? 0.35 : dragPid === r.pid ? 0.5 : 1, borderBottom: isExp ? 'none' : '1px solid rgba(255,255,255,0.03)', cursor: 'pointer', background: isExp ? 'rgba(212,175,55,0.06)' : idx % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent', transition: 'background 0.1s' }}
                                         onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = 'rgba(212,175,55,0.04)'; }}
                                         onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = isExp ? 'rgba(212,175,55,0.06)' : idx % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent'; }}>

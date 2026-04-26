@@ -105,6 +105,14 @@
                 ];
                 const response = await window.dhqAI('draft-chat', text, contextLines, { messages });
                 dispatch({ type: 'ALEX_SPEND_FLASH' });
+                window.OD?.track?.('alex_response_actioned', {
+                    platform: 'warroom',
+                    module: 'draft',
+                    leagueId: window.S?.currentLeagueId || null,
+                    entityType: 'ai_call',
+                    entityId: 'draft-chat',
+                    metadata: { action: 'draft_alex_asked', quickPrompt: CHIP_PROMPTS.some(p => p.text === text) },
+                });
 
                 const replyText = typeof response === 'string' ? response : (response?.content || response?.text || JSON.stringify(response).slice(0, 400));
                 dispatch({
@@ -204,7 +212,18 @@
                             if (!isExpandable) return;
                             setExpandedIds(prev => {
                                 const next = new Set(prev);
-                                if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                                if (next.has(item.id)) next.delete(item.id);
+                                else {
+                                    next.add(item.id);
+                                    window.OD?.track?.('alex_response_actioned', {
+                                        platform: 'warroom',
+                                        module: 'draft',
+                                        leagueId: window.S?.currentLeagueId || null,
+                                        entityType: 'ai_response',
+                                        entityId: item.id,
+                                        metadata: { action: 'expand_stream_item', itemType: item.type || null },
+                                    });
+                                }
                                 return next;
                             });
                         };

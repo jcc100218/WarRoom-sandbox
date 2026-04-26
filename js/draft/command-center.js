@@ -46,9 +46,14 @@
             if (!myOrder || !myOrder.length) return pool;
             const rank = new Map();
             myOrder.forEach((pid, i) => rank.set(String(pid), i));
+            const getRank = p => {
+                if (rank.has(String(p.pid))) return rank.get(String(p.pid));
+                if (p.csvPid && rank.has(String(p.csvPid))) return rank.get(String(p.csvPid));
+                return Infinity;
+            };
             const reordered = pool.slice().sort((a, b) => {
-                const ra = rank.has(String(a.pid)) ? rank.get(String(a.pid)) : Infinity;
-                const rb = rank.has(String(b.pid)) ? rank.get(String(b.pid)) : Infinity;
+                const ra = getRank(a);
+                const rb = getRank(b);
                 if (ra !== rb) return ra - rb;
                 return (b.dhq || 0) - (a.dhq || 0);
             });
@@ -58,6 +63,37 @@
             if (window.wrLog) window.wrLog('cc.bigboardOrder', e);
             return pool;
         }
+    }
+
+    function normalizeDraftName(name) {
+        return (name || '').toLowerCase().replace(/[''`.]/g, '').replace(/\s+(jr\.?|sr\.?|ii|iii|iv)$/, '').replace(/\s+/g, ' ').trim();
+    }
+
+    function refreshRookieValuesFromEngine(saved, stateFns, playersData) {
+        if (!saved || saved.variant !== 'rookie' || !stateFns?.buildPool) return saved;
+        const freshPool = stateFns.buildPool({ variant: 'rookie', playersData, maxSize: 200 });
+        if (!freshPool?.length) return saved;
+
+        const byPid = new Map();
+        const byCsvPid = new Map();
+        const byName = new Map();
+        freshPool.forEach(p => {
+            byPid.set(String(p.pid), p);
+            if (p.csvPid) byCsvPid.set(String(p.csvPid), p);
+            byName.set(normalizeDraftName(p.name), p);
+        });
+        const findFresh = p => byPid.get(String(p?.pid)) || byCsvPid.get(String(p?.pid)) || byCsvPid.get(String(p?.csvPid)) || byName.get(normalizeDraftName(p?.name));
+        const mergeFresh = p => {
+            const fresh = findFresh(p);
+            return fresh ? { ...p, ...fresh, reasoning: p.reasoning || fresh.reasoning, confidence: p.confidence || fresh.confidence } : p;
+        };
+
+        return {
+            ...saved,
+            pool: (saved.pool || []).map(mergeFresh).sort((a, b) => (b.dhq || 0) - (a.dhq || 0)),
+            originalPool: freshPool.slice(),
+            picks: (saved.picks || []).map(mergeFresh),
+        };
     }
 
     function DraftCommandCenter({ playersData, myRoster, currentLeague, draftRounds: propRounds, forcedMode }) {
@@ -235,8 +271,9 @@
             stateFns.reducer,
             null,
             () => {
-                const saved = stateFns.loadFromLocal(currentLeague?.league_id || currentLeague?.id, forcedMode);
+                let saved = stateFns.loadFromLocal(currentLeague?.league_id || currentLeague?.id, forcedMode);
                 if (saved && saved.phase !== 'setup') {
+                    saved = refreshRookieValuesFromEngine(saved, stateFns, playersData);
                     // Recompose personas — we strip them on save, so rehydrate from the live DNA map
                     const leagueId = currentLeague?.league_id || currentLeague?.id || '';
                     let draftDnaMap = {};

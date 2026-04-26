@@ -902,30 +902,35 @@
     <div id="root"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.1/dist/umd/supabase.min.js"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/constants.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/utils.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/storage.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/event-bus.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/platform-provider.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/sleeper-api.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/espn-api.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/mfl-api.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/yahoo-api.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/supabase-client.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/tier.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/pick-value-model.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/dhq-providers.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/dhq-engine.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/team-assess.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/analytics-engine.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/dhq-ai.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/ai-dispatch.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/strategy.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/trade-engine.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/mock-engine.js?v=20260416"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/gm-engine.js?v=20260414d"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/player-modal.js?v=20260418e"></script>
-<script src="https://jcc100218.github.io/ReconAI/shared/rookie-data.js?v=20260414d"></script>
+<script src="js/shared/shared-loader.js?v=20260426p4"></script>
+<script>
+WRShared.loadMany([
+  'constants.js',
+  'utils.js',
+  'storage.js',
+  'event-bus.js',
+  'platform-provider.js',
+  'sleeper-api.js',
+  'espn-api.js',
+  'mfl-api.js',
+  'yahoo-api.js',
+  'supabase-client.js',
+  'tier.js',
+  'pick-value-model.js',
+  'dhq-providers.js',
+  'dhq-engine.js',
+  'team-assess.js',
+  'analytics-engine.js',
+  'dhq-ai.js',
+  'ai-dispatch.js',
+  'strategy.js',
+  'trade-engine.js',
+  'mock-engine.js',
+  'gm-engine.js',
+  'player-modal.js',
+  'rookie-data.js',
+]);
+</script>
 <!-- Preserve shared/tier.js canAccess before core.js hoists its own canAccess over window.canAccess -->
 <script>window._sharedCanAccess = window.canAccess;</script>
 <script src="https://jcc100218.github.io/ReconAI/js/pro-launch.js?v=20260414d"></script>
@@ -951,7 +956,7 @@
 <!-- 2b. Unified Player Card (SI-2) — window.WR.openPlayerCard — replaces CDN modal -->
 <!-- Shared visual primitives (WR.Card / Badge / Chip / ConfChip / DeltaLine / Kpi / InsightCard) -->
 <script type="text/babel" src="js/components/wr-primitives.js?v=20260420a"></script>
-<script type="text/babel" src="js/components/player-card.js?v=20260418d"></script>
+    <script type="text/babel" src="js/components/player-card.js?v=20260426p2"></script>
 <!-- 2c. Saved List Views (SI-1) — window.WR.SavedViews — shared across list surfaces -->
 <script type="text/babel" src="js/shared/saved-views.js?v=20260418a"></script>
 <!-- 2d. GM Mode helper (Phase 1) — window.WR.GmMode — canonical mode/preset source of truth -->
@@ -973,7 +978,7 @@
 <script type="text/babel" src="js/draft/trade-helpers.js?v=20260415cd8"></script>
 <script type="text/babel" src="js/draft/persona.js?v=20260415cd8"></script>
 <script type="text/babel" src="js/draft/cpu-engine.js?v=20260415cd8"></script>
-<script type="text/babel" src="js/draft/state.js?v=20260418a"></script>
+<script type="text/babel" src="js/draft/state.js?v=20260426a"></script>
 <script type="text/babel" src="js/draft/big-board.js?v=20260426a"></script>
 <script type="text/babel" src="js/draft/draft-grid.js?v=20260418a"></script>
 <script type="text/babel" src="js/draft/opponent-intel.js?v=20260415cd8"></script>
@@ -988,8 +993,8 @@
 <script type="text/babel" src="js/draft/scenarios.js?v=20260415cd8"></script>
 <script type="text/babel" src="js/draft/ghost-replay.js?v=20260415cd8"></script>
 <script type="text/babel" src="js/draft/live-sync.js?v=20260415cd8"></script>
-<script type="text/babel" src="js/draft/command-center.js?v=20260418d"></script>
-<script type="text/babel" src="js/draft-room.js?v=20260426k"></script>
+<script type="text/babel" src="js/draft/command-center.js?v=20260426a"></script>
+<script type="text/babel" src="js/draft-room.js?v=20260426n"></script>
 <!-- 5. League detail tab components (extracted from league-detail.js) -->
 <!-- v2 widget modules (load before dashboard.js which consumes them) -->
 <script type="text/babel" src="js/widgets/roster-pulse.js?v=20260420a"></script>
@@ -1003,7 +1008,7 @@
 <script type="text/babel" src="js/widgets/power-rankings.js?v=20260420a"></script>
 <!-- Phase 9: My Trophies widget -->
 <script type="text/babel" src="js/widgets/my-trophies.js?v=20260420a"></script>
-<script type="text/babel" src="js/tabs/dashboard.js?v=20260420a"></script>
+<script type="text/babel" src="js/tabs/dashboard.js?v=20260426p1"></script>
 <script type="text/babel" src="js/tabs/flash-brief.js?v=20260420b"></script>
 <script type="text/babel" src="js/tabs/league-map.js?v=20260420a"></script>
 <script type="text/babel" src="js/tabs/my-team.js?v=20260420d"></script>
@@ -1019,9 +1024,9 @@
 <!-- 6. Strategy editor: calls shared GMStrategy API, no logic duplication -->
 <script type="text/babel" src="js/tabs/strategy-editor.js?v=20260418b"></script>
 <!-- 7. League detail: coordinator shell, depends on all above -->
-<script type="text/babel" src="js/league-detail.js?v=20260420f"></script>
+    <script type="text/babel" src="js/league-detail.js?v=20260426p2"></script>
 <!-- 8. App: OwnerDashboard + ReactDOM.render (loads last) -->
-<script type="text/babel" src="js/app.js?v=20260415cd8"></script>
+<script type="text/babel" src="js/app.js?v=20260426p1"></script>
 
 <!-- All JSX code extracted to js/ modules. Only bootstrap remains. -->
 <script>

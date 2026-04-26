@@ -118,6 +118,15 @@
             } catch (_) { /* noop */ }
         };
 
+        useEffect(() => {
+            if (window.S) window.S.activeTab = activeTab;
+            window.OD?.track?.('module_viewed', {
+                platform: 'warroom',
+                leagueId: currentLeague?.league_id || currentLeague?.id || null,
+                module: activeTab,
+            });
+        }, [activeTab, currentLeague?.league_id, currentLeague?.id]);
+
         // Derived selectors — modules use these, never compute their own
         const isCurrentYear = timeYear === currentSeason;
         const isFutureYear = timeYear > currentSeason;
@@ -1870,9 +1879,15 @@
         const [onboardSelections, setOnboardSelections] = useState([]);
 
         // ReconAI: send message
-        async function sendReconMessage(text) {
-          if (!text?.trim()) return;
-          // Free tier: 1 AI call per day
+	        async function sendReconMessage(text) {
+	          if (!text?.trim()) return;
+	          window.OD?.track?.('alex_prompt_sent', {
+	            platform: 'warroom',
+	            leagueId: currentLeague?.league_id || currentLeague?.id || null,
+	            module: activeTab,
+	            metadata: { chars: text.trim().length },
+	          });
+	          // Free tier: 1 AI call per day
           if (!canUseAI()) {
             setReconMessages(prev => [...prev, { role: 'user', content: text.trim() }, { role: 'assistant', content: 'You\'ve used your free AI query for today. Upgrade to War Room Scout ($4.99/mo) or War Room ($9.99/mo) for unlimited AI access.' }]);
             return;
@@ -2298,7 +2313,7 @@
                     background: 'var(--black)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px',
                     padding: '6px 10px', cursor: 'pointer', color: 'var(--gold)', fontSize: '1.2rem', lineHeight: 1
                 }} className="wr-hamburger">{sidebarOpen ? '\u2715' : '\u2630'}</button>
-                <style>{`@media(max-width:767px){.wr-hamburger{display:block !important}.wr-sidebar{transform:translateX(-100%)}.wr-sidebar.open{transform:translateX(0)}.wr-main-content{margin-left:0 !important}}`}</style>
+                <style>{`@media(max-width:767px){html,body,#root{max-width:100%;overflow-x:hidden}.wr-hamburger{display:block !important}.wr-sidebar{left:-160px !important;transform:none !important}.wr-sidebar.open{left:0 !important}.wr-main-content{margin-left:0 !important;width:100% !important;max-width:100vw;overflow-x:hidden;box-sizing:border-box}}`}</style>
 
                 {/* Mobile overlay */}
                 {sidebarOpen && <div onClick={() => setSidebarOpen(false)} style={{ display: 'none', position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 99 }} className="wr-sidebar-overlay" />}

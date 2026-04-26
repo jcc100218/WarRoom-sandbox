@@ -100,6 +100,27 @@
         };
     }
 
+    function normProspectName(name) {
+        return (name || '')
+            .toLowerCase()
+            .replace(/[''`.]/g, '')
+            .replace(/\s+(jr\.?|sr\.?|ii|iii|iv)$/, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function matchSleeperRookie(prospect, playersData) {
+        const target = normProspectName(prospect?.name);
+        if (!target) return null;
+        const src = playersData || window.S?.players || {};
+        for (const [pid, player] of Object.entries(src)) {
+            if (!player || player.years_exp !== 0) continue;
+            const fullName = player.full_name || `${player.first_name || ''} ${player.last_name || ''}`.trim();
+            if (normProspectName(fullName) === target) return { pid, player };
+        }
+        return null;
+    }
+
     // ── Pool builder — use CSV prospects (rookie) or Sleeper DHQ (startup) ──
     function buildPool(opts = {}) {
         const { variant = 'startup', playersData, maxSize = 200 } = opts;
@@ -110,23 +131,33 @@
             if (typeof window.getProspects === 'function') {
                 const prospects = window.getProspects();
                 if (prospects && prospects.length) {
-                    return prospects.slice(0, maxSize).map(p => ({
-                        pid: p.pid,
-                        name: p.name,
-                        pos: p.pos || p.mappedPos || 'WR',
-                        team: '',
-                        college: p.college || p.school || '',
-                        dhq: p.dynastyValue || p.draftScore * 1000 || 0,
-                        csv: p,
-                        photoUrl: p.photoUrl || (p.espnId ? 'https://a.espncdn.com/i/headshots/college-football/players/full/' + p.espnId + '.png' : ''),
-                        consensusRank: p.consensusRank || p.rank,
-                        tier: p.tier,
-                        size: p.size,
-                        weight: p.weight,
-                        speed: p.speed,
-                        summary: p.summary,
-                        isCSV: true,
-                    }));
+                    return prospects.slice(0, maxSize).map(p => {
+                        const sleeper = matchSleeperRookie(p, playersData);
+                        const sid = sleeper?.pid || p.sleeperId || p.player_id || p.playerId || p.pid;
+                        const engineDHQ = sid ? (window.App?.LI?.playerScores?.[sid] || 0) : 0;
+                        const dhq = engineDHQ || p.dynastyValue || p.draftScore * 1000 || 0;
+                        return {
+                            pid: sid,
+                            csvPid: p.pid,
+                            name: sleeper?.player?.full_name || p.name,
+                            pos: p.pos || p.mappedPos || normPos(sleeper?.player?.position) || 'WR',
+                            team: sleeper?.player?.team || '',
+                            college: p.college || p.school || sleeper?.player?.college || '',
+                            dhq,
+                            csv: p,
+                            photoUrl: sleeper
+                                ? 'https://sleepercdn.com/content/nfl/players/thumb/' + sid + '.jpg'
+                                : (p.photoUrl || (p.espnId ? 'https://a.espncdn.com/i/headshots/college-football/players/full/' + p.espnId + '.png' : '')),
+                            consensusRank: p.consensusRank || p.rank,
+                            tier: p.tier,
+                            size: p.size,
+                            weight: p.weight,
+                            speed: p.speed,
+                            summary: p.summary,
+                            source: engineDHQ ? 'DHQ_ENGINE' : 'CSV_PROSPECT',
+                            isCSV: true,
+                        };
+                    }).sort((a, b) => (b.dhq || 0) - (a.dhq || 0));
                 }
             }
             // Fall through to startup if CSV missing

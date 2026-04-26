@@ -1,11 +1,22 @@
 const js = require("@eslint/js");
 
+const SCRIPT_GLOBAL_VAR_PATTERN = [
+  "^_",
+  "^[A-Z][A-Za-z0-9]*$",
+  "^use(State|Effect|Memo|Ref|Callback)$",
+  "^(canAccess|useTaste|hasTasteLeft|canUseAI|trackAIUse|handleLogout|fetchSleeperUser|fetchUserLeagues|fetchLeagueRosters|fetchLeagueUsers|fetchLeagueInfo|fetchSeasonStats|fetchSeasonProjections)$",
+].join("|");
+
 /** @type {import("eslint").Linter.Config[]} */
 module.exports = [
   // ── Ignored paths ──────────────────────────────────────────────────────────
   {
     ignores: [
       "node_modules/**",
+      ".claude/**",
+      "dist-preview/**",
+      "reconai-shared/**",
+      "reports/**",
       "tests/**",
       "supabase/**",
       "**/*.min.js",
@@ -177,7 +188,7 @@ module.exports = [
     },
     rules: {
       "no-undef": "error",
-      "no-unused-vars": ["warn", { "args": "none", "varsIgnorePattern": "^_" }],
+      "no-unused-vars": ["warn", { "args": "none", "caughtErrors": "none", "varsIgnorePattern": SCRIPT_GLOBAL_VAR_PATTERN }],
       // builtinGlobals:false so declaring wrLog in core.js doesn't clash with the global entry above
       "no-redeclare": ["error", { "builtinGlobals": false }],
       "no-dupe-keys": "error",

@@ -7,9 +7,11 @@
 //
 // SET SECRET:
 //   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+//   supabase secrets set GOOGLE_AI_KEY=AIza...
 // ============================================================
 
 import Anthropic from 'npm:@anthropic-ai/sdk';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -51,6 +53,215 @@ async function checkRateLimit(identifier: string): Promise<{ allowed: boolean; r
         // If KV is unavailable, allow the request (fail open)
         return { allowed: true };
     }
+}
+
+// ── AI model routing and cost telemetry ───────────────────────
+type AIProvider = 'anthropic' | 'gemini';
+interface AIRoute {
+    provider: AIProvider;
+    model: string;
+}
+
+const AI_MODELS = {
+    GEMINI_FAST: 'gemini-2.5-flash-lite',
+    GEMINI_BALANCED: 'gemini-2.5-flash',
+    CLAUDE_REASONING: 'claude-sonnet-4-6',
+    CLAUDE_DEEP: 'claude-opus-4-7',
+} as const;
+
+const MODEL_COSTS: Record<string, { input: number; output: number; cachedInput?: number }> = {
+    'gemini-2.5-flash-lite': { input: 0.10, output: 0.40 },
+    'gemini-2.5-flash': { input: 0.30, output: 2.50 },
+    'claude-sonnet-4-6': { input: 3.00, output: 15.00, cachedInput: 0.30 },
+    'claude-opus-4-7': { input: 5.00, output: 25.00, cachedInput: 0.50 },
+};
+
+const AI_ROUTES: Record<string, AIRoute> = {
+    // Frequent Alex surfaces should be self-sufficient and inexpensive.
+    chat:       { provider: 'gemini', model: AI_MODELS.GEMINI_BALANCED },
+    fa_chat:    { provider: 'gemini', model: AI_MODELS.GEMINI_FAST },
+    fa_targets: { provider: 'gemini', model: AI_MODELS.GEMINI_FAST },
+    league:     { provider: 'gemini', model: AI_MODELS.GEMINI_BALANCED },
+    team:       { provider: 'gemini', model: AI_MODELS.GEMINI_BALANCED },
+    partners:   { provider: 'gemini', model: AI_MODELS.GEMINI_BALANCED },
+    // Keep long structured generation on Claude for reliability.
+    mock_draft: { provider: 'anthropic', model: AI_MODELS.CLAUDE_REASONING },
+    rookies:    { provider: 'anthropic', model: AI_MODELS.CLAUDE_REASONING },
+    // ReconAI / Scout generic chat routes.
+    'trade-chat':        { provider: 'anthropic', model: AI_MODELS.CLAUDE_REASONING },
+    'trade-scout':       { provider: 'anthropic', model: AI_MODELS.CLAUDE_REASONING },
+    'draft-scout':       { provider: 'anthropic', model: AI_MODELS.CLAUDE_REASONING },
+    'pick-analysis':     { provider: 'anthropic', model: AI_MODELS.CLAUDE_REASONING },
+    'player-scout':      { provider: 'anthropic', model: AI_MODELS.CLAUDE_REASONING },
+    'waiver-chat':       { provider: 'gemini', model: AI_MODELS.GEMINI_BALANCED },
+    'waiver-agent':      { provider: 'gemini', model: AI_MODELS.GEMINI_BALANCED },
+    'draft-chat':        { provider: 'gemini', model: AI_MODELS.GEMINI_BALANCED },
+    'strategy-analysis': { provider: 'gemini', model: AI_MODELS.GEMINI_BALANCED },
+    'home-chat':         { provider: 'gemini', model: AI_MODELS.GEMINI_FAST },
+    'memory-summary':    { provider: 'gemini', model: AI_MODELS.GEMINI_FAST },
+    'power-posts':       { provider: 'gemini', model: AI_MODELS.GEMINI_FAST },
+    'recon-chat':        { provider: 'gemini', model: AI_MODELS.GEMINI_FAST },
+    general:             { provider: 'gemini', model: AI_MODELS.GEMINI_BALANCED },
+    'deep-analysis':     { provider: 'anthropic', model: AI_MODELS.CLAUDE_DEEP },
+    'league-report':     { provider: 'anthropic', model: AI_MODELS.CLAUDE_DEEP },
+    'rule-simulator':    { provider: 'anthropic', model: AI_MODELS.CLAUDE_DEEP },
+    'trade-audit':       { provider: 'anthropic', model: AI_MODELS.CLAUDE_DEEP },
+};
+
+function routeForType(type: string): AIRoute {
+    return { ...(AI_ROUTES[type] || { provider: 'gemini', model: AI_MODELS.GEMINI_BALANCED }) };
+}
+
+function estimateCostUsd(model: string, inputTokens: number, outputTokens: number, cachedInputTokens = 0): number {
+    const costs = MODEL_COSTS[model];
+    if (!costs) return 0;
+    const billableInput = Math.max(0, inputTokens - cachedInputTokens);
+    const inputCost = (billableInput / 1_000_000) * costs.input;
+    const cachedCost = (cachedInputTokens / 1_000_000) * (costs.cachedInput ?? costs.input);
+    const outputCost = (outputTokens / 1_000_000) * costs.output;
+    return Number((inputCost + cachedCost + outputCost).toFixed(6));
+}
+
+const STRUCTURED_TYPES = new Set(['league', 'team', 'partners', 'fa_targets', 'rookies', 'fa_chat', 'mock_draft', 'chat']);
+
+interface GenericAIContext {
+    callType: string;
+    system: string;
+    userPrompt: string;
+    maxTokens: number;
+    useWebSearch: boolean;
+    leagueId: string | null;
+    sessionId: string | null;
+}
+
+function decodeAuthPayload(authHeader: string | null): Record<string, any> | null {
+    if (!authHeader) return null;
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    try {
+        const [, payload] = token.split('.');
+        return JSON.parse(atob(payload));
+    } catch {
+        return null;
+    }
+}
+
+function parseContextPayload(context: any): any {
+    if (typeof context !== 'string') return context || {};
+    try {
+        return JSON.parse(context);
+    } catch {
+        return { userMessage: context, messages: [{ role: 'user', content: context }] };
+    }
+}
+
+function normalizeGenericAIContext(type: string, context: any): GenericAIContext | null {
+    const parsed = parseContextPayload(context);
+    const hasGenericShape = !!(
+        parsed?.callType ||
+        parsed?.system ||
+        parsed?.userMessage ||
+        Array.isArray(parsed?.messages) ||
+        type === 'general' ||
+        !STRUCTURED_TYPES.has(type)
+    );
+    if (!hasGenericShape) return null;
+
+    const callType = String(parsed?.callType || type || 'recon-chat');
+    let messages = Array.isArray(parsed?.messages)
+        ? parsed.messages
+            .filter((m: any) => m && typeof m.content === 'string')
+            .map((m: any) => ({ role: String(m.role || 'user'), content: m.content }))
+        : [];
+
+    if (!messages.length && parsed?.userMessage) {
+        messages = [{ role: 'user', content: String(parsed.userMessage) }];
+    }
+    if (!messages.length && typeof context === 'string') {
+        messages = [{ role: 'user', content: context }];
+    }
+
+    const userPrompt = messages.length
+        ? messages.map((m: any) => `${String(m.role || 'user').toUpperCase()}: ${m.content}`).join('\n')
+        : `USER: ${JSON.stringify(parsed)}`;
+
+    return {
+        callType,
+        system: String(parsed?.system || 'Dynasty fantasy football advisor. Values are DHQ on a 0-10000 league-adjusted scale. Be specific, practical, and concise.'),
+        userPrompt,
+        maxTokens: Math.max(100, Math.min(Number(parsed?.maxTokens) || 600, 4000)),
+        useWebSearch: parsed?.useWebSearch === true,
+        leagueId: parsed?.leagueId || parsed?.currentLeagueId || null,
+        sessionId: parsed?.sessionId || parsed?.session_id || null,
+    };
+}
+
+function isUuid(value: unknown): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
+
+async function recordAIAccounting(args: {
+    req: Request;
+    routeType: string;
+    originalType: string;
+    context: any;
+    genericContext: GenericAIContext | null;
+    route: AIRoute;
+    inputTokens: number;
+    outputTokens: number;
+    cachedInputTokens: number;
+    tokensUsed: number;
+    estimatedCostUsd: number;
+    latencyMs: number;
+    providerFallback: boolean;
+}) {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !serviceRoleKey) return { totalTokensUsed: null };
+
+    const claims = decodeAuthPayload(args.req.headers.get('Authorization'));
+    const username = extractUsernameFromJWT(args.req.headers.get('Authorization'));
+    const parsed = parseContextPayload(args.context);
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    let totalTokensUsed: number | null = null;
+
+    if (args.tokensUsed > 0 && username && username !== 'anonymous') {
+        const { data } = await supabase.rpc('add_ai_tokens_used', {
+            p_username: username,
+            p_tokens: args.tokensUsed,
+        }).catch(() => ({ data: null }));
+        if (typeof data === 'number') totalTokensUsed = data;
+    }
+
+    await supabase.from('analytics_events').insert({
+        event_id: crypto.randomUUID(),
+        username: username === 'anonymous' ? null : username,
+        user_id: isUuid(claims?.sub) ? claims?.sub : null,
+        league_id: args.genericContext?.leagueId || parsed?.leagueId || parsed?.currentLeagueId || null,
+        session_id: args.genericContext?.sessionId || parsed?.sessionId || parsed?.session_id || `edge_${username}_${Date.now()}`,
+        platform: args.genericContext ? 'reconai' : 'warroom',
+        module: 'ai',
+        widget: args.routeType,
+        event_name: 'ai_call_completed',
+        duration_ms: args.latencyMs,
+        entity_type: 'ai_call',
+        entity_id: args.routeType,
+        metadata: {
+            originalType: args.originalType,
+            callType: args.routeType,
+            provider: args.route.provider,
+            model: args.route.model,
+            inputTokens: args.inputTokens,
+            outputTokens: args.outputTokens,
+            cachedInputTokens: args.cachedInputTokens,
+            tokensUsed: args.tokensUsed,
+            totalTokensUsed,
+            estimatedCostUsd: args.estimatedCostUsd,
+            providerFallback: args.providerFallback,
+            useWebSearch: !!args.genericContext?.useWebSearch,
+        },
+    }).catch(() => {});
+
+    return { totalTokensUsed };
 }
 
 // ── League Format Detection ──────────────────────────────────────────────────
@@ -771,18 +982,13 @@ Deno.serve(async (req) => {
             );
         }
 
-        const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-        if (!apiKey) {
-            return new Response(
-                JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }),
-                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-        }
+        const genericContext = normalizeGenericAIContext(type, context);
+        let routeType = type;
+        let maxTokensOverride: number | null = null;
+        let useWebSearch = false;
 
-        const anthropic = new Anthropic({ apiKey });
-
-        // Fetch live NFL news for chat mode (best-effort, non-blocking on failure)
-        const liveNews = type === 'chat' ? await fetchLiveNFLNews() : '';
+        // Fetch live NFL news for War Room chat mode (best-effort, non-blocking on failure)
+        const liveNews = type === 'chat' && !genericContext ? await fetchLiveNFLNews() : '';
 
         let userPrompt: string;
         switch (type) {
@@ -795,24 +1001,133 @@ Deno.serve(async (req) => {
             case 'mock_draft': userPrompt = buildMockDraftPrompt(context);        break;
             case 'chat':       userPrompt = buildChatPrompt(context, liveNews);   break;
             default:
-                return new Response(
-                    JSON.stringify({ error: `Unknown analysis type: ${type}` }),
-                    { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-                );
+                if (genericContext) {
+                    userPrompt = genericContext.userPrompt;
+                    routeType = genericContext.callType;
+                    maxTokensOverride = genericContext.maxTokens;
+                    useWebSearch = genericContext.useWebSearch;
+                } else {
+                    return new Response(
+                        JSON.stringify({ error: `Unknown analysis type: ${type}` }),
+                        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                    );
+                }
         }
 
-        const isMockDraft = type === 'mock_draft';
-        const message = await anthropic.messages.create({
-            model: 'claude-sonnet-4-6',
-            max_tokens: isMockDraft ? 16000 : 8192,
-            system: isMockDraft
-                ? 'You are a dynasty fantasy football draft simulator. Output ONLY a raw JSON array. No markdown, no code fences, no backticks, no prose before or after. Start your response with [ and end with ]. Never repeat a player. Track all prior picks carefully so each player is selected at most once.'
-                : buildSystemPrompt(context),
-            messages: [{ role: 'user', content: userPrompt }],
-        });
+        if (genericContext && STRUCTURED_TYPES.has(type) && type !== 'chat') {
+            routeType = genericContext.callType;
+            maxTokensOverride = genericContext.maxTokens;
+            useWebSearch = genericContext.useWebSearch;
+        }
 
-        const analysis = (message.content[0] as any).text as string;
-        const stopReason = (message as any).stop_reason;
+        const isMockDraft = type === 'mock_draft' && !genericContext;
+        const maxTokens = maxTokensOverride || (isMockDraft ? 16000 : 8192);
+        const systemPrompt = genericContext?.system || (isMockDraft
+            ? 'You are a dynasty fantasy football draft simulator. Output ONLY a raw JSON array. No markdown, no code fences, no backticks, no prose before or after. Start your response with [ and end with ]. Never repeat a player. Track all prior picks carefully so each player is selected at most once.'
+            : buildSystemPrompt(context));
+
+        let route = routeForType(routeType);
+        if (['deep-analysis', 'league-report', 'rule-simulator', 'trade-audit'].includes(routeType)) {
+            route.model = AI_MODELS.CLAUDE_DEEP;
+        }
+        if (useWebSearch && route.provider !== 'anthropic') {
+            route = { provider: 'anthropic', model: AI_MODELS.CLAUDE_REASONING };
+        }
+        let providerFallback = false;
+        let analysis = '';
+        let stopReason = '';
+        let inputTokens = 0;
+        let outputTokens = 0;
+        let cachedInputTokens = 0;
+        const startedAt = Date.now();
+
+        if (route.provider === 'gemini') {
+            const googleKey = Deno.env.get('GOOGLE_AI_KEY');
+            if (googleKey) {
+                const res = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${googleKey}`,
+                    },
+                    body: JSON.stringify({
+                        model: route.model,
+                        max_tokens: maxTokens,
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userPrompt },
+                        ],
+                    }),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error((err as any).error?.message || `Gemini API error ${res.status}`);
+                }
+                const data = await res.json();
+                analysis = (data as any).choices?.[0]?.message?.content || '';
+                const usage = (data as any).usage || {};
+                inputTokens = usage.prompt_tokens || usage.input_tokens || 0;
+                outputTokens = usage.completion_tokens || usage.output_tokens || 0;
+                if (!inputTokens && !outputTokens && usage.total_tokens) inputTokens = usage.total_tokens;
+            } else {
+                providerFallback = true;
+                route = { provider: 'anthropic', model: AI_MODELS.CLAUDE_REASONING };
+            }
+        }
+
+        if (route.provider === 'anthropic') {
+            const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+            if (!apiKey) {
+                return new Response(
+                    JSON.stringify({ error: providerFallback ? 'GOOGLE_AI_KEY and ANTHROPIC_API_KEY are not configured' : 'ANTHROPIC_API_KEY not configured' }),
+                    { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+            }
+
+            const anthropic = new Anthropic({ apiKey });
+            const anthropicRequest: any = {
+                model: route.model,
+                max_tokens: maxTokens,
+                system: systemPrompt,
+                messages: [{ role: 'user', content: userPrompt }],
+            };
+            if (useWebSearch) {
+                anthropicRequest.tools = [{ type: 'web_search_20250305', name: 'web_search' }];
+            }
+            const message = await anthropic.messages.create(
+                anthropicRequest,
+                useWebSearch ? { headers: { 'anthropic-beta': 'web-search-2025-03-05' } } : undefined,
+            );
+
+            analysis = ((message.content || []) as any[])
+                .filter(part => part.type === 'text')
+                .map(part => part.text || '')
+                .join('');
+            stopReason = (message as any).stop_reason || '';
+            const usage = (message as any).usage || {};
+            inputTokens = usage.input_tokens || 0;
+            outputTokens = usage.output_tokens || 0;
+            cachedInputTokens = usage.cache_read_input_tokens || 0;
+        }
+
+        const latencyMs = Date.now() - startedAt;
+        const tokensUsed = inputTokens + outputTokens;
+        const estimatedCostUsd = estimateCostUsd(route.model, inputTokens, outputTokens, cachedInputTokens);
+        const accounting = await recordAIAccounting({
+            req,
+            routeType,
+            originalType: type,
+            context,
+            genericContext,
+            route,
+            inputTokens,
+            outputTokens,
+            cachedInputTokens,
+            tokensUsed,
+            estimatedCostUsd,
+            latencyMs,
+            providerFallback,
+        });
 
         // For mock_draft, parse the JSON picks array from the AI response
         let picks: any[] | undefined;
@@ -840,7 +1155,22 @@ Deno.serve(async (req) => {
         }
 
         return new Response(
-            JSON.stringify({ analysis, ...(picks ? { picks } : {}) }),
+            JSON.stringify({
+                analysis,
+                ...(picks ? { picks } : {}),
+                provider: route.provider,
+                model: route.model,
+                usage: {
+                    inputTokens,
+                    outputTokens,
+                    cachedInputTokens,
+                    tokensUsed,
+                    totalTokensUsed: accounting.totalTokensUsed,
+                    estimatedCostUsd,
+                    latencyMs,
+                    providerFallback,
+                },
+            }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
     } catch (error: any) {

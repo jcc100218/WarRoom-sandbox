@@ -1073,6 +1073,37 @@ function DashboardPanel({
                 </div>
             )}
 
+            <style>{`
+                @media(max-width:767px){
+                    .wr-dashboard-grid{
+                        grid-template-columns:minmax(0,1fr) !important;
+                        grid-auto-rows:minmax(160px,auto) !important;
+                        padding:12px !important;
+                        gap:10px !important;
+                        overflow-x:hidden;
+                    }
+                    .wr-dashboard-grid>.wr-widget{
+                        grid-column:1 / -1 !important;
+                        grid-row:auto !important;
+                        min-width:0;
+                    }
+                    .wr-dashboard-grid>.wr-add-widget{
+                        grid-column:1 / -1 !important;
+                    }
+                }
+                @media(min-width:768px) and (max-width:1023px){
+                    .wr-dashboard-grid{
+                        grid-template-columns:repeat(2,minmax(140px,1fr)) !important;
+                    }
+                    .wr-dashboard-grid>.wr-widget{
+                        min-width:0;
+                    }
+                    .wr-dashboard-grid>.wr-widget[style*="span 4"]{
+                        grid-column:span 2 !important;
+                    }
+                }
+            `}</style>
+
             {/* Widget grid */}
             <div className="wr-dashboard-grid" style={{
                 display: 'grid',
@@ -1087,6 +1118,7 @@ function DashboardPanel({
 
                 {/* Add widget button */}
                 <div
+                    className="wr-add-widget"
                     onClick={() => { setEditingWidget(null); setPickerOpen(true); }}
                     style={{
                         gridColumn: 'span 1', gridRow: 'span 1',

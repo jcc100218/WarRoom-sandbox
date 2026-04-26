@@ -1,5 +1,7 @@
 supabase/.temp/
 node_modules/
+dist-preview/
+reconai-shared/
 ios/
 android/
 icon.PNG

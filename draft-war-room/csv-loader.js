@@ -383,3 +383,23 @@ if (typeof module !== 'undefined' && module.exports) {
 } else {
   window.loadPlayersFromCSV = loadPlayersFromCSV;
 }
+
+// Compatibility wrapper: standalone draft-war-room pages keep calling
+// loadPlayersFromCSV(), but the canonical provider is now
+// ReconAI/shared/rookie-data.js. If the shared provider is present, use it.
+(function(legacyLoadPlayersFromCSV) {
+  if (typeof window === 'undefined') return;
+
+  window.loadPlayersFromCSV = async function loadPlayersFromCanonicalRookieData() {
+    const sharedLoad = window.RookieData?.loadRookieProspects || window.App?.loadRookieProspects || window.loadRookieProspects;
+    const sharedGet = window.RookieData?.getProspects || window.App?.getProspects || window.getProspects;
+
+    if (typeof sharedLoad === 'function' && typeof sharedGet === 'function') {
+      await sharedLoad();
+      const prospects = sharedGet() || [];
+      if (prospects.length) return prospects;
+    }
+
+    return legacyLoadPlayersFromCSV();
+  };
+})(window.loadPlayersFromCSV);

@@ -445,12 +445,38 @@
         const [tradeOwner, setTradeOwner] = useState({ A:null, B:null });
         const [searchText, setSearchText] = useState({ A:'', B:'' });
         const lastTradeLogRef = useRef('');
+        const tradeStartedRef = useRef(false);
         useEffect(() => {
             const hasA = tradeIds.A.length > 0 || tradePickIds.A.length > 0 || tradeFaab.A > 0;
             const hasB = tradeIds.B.length > 0 || tradePickIds.B.length > 0 || tradeFaab.B > 0;
+            const sig = JSON.stringify([tradeIds, tradePickIds, tradeFaab]);
+            if ((hasA || hasB) && !tradeStartedRef.current) {
+                tradeStartedRef.current = true;
+                window.OD?.trackTradeStarted?.({
+                    platform: 'warroom',
+                    module: 'trades',
+                    leagueId: currentLeague?.league_id || currentLeague?.id || null,
+                    metadata: { hasA, hasB },
+                });
+            }
             if (hasA && hasB) {
-                const sig = JSON.stringify([tradeIds, tradePickIds, tradeFaab]);
-                if (sig !== lastTradeLogRef.current) { lastTradeLogRef.current = sig; window.wrLogAction?.('\uD83D\uDD04', 'Evaluated trade proposal', 'trade', { actionType: 'trade-builder' }); }
+                if (sig !== lastTradeLogRef.current) {
+                    lastTradeLogRef.current = sig;
+                    window.wrLogAction?.('\uD83D\uDD04', 'Evaluated trade proposal', 'trade', { actionType: 'trade-builder' });
+                    window.OD?.trackTradeEvaluated?.({
+                        platform: 'warroom',
+                        module: 'trades',
+                        leagueId: currentLeague?.league_id || currentLeague?.id || null,
+                        metadata: {
+                            myPlayers: tradeIds.A.length,
+                            theirPlayers: tradeIds.B.length,
+                            myPicks: tradePickIds.A.length,
+                            theirPicks: tradePickIds.B.length,
+                            myFaab: tradeFaab.A || 0,
+                            theirFaab: tradeFaab.B || 0,
+                        },
+                    });
+                }
             }
         }, [tradeIds, tradePickIds, tradeFaab]);
 
