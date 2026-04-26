@@ -253,7 +253,7 @@
                                         overflow: 'hidden',
                                         textOverflow: 'ellipsis',
                                     }}>{p.name}</div>
-                                    {(p.college || p.team) && (
+                                    {(p.college || p.team || p.nflTeam || p.isUDFA) && (
                                         <div style={{
                                             fontSize: '0.58rem',
                                             color: 'var(--silver)',
@@ -261,7 +261,15 @@
                                             whiteSpace: 'nowrap',
                                             overflow: 'hidden',
                                             textOverflow: 'ellipsis',
-                                        }}>{p.college || p.team}</div>
+                                        }}>
+                                            {p.college || p.team || ''}
+                                            {(p.nflTeam || p.isUDFA || p.draftRound) && (p.college || p.team) ? ' · ' : ''}
+                                            {p.draftRound && p.draftPick
+                                                ? `${p.nflTeam || '???'} R${p.draftRound}.${String(p.draftPick).padStart(2,'0')}`
+                                                : p.isUDFA
+                                                    ? (p.nflTeam ? `UDFA · ${p.nflTeam}` : 'UDFA')
+                                                    : ''}
+                                        </div>
                                     )}
                                 </div>
                                 <span style={{

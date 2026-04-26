@@ -213,11 +213,25 @@
         }
         function applyTag(tag) {
             try {
-                const saver = window.OD?.savePlayerTags || window.savePlayerTags;
-                if (typeof saver === 'function') {
-                    const cur = (window.OD?.getPlayerTags?.(pid)) || {};
-                    saver(pid, { ...cur, [tag]: !cur[tag] });
+                const leagueId = window.S?.currentLeagueId || window.S?.currentLeague?.league_id || window.S?.currentLeague?.id || '';
+                const next = { ...(window._playerTags || {}) };
+                const wasActive = next[pid] === tag;
+                if (wasActive) delete next[pid];
+                else next[pid] = tag;
+                window._playerTags = next;
+
+                if (window.OD?.savePlayerTags) {
+                    window.OD.savePlayerTags(leagueId, next);
+                } else if (leagueId) {
+                    localStorage.setItem('player_tags_' + leagueId, JSON.stringify(next));
                 }
+                if (!wasActive) {
+                    window.wrLogAction?.('🏷️', 'Tagged ' + name + ' as ' + tag, 'roster', {
+                        players: [{ name, pid, pos: nPos }],
+                        actionType: 'tag',
+                    });
+                }
+                window.dispatchEvent(new CustomEvent('wr:player-tags-changed', { detail: { leagueId, tags: next, pid, tag: wasActive ? null : tag } }));
             } catch (e) { /* noop */ }
             setTagMenu(false);
         }

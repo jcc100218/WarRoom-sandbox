@@ -2701,6 +2701,7 @@
                     sleeperUserId={sleeperUserId}
                     timeRecomputeTs={timeRecomputeTs}
                     viewMode={viewMode}
+                    briefDraftInfo={briefDraftInfo}
                 /> : activeTab === 'draft' ? <DraftTab
                     playersData={playersData}
                     statsData={statsData}

@@ -32,7 +32,7 @@
         full:    Object.keys(FA_COLUMNS),
     };
 
-    function FreeAgencyTab({ playersData, statsData, prevStatsData, myRoster, currentLeague, sleeperUserId, timeRecomputeTs, viewMode }) {
+    function FreeAgencyTab({ playersData, statsData, prevStatsData, myRoster, currentLeague, sleeperUserId, timeRecomputeTs, viewMode, briefDraftInfo }) {
         const [faTargets, setFaTargets] = useState([]);
         const [faFilter, setFaFilter] = useState('');
         const [faBudget, setFaBudget] = useState({ total: 0, spent: 0 });
@@ -56,6 +56,21 @@
 
         const normPos = window.App.normPos;
         const calcRawPts = (s) => window.App.calcRawPts(s, currentLeague?.scoring_settings);
+        const normName = (s) => (s || '').toLowerCase().replace(/[''`.]/g, '').replace(/\s+(jr\.?|sr\.?|ii|iii|iv)$/, '').replace(/\s+/g, ' ').trim();
+        const hasUpcomingRookieDraft = briefDraftInfo?.status === 'pre_draft'
+            || (window.S?.drafts || []).some(d => d?.status === 'pre_draft');
+        const prospectNames = useMemo(() => {
+            if (!hasUpcomingRookieDraft || typeof window.getProspects !== 'function') return new Set();
+            return new Set((window.getProspects() || []).map(p => normName(p.name)).filter(Boolean));
+        }, [hasUpcomingRookieDraft, timeRecomputeTs]);
+        const isDraftProspect = useCallback((pid, p) => {
+            if (!hasUpcomingRookieDraft || !p) return false;
+            const name = normName(p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim());
+            if (prospectNames.has(name)) return true;
+            const exp = Number(p.years_exp || 0);
+            const hasNflStats = (statsData?.[pid]?.gp || 0) > 0 || ((prevStatsData || {})[pid]?.gp || 0) > 0;
+            return exp === 0 && !!p.college && !hasNflStats;
+        }, [hasUpcomingRookieDraft, prospectNames, statsData, prevStatsData]);
 
         // Load FA targets from Supabase/localStorage
         useEffect(() => {
@@ -75,11 +90,11 @@
 
         const availablePlayers = useMemo(() => {
             return Object.entries(playersData)
-                .filter(([pid, p]) => !rostered.has(pid) && p.team && p.status !== 'Inactive' && p.status !== 'Retired' && p.active !== false)
+                .filter(([pid, p]) => !rostered.has(pid) && p.team && p.status !== 'Inactive' && p.status !== 'Retired' && p.active !== false && !isDraftProspect(pid, p))
                 .map(([pid, p]) => ({ pid, p, dhq: window.App?.LI?.playerScores?.[pid] || 0, pos: normPos(p.position) || p.position }))
                 .sort((a, b) => b.dhq - a.dhq)
                 .slice(0, 300);
-        }, [playersData, rostered, timeRecomputeTs]);
+        }, [playersData, rostered, timeRecomputeTs, isDraftProspect]);
 
         const posColors = window.App.POS_COLORS;
 

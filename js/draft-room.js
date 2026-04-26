@@ -24,6 +24,8 @@
         const [boardMode, setBoardMode] = useState('dhq'); // 'dhq' | 'my'
         const [myBoardOrder, setMyBoardOrder] = useState([]); // custom ordered pid array
         const [boardPosFilter, setBoardPosFilter] = useState(''); // '' | 'QB' | 'RB' | 'WR' | 'TE' | 'DL' | 'LB' | 'DB'
+        const [boardTeamFilter, setBoardTeamFilter] = useState(''); // '' | NFL team abbr
+        const [boardRoundFilter, setBoardRoundFilter] = useState(''); // '' | '1'..'7' | 'UDFA' | 'undrafted'
         const [boardSort, setBoardSort] = useState({ key: 'dhq', dir: -1 }); // sortable columns
         const [expandedDraftPid, setExpandedDraftPid] = useState(null);
         const [dragPid, setDragPid] = useState(null); // currently dragging pid
@@ -68,29 +70,55 @@
                     const hasValue = (window.App?.LI?.playerScores?.[pid] || 0) > 0;
                     const isIDP = ['DL','DE','DT','NT','IDL','EDGE','LB','OLB','ILB','MLB','DB','CB','S','SS','FS'].includes(p.position);
                     if (isIDP && !leagueHasIDP) return false;
+                    // OL is never a fantasy scoring position — exclude offensive linemen
+                    const isOL = ['OL','OT','OG','G','C','T','IOL'].includes(p.position);
+                    if (isOL) return false;
                     return hasValue || p.team;
                 })
                 .map(([pid, p]) => {
-                    let dhq = window.App?.LI?.playerScores?.[pid] || 0;
-                    // Enrich with CSV data from The Beast
                     const csv = typeof window.findProspect === 'function' ? window.findProspect((p.first_name || '') + ' ' + (p.last_name || '')) : null;
-                    // For rookies with no DHQ from engine, use startup-comp dynasty value
-                    // (slots rookies into the DHQ position ladder based on startup ADP)
-                    if (dhq === 0 && csv) dhq = csv.dynastyValue || csv.draftScore || 0;
+                    // Rookie DHQ blend: 50% FantasyCalc market + 25% our consensus rank + 25% actual draft pick.
+                    // FC alone undervalues high-pedigree top picks (e.g., Mendoza R1.01 < Taylen Green R6.182)
+                    // and overvalues hyped-but-fell prospects. Blending in our rank + actual NFL capital
+                    // restores nuance.
+                    const fcVal = window.App?.LI?.playerScores?.[pid] || 0;
+                    let dhq;
+                    if (csv) {
+                        const rankV = csv.rankValue || 0;
+                        const pickV = csv.draftCapitalValue || 0;
+                        if (fcVal > 0) {
+                            dhq = Math.round(0.50 * fcVal + 0.25 * rankV + 0.25 * pickV);
+                        } else {
+                            // No FC data → use our rank+capital blend (60/40)
+                            dhq = csv.dynastyValue || 0;
+                        }
+                    } else {
+                        dhq = fcVal;
+                    }
+                    dhq = Math.min(10000, Math.max(0, dhq));
                     return { pid, p, dhq, csv };
                 });
 
             // Step 2: CSV-only prospects (from enrichment but not in Sleeper)
-            const sleeperNames = new Set(sleeperRookies.map(r => (r.p.full_name || '').toLowerCase().trim()));
+            // Normalize names: lowercase, strip apostrophes/dots/suffixes so "De'Zhaun" === "Dezhaun".
+            const normName = s => (s || '').toLowerCase().replace(/[''`.]/g, '').replace(/\s+(jr\.?|sr\.?|ii|iii|iv)$/, '').replace(/\s+/g, ' ').trim();
+            const sleeperNames = new Set(sleeperRookies.map(r => normName(r.p.full_name)));
+            // Also collect the CSV-prospect identities Sleeper rookies link to via
+            // findProspect — handles nickname mismatches (e.g., Sleeper "KC Concepcion"
+            // → CSV "Kevin Concepcion" — both should be one row, not two).
+            const linkedCsvPids = new Set(sleeperRookies.map(r => r.csv?.pid).filter(Boolean));
             const csvOnly = [];
             if (typeof window.getProspects === 'function') {
                 const allCsv = window.getProspects();
                 if (allCsv && allCsv.length) {
                     allCsv.forEach(csv => {
-                        if (sleeperNames.has((csv.name || '').toLowerCase().trim())) return;
+                        if (sleeperNames.has(normName(csv.name))) return;
+                        if (linkedCsvPids.has(csv.pid)) return;
                         const pos = normPos(csv.mappedPos || csv.pos) || csv.pos;
                         const isIDP = ['DL','LB','DB','EDGE'].includes(pos);
                         if (isIDP && !leagueHasIDP) return;
+                        // OL is never a fantasy scoring position — exclude offensive linemen
+                        if (['OL','OT','OG','G','C','T','IOL'].includes(pos)) return;
                         // Build synthetic player object
                         const nameParts = (csv.name || '').split(' ');
                         csvOnly.push({
@@ -99,7 +127,7 @@
                                 full_name: csv.name,
                                 first_name: nameParts[0] || '',
                                 last_name: nameParts.slice(1).join(' ') || '',
-                                position: csv.pos || 'QB',
+                                position: csv.pos || '?',
                                 college: csv.college,
                                 years_exp: 0,
                                 age: csv.age ? parseFloat(csv.age) : null,
@@ -453,9 +481,25 @@
                     // Initialize My Board order if empty
                     const initMyBoard = () => { if (myBoardOrder.length === 0) setMyBoardOrder(rookies.map(r => r.pid)); };
 
-                    // DHQ board: always sorted by DHQ from engine (never affected by My Board)
+                    // Helpers: parse size like "6'4" → inches, draft sort key (drafted first)
+                    const parseSizeIn = s => { const m = String(s||'').match(/(\d+)'?\s*(\d+)?/); return m ? parseInt(m[1])*12 + (parseInt(m[2])||0) : 0; };
+                    const draftSortKey = r => {
+                        const cs = r.csv || {};
+                        if (cs.draftRound && cs.draftPick) return cs.draftRound * 1000 + cs.draftPick; // 1001..7256
+                        if (cs.isUDFA) return 9000;
+                        return 9999;
+                    };
+
+                    // Apply filters: position, team, round
                     let dhqBoardPlayers = [...rookies];
                     if (boardPosFilter) dhqBoardPlayers = dhqBoardPlayers.filter(r => normPos(r.p.position) === boardPosFilter);
+                    if (boardTeamFilter) dhqBoardPlayers = dhqBoardPlayers.filter(r => (r.csv?.nflTeam || r.p?.team || '') === boardTeamFilter);
+                    if (boardRoundFilter) dhqBoardPlayers = dhqBoardPlayers.filter(r => {
+                        const cs = r.csv || {};
+                        if (boardRoundFilter === 'UDFA') return cs.isUDFA;
+                        if (boardRoundFilter === 'undrafted') return !cs.draftRound && !cs.isUDFA;
+                        return String(cs.draftRound) === boardRoundFilter;
+                    });
                     if (boardSort.key) {
                         dhqBoardPlayers.sort((a, b) => {
                             let va, vb;
@@ -466,6 +510,13 @@
                             else if (k === 'age') { va = a.p.age || (a.p.birth_date ? Math.floor((Date.now() - new Date(a.p.birth_date).getTime()) / 31557600000) : 99); vb = b.p.age || (b.p.birth_date ? Math.floor((Date.now() - new Date(b.p.birth_date).getTime()) / 31557600000) : 99); }
                             else if (k === 'fit') { va = computeFitScore(a).score; vb = computeFitScore(b).score; }
                             else if (k === 'school') { va = (a.csv?.college || a.p.college || '').toLowerCase(); vb = (b.csv?.college || b.p.college || '').toLowerCase(); }
+                            else if (k === 'team')   { va = (a.csv?.nflTeam || a.p?.team || '').toLowerCase(); vb = (b.csv?.nflTeam || b.p?.team || '').toLowerCase(); }
+                            else if (k === 'draft')  { va = draftSortKey(a); vb = draftSortKey(b); }
+                            else if (k === 'rank')   { va = a.csv?.consensusRank ?? a.csv?.rank ?? 9999; vb = b.csv?.consensusRank ?? b.csv?.rank ?? 9999; }
+                            else if (k === 'tier')   { va = a.csv?.tier ?? 99; vb = b.csv?.tier ?? 99; }
+                            else if (k === 'size')   { va = parseSizeIn(a.csv?.size) || (a.p?.height || 0); vb = parseSizeIn(b.csv?.size) || (b.p?.height || 0); }
+                            else if (k === 'weight') { va = parseFloat(a.csv?.weight) || parseFloat(a.p?.weight) || 0; vb = parseFloat(b.csv?.weight) || parseFloat(b.p?.weight) || 0; }
+                            else if (k === 'speed')  { va = parseFloat(a.csv?.speed) || 99; vb = parseFloat(b.csv?.speed) || 99; }
                             else { va = 0; vb = 0; }
                             if (typeof va === 'string') return va < vb ? -boardSort.dir : va > vb ? boardSort.dir : 0;
                             return ((va || 0) - (vb || 0)) * boardSort.dir;
@@ -512,21 +563,37 @@
                     const inOrder = new Set(myOrder);
                     rookies.forEach(r => { if (!inOrder.has(r.pid)) myBoardPlayers.push(r); });
                     if (boardPosFilter) myBoardPlayers = myBoardPlayers.filter(r => normPos(r.p.position) === boardPosFilter);
+                    if (boardTeamFilter) myBoardPlayers = myBoardPlayers.filter(r => (r.csv?.nflTeam || r.p?.team || '') === boardTeamFilter);
+                    if (boardRoundFilter) myBoardPlayers = myBoardPlayers.filter(r => {
+                        const cs = r.csv || {};
+                        if (boardRoundFilter === 'UDFA') return cs.isUDFA;
+                        if (boardRoundFilter === 'undrafted') return !cs.draftRound && !cs.isUDFA;
+                        return String(cs.draftRound) === boardRoundFilter;
+                    });
 
                     // Compact board renderer (used for both sides)
                     const sortArrow = (key) => boardSort.key === key ? (boardSort.dir === -1 ? ' \u25BC' : ' \u25B2') : '';
-                    const toggleSort = (key) => setBoardSort(prev => prev.key === key ? { ...prev, dir: prev.dir * -1 } : { key, dir: key === 'name' || key === 'school' ? 1 : -1 });
+                    const toggleSort = (key) => setBoardSort(prev => prev.key === key ? { ...prev, dir: prev.dir * -1 } : { key, dir: ['name','school','team','rank','tier','draft','speed','age'].includes(key) ? 1 : -1 });
                     const sortHdr = { cursor: 'pointer', userSelect: 'none' };
                     const renderCompactBoard = (players, isDhq) => (
-                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px', overflow: 'hidden', maxHeight: 'none', overflowY: 'visible' }}>
+                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px', maxHeight: 'none', overflowX: 'auto', overflowY: 'visible' }}>
+                          <div style={{ minWidth: '780px' }}>
                             {/* Header — clickable to sort */}
                             <div style={{ display: 'flex', height: '32px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.68rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1 }}>
                                 <div style={{ width: '24px', flexShrink: 0, textAlign: 'center' }}>#</div>
-                                <div onClick={() => toggleSort('name')} style={{ ...sortHdr, flex: 1, padding: '0 4px', minWidth: 0 }}>Player{sortArrow('name')}</div>
+                                <div onClick={() => toggleSort('name')} style={{ ...sortHdr, flex: 1, padding: '0 4px', minWidth: '120px' }}>Player{sortArrow('name')}</div>
                                 <div onClick={() => toggleSort('pos')} style={{ ...sortHdr, width: '30px', flexShrink: 0, textAlign: 'center' }}>Pos{sortArrow('pos')}</div>
-                                <div onClick={() => toggleSort('age')} style={{ ...sortHdr, width: '28px', flexShrink: 0, textAlign: 'center' }}>Age{sortArrow('age')}</div>
+                                <div onClick={() => toggleSort('team')} style={{ ...sortHdr, width: '36px', flexShrink: 0, textAlign: 'center' }}>Team{sortArrow('team')}</div>
+                                <div onClick={() => toggleSort('draft')} style={{ ...sortHdr, width: '54px', flexShrink: 0, textAlign: 'center' }}>Draft{sortArrow('draft')}</div>
+                                <div onClick={() => toggleSort('rank')} style={{ ...sortHdr, width: '36px', flexShrink: 0, textAlign: 'right' }}>Rk{sortArrow('rank')}</div>
+                                <div onClick={() => toggleSort('tier')} style={{ ...sortHdr, width: '28px', flexShrink: 0, textAlign: 'center' }}>Tr{sortArrow('tier')}</div>
                                 <div onClick={() => toggleSort('dhq')} style={{ ...sortHdr, width: '46px', flexShrink: 0, textAlign: 'right' }}>DHQ{sortArrow('dhq')}</div>
-                                <div onClick={() => toggleSort('school')} style={{ ...sortHdr, width: '60px', flexShrink: 0, padding: '0 4px', overflow: 'hidden' }}>School{sortArrow('school')}</div>
+                                <div onClick={() => toggleSort('fit')} style={{ ...sortHdr, width: '32px', flexShrink: 0, textAlign: 'center' }}>Fit{sortArrow('fit')}</div>
+                                <div onClick={() => toggleSort('age')} style={{ ...sortHdr, width: '28px', flexShrink: 0, textAlign: 'center' }}>Age{sortArrow('age')}</div>
+                                <div onClick={() => toggleSort('size')} style={{ ...sortHdr, width: '38px', flexShrink: 0, textAlign: 'center' }}>Size{sortArrow('size')}</div>
+                                <div onClick={() => toggleSort('weight')} style={{ ...sortHdr, width: '36px', flexShrink: 0, textAlign: 'right' }}>WT{sortArrow('weight')}</div>
+                                <div onClick={() => toggleSort('speed')} style={{ ...sortHdr, width: '40px', flexShrink: 0, textAlign: 'right' }}>40{sortArrow('speed')}</div>
+                                <div onClick={() => toggleSort('school')} style={{ ...sortHdr, width: '70px', flexShrink: 0, padding: '0 4px', overflow: 'hidden' }}>School{sortArrow('school')}</div>
                                 <div style={{ width: '20px', flexShrink: 0 }}></div>
                                 {!isDhq && <div style={{ width: '28px', flexShrink: 0 }}></div>}
                             </div>
@@ -538,6 +605,18 @@
                                 const isExp = expandedDraftPid === r.pid;
                                 const age = r.p.age || (r.csv?.age ? parseFloat(r.csv.age) : null) || (r.p.birth_date ? Math.floor((Date.now() - new Date(r.p.birth_date).getTime()) / 31557600000) : (r.p.years_exp === 0 ? 21 : null));
                                 const college = r.csv?.college || r.p.college || r.p.metadata?.college || '';
+                                const cs = r.csv || {};
+                                const team = cs.nflTeam || r.p?.team || '';
+                                const fitObj = computeFitScore(r);
+                                const fitChar = fitObj.score >= 70 ? 'F' : fitObj.score >= 50 ? 'V' : '\u2014';
+                                const fitCol = fitObj.score >= 70 ? '#2ECC71' : fitObj.score >= 50 ? 'var(--gold)' : 'var(--silver)';
+                                const sizeStr = cs.size || (r.p?.height ? Math.floor(r.p.height/12)+"'"+(r.p.height%12) : '');
+                                const wtStr = cs.weight || r.p?.weight || '';
+                                const speedStr = cs.speed || '';
+                                const draftStr = cs.draftRound && cs.draftPick
+                                    ? 'R' + cs.draftRound + '.' + String(cs.draftPick).padStart(2,'0')
+                                    : cs.isUDFA ? 'UDFA' : '';
+                                const draftCol = cs.draftRound === 1 ? '#2ECC71' : cs.draftRound && cs.draftRound <= 3 ? 'var(--gold)' : cs.isUDFA ? 'var(--silver)' : 'rgba(255,255,255,0.3)';
                                 return (
                                     <React.Fragment key={r.pid}>
                                     <div
@@ -550,19 +629,27 @@
                                         onMouseEnter={e => { if (!isExp) e.currentTarget.style.background = 'rgba(212,175,55,0.04)'; }}
                                         onMouseLeave={e => { if (!isExp) e.currentTarget.style.background = isExp ? 'rgba(212,175,55,0.06)' : idx % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent'; }}>
                                         <div style={{ width: '24px', flexShrink: 0, textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: idx < 3 ? 'var(--gold)' : 'var(--silver)' }}>{idx + 1}</div>
-                                        <div className={'wr-ring wr-ring-' + pos} style={{ width: '20px', height: '20px', flexShrink: 0, marginRight: '4px' }}>
-                                            <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + r.pid + '.jpg'} alt="" onError={e => e.target.style.display='none'} style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
-                                        </div>
-                                        <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
+                                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', minWidth: '120px' }}>
+                                            <div style={{ width: '20px', height: '20px', flexShrink: 0 }}>
+                                                <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + r.pid + '.jpg'} alt="" onError={e => e.target.style.display='none'} style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover' }} />
+                                            </div>
                                             <div style={{ fontWeight: 600, fontSize: '0.74rem', color: 'var(--white)', textDecoration: isDrafted ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pName(r.p)}</div>
                                         </div>
                                         <div style={{ width: '30px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
                                             <span style={{ fontSize: '0.6rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)', padding: '1px 4px', background: (posColors[pos] || '#666') + '22', borderRadius: '3px' }}>{pos}</span>
                                         </div>
-                                        <div style={{ width: '28px', flexShrink: 0, textAlign: 'center', fontSize: '0.7rem', color: 'var(--silver)' }}>{age || '\u2014'}</div>
+                                        <div style={{ width: '36px', flexShrink: 0, textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.66rem', fontWeight: 700, color: team ? '#2ECC71' : 'var(--silver)' }}>{team || '\u2014'}</div>
+                                        <div style={{ width: '54px', flexShrink: 0, textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.62rem', fontWeight: 700, color: draftCol }}>{draftStr || '\u2014'}</div>
+                                        <div style={{ width: '36px', flexShrink: 0, textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.66rem', color: 'var(--silver)', paddingRight: '4px' }}>{(cs.consensusRank || cs.rank) ? '#' + Math.round(cs.consensusRank || cs.rank) : '\u2014'}</div>
+                                        <div style={{ width: '28px', flexShrink: 0, textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '0.66rem', fontWeight: 700, color: cs.tier === 1 ? '#2ECC71' : cs.tier === 2 ? '#3498DB' : 'var(--silver)' }}>{cs.tier || '\u2014'}</div>
                                         <div style={{ width: '46px', flexShrink: 0, textAlign: 'right', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '0.7rem', color: dhqC }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</div>
-                                        <div style={{ width: '60px', flexShrink: 0, padding: '0 4px', overflow: 'hidden' }}>
-                                            <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{college || '\u2014'}</div>
+                                        <div style={{ width: '32px', flexShrink: 0, textAlign: 'center', fontSize: '0.66rem', fontWeight: 700, color: fitCol }}>{fitChar}</div>
+                                        <div style={{ width: '28px', flexShrink: 0, textAlign: 'center', fontSize: '0.7rem', color: 'var(--silver)' }}>{age || '\u2014'}</div>
+                                        <div style={{ width: '38px', flexShrink: 0, textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.62rem', color: 'var(--silver)' }}>{sizeStr || '\u2014'}</div>
+                                        <div style={{ width: '36px', flexShrink: 0, textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.62rem', color: 'var(--silver)', paddingRight: '4px' }}>{wtStr || '\u2014'}</div>
+                                        <div style={{ width: '40px', flexShrink: 0, textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.62rem', color: speedStr && parseFloat(speedStr) <= 4.45 ? '#2ECC71' : 'var(--silver)', paddingRight: '4px' }}>{speedStr || '\u2014'}</div>
+                                        <div style={{ width: '70px', flexShrink: 0, padding: '0 4px', overflow: 'hidden' }}>
+                                            <div title={college} style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{college || '\u2014'}</div>
                                         </div>
                                         <div style={{ width: '20px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
                                             {tag ? <span style={{ fontSize: '0.7rem', color: tagDefs[tag].color }} title={tagDefs[tag].label}>{tagDefs[tag].icon}</span> : null}
@@ -580,18 +667,55 @@
                                 );
                             })}
                             {players.length === 0 && <div style={{ padding: '12px', textAlign: 'center', color: 'var(--silver)', opacity: 0.5, fontSize: '0.76rem' }}>No players match filter</div>}
+                          </div>
                         </div>
                     );
+
+                    // Build NFL team list from rookies that have a team set (drafted/UDFA-signed)
+                    const teamSet = new Set();
+                    rookies.forEach(r => { const t = r.csv?.nflTeam || r.p?.team; if (t) teamSet.add(t); });
+                    const availableTeams = Array.from(teamSet).sort();
 
                     return (
                     <div>
                         {/* Position filters */}
-                        <div style={{ display: 'flex', gap: '4px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '4px', marginBottom: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                             <button onClick={() => setBoardPosFilter('')} style={{ padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', borderRadius: '14px', cursor: 'pointer', border: '1px solid ' + (!boardPosFilter ? 'rgba(212,175,55,0.3)' : 'rgba(255,255,255,0.08)'), background: !boardPosFilter ? 'rgba(212,175,55,0.12)' : 'transparent', color: !boardPosFilter ? 'var(--gold)' : 'var(--silver)' }}>Master</button>
                             {(typeof getLeaguePositions === 'function' ? getLeaguePositions() : ['QB','RB','WR','TE','DL','LB','DB']).map(pos => (
                                 <button key={pos} onClick={() => setBoardPosFilter(boardPosFilter === pos ? '' : pos)} style={{ padding: '4px 10px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', borderRadius: '14px', cursor: 'pointer', border: '1px solid ' + (boardPosFilter === pos ? (posColors[pos] || '#666') + '55' : 'rgba(255,255,255,0.08)'), background: boardPosFilter === pos ? (posColors[pos] || '#666') + '18' : 'transparent', color: boardPosFilter === pos ? posColors[pos] : 'var(--silver)' }}>{pos}</button>
                             ))}
                             <span style={{ marginLeft: 'auto', fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.4 }}>Click row to expand {'\u00B7'} Drag to reorder My Board</span>
+                        </div>
+
+                        {/* Team & Round filters */}
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Team</span>
+                                <select value={boardTeamFilter} onChange={e => setBoardTeamFilter(e.target.value)} style={{ padding: '3px 6px', fontSize: '0.7rem', fontFamily: 'JetBrains Mono, monospace', background: 'rgba(255,255,255,0.04)', color: boardTeamFilter ? 'var(--gold)' : 'var(--silver)', border: '1px solid ' + (boardTeamFilter ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.1)'), borderRadius: '6px', cursor: 'pointer', outline: 'none' }}>
+                                    <option value="">All teams</option>
+                                    {availableTeams.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: '2px' }}>Round</span>
+                                {[
+                                    { k: '', label: 'All' },
+                                    { k: '1', label: 'R1' },
+                                    { k: '2', label: 'R2' },
+                                    { k: '3', label: 'R3' },
+                                    { k: '4', label: 'R4' },
+                                    { k: '5', label: 'R5' },
+                                    { k: '6', label: 'R6' },
+                                    { k: '7', label: 'R7' },
+                                    { k: 'UDFA', label: 'UDFA' },
+                                    { k: 'undrafted', label: 'Undrafted' },
+                                ].map(opt => (
+                                    <button key={opt.k} onClick={() => setBoardRoundFilter(boardRoundFilter === opt.k ? '' : opt.k)} style={{ padding: '3px 8px', fontSize: '0.66rem', fontFamily: 'Inter, sans-serif', borderRadius: '10px', cursor: 'pointer', border: '1px solid ' + (boardRoundFilter === opt.k ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'), background: boardRoundFilter === opt.k ? 'rgba(212,175,55,0.14)' : 'transparent', color: boardRoundFilter === opt.k ? 'var(--gold)' : 'var(--silver)' }}>{opt.label}</button>
+                                ))}
+                            </div>
+                            {(boardTeamFilter || boardRoundFilter) && (
+                                <button onClick={() => { setBoardTeamFilter(''); setBoardRoundFilter(''); }} style={{ marginLeft: 'auto', padding: '3px 10px', fontSize: '0.64rem', fontFamily: 'Inter, sans-serif', background: 'transparent', color: 'var(--silver)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', cursor: 'pointer' }}>Clear</button>
+                            )}
                         </div>
 
                         {/* Expanded player card — full width ABOVE boards */}
@@ -614,14 +738,14 @@
                                 <div style={{ border: '2px solid rgba(212,175,55,0.25)', borderRadius: '10px', background: 'var(--black)', padding: '16px 20px', marginBottom: '14px', animation: 'wrFadeIn 0.2s ease' }}>
                                   <div style={{ display: 'flex', gap: '16px', marginBottom: '14px' }}>
                                     <div style={{ flexShrink: 0, position: 'relative' }}>
-                                      <img className={'wr-ring wr-ring-' + pos} src={photoSrc} alt="" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} style={{ width: '80px', height: '80px', borderRadius: '10px', objectFit: 'cover', objectPosition: 'top', border: '2px solid rgba(212,175,55,0.3)' }} />
+                                      <img src={photoSrc} alt="" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} style={{ width: '80px', height: '80px', borderRadius: '10px', objectFit: 'cover', objectPosition: 'top', border: '2px solid rgba(212,175,55,0.3)' }} />
                                       <div style={{ display: 'none', width: '80px', height: '80px', borderRadius: '10px', background: 'var(--charcoal)', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', fontWeight: 700, color: 'var(--silver)', border: '2px solid rgba(212,175,55,0.2)' }}>{(r.p.first_name||'?')[0]}{(r.p.last_name||'?')[0]}</div>
                                       <div style={{ position: 'absolute', bottom: '-4px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7rem', fontWeight: 700, padding: '1px 8px', borderRadius: '8px', background: (posColors[pos]||'#666')+'25', color: posColors[pos]||'var(--silver)', whiteSpace: 'nowrap' }}>{pos}</div>
                                     </div>
                                     <div style={{ flex: 1 }}>
                                       <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', color: 'var(--white)', letterSpacing: '0.02em', lineHeight: 1.1 }}>{r.p.full_name || pName(r.p)}{r.isCSVOnly && <span style={{ fontSize: '0.6rem', marginLeft: '8px', padding: '1px 6px', borderRadius: '3px', background: 'rgba(124,107,248,0.15)', color: '#9b8afb', fontFamily: 'Inter, sans-serif', verticalAlign: 'middle' }}>PROSPECT</span>}</div>
                                       <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginTop: '2px' }}>
-                                        {pos} {'\u00B7'} {r.p.team || 'TBD'} {'\u00B7'} Age {age} {'\u00B7'} {college || 'Unknown'}
+                                        {pos} {'\u00B7'} {csv?.nflTeam || r.p.team || 'TBD'} {'\u00B7'} Age {age} {'\u00B7'} {college || 'Unknown'}
                                         {size ? ' \u00B7 ' + size : ''}
                                         {weight ? ' \u00B7 ' + weight + 'lbs' : ''}
                                         {speed ? ' \u00B7 ' + speed + 's' : ''}
@@ -650,7 +774,12 @@
                                       size ? { label: 'SIZE', val: size, col: 'var(--silver)' } : null,
                                       weight ? { label: 'WT', val: weight + 'lbs', col: 'var(--silver)' } : null,
                                       speed ? { label: '40 YD', val: speed + 's', col: parseFloat(speed) <= 4.45 ? '#2ECC71' : 'var(--silver)' } : null,
-                                      { label: 'TEAM', val: r.p.team || 'TBD', col: r.p.team ? '#2ECC71' : 'var(--silver)' },
+                                      { label: 'TEAM', val: csv?.nflTeam || r.p.team || 'TBD', col: (csv?.nflTeam || r.p.team) ? '#2ECC71' : 'var(--silver)' },
+                                      csv?.draftRound && csv?.draftPick
+                                        ? { label: 'DRAFTED', val: 'R' + csv.draftRound + '.' + String(csv.draftPick).padStart(2,'0'), col: csv.draftRound === 1 ? '#2ECC71' : csv.draftRound <= 3 ? '#D4AF37' : 'var(--silver)' }
+                                        : csv?.isUDFA
+                                          ? { label: 'DRAFTED', val: 'UDFA', col: 'var(--silver)' }
+                                          : null,
                                     ].filter(Boolean).map((s, i) => {
                                       const dhqFilled = s.gauge ? Math.round(Math.min(10, r.dhq / 1000)) : 0;
                                       const dhqGaugeCol = r.dhq >= 7000 ? 'filled-green' : r.dhq >= 4000 ? 'filled' : 'filled-red';
@@ -848,7 +977,7 @@
                                             <div style={{ flex: 1 }}>
                                               <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', color: 'var(--white)', letterSpacing: '0.02em', lineHeight: 1.1 }}>{r.p.full_name || pName(r.p)}</div>
                                               <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginTop: '2px' }}>
-                                                {pos} {'\u00B7'} {r.p.team || 'TBD'} {'\u00B7'} Age {age} {'\u00B7'} {college || 'Unknown'}
+                                                {pos} {'\u00B7'} {r.csv?.nflTeam || r.p.team || 'TBD'} {'\u00B7'} Age {age} {'\u00B7'} {college || 'Unknown'}
                                                 {r.p.height ? ' \u00B7 ' + Math.floor(r.p.height/12)+"'"+r.p.height%12+'"' : ''}
                                                 {r.p.weight ? ' \u00B7 ' + r.p.weight + 'lbs' : ''}
                                               </div>

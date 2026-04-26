@@ -385,18 +385,28 @@
     const AI_CACHE_KEY = 'wr_alex_ai_insights';
     const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-    function loadCachedAiInsights() {
+    function getLeagueId(props) {
+        return props?.currentLeague?.id || props?.currentLeague?.league_id || window.S?.currentLeagueId || window.S?.currentLeague?.league_id || window.S?.currentLeague?.id || 'global';
+    }
+
+    function getAiCacheKey(props) {
+        const leagueId = getLeagueId(props);
+        const user = window.OD?.getCurrentUsername?.() || window.S?.user?.username || window.S?.user?.display_name || 'anon';
+        return AI_CACHE_KEY + ':' + user + ':' + leagueId;
+    }
+
+    function loadCachedAiInsights(props) {
         try {
-            const raw = JSON.parse(localStorage.getItem(AI_CACHE_KEY) || 'null');
+            const raw = JSON.parse(localStorage.getItem(getAiCacheKey(props)) || 'null');
             if (!raw || !raw.ts) return { insights: [], ts: 0 };
             if (Date.now() - raw.ts > AI_CACHE_TTL_MS) return { insights: [], ts: 0 };
             return raw;
         } catch (_) { return { insights: [], ts: 0 }; }
     }
-    function saveCachedAiInsights(insights) {
-        try { localStorage.setItem(AI_CACHE_KEY, JSON.stringify({ insights, ts: Date.now() })); } catch (_) {}
+    function saveCachedAiInsights(props, insights) {
+        try { localStorage.setItem(getAiCacheKey(props), JSON.stringify({ insights, ts: Date.now() })); } catch (_) {}
     }
-    function clearCachedAiInsights() { try { localStorage.removeItem(AI_CACHE_KEY); } catch (_) {} }
+    function clearCachedAiInsights(props) { try { localStorage.removeItem(getAiCacheKey(props)); } catch (_) {} }
 
     async function generateAiInsights({ myRoster, currentLeague, playersData }, kpis, heuristicTitles) {
         const aiFn = typeof window.dhqAI === 'function' ? window.dhqAI : null;
@@ -527,11 +537,16 @@
 
         // AI-generated insights — separate from heuristic insights, cached
         // for 24h, tagged with isAi so the card badge can distinguish them.
-        const [aiState, setAiState] = useState(() => loadCachedAiInsights());
+        const [aiState, setAiState] = useState(() => loadCachedAiInsights(props));
         const [aiLoading, setAiLoading] = useState(false);
         const [aiError, setAiError] = useState(null);
         const aiInsights = (aiState?.insights || []).filter(x => !window.WR?.AlexSettings || window.WR.AlexSettings.shouldShow(x));
         const merged = [...insights, ...aiInsights];
+
+        useEffect(() => {
+            setAiState(loadCachedAiInsights(props));
+            setAiError(null);
+        }, [props?.currentLeague?.id, props?.currentLeague?.league_id]);
 
         const doGenerate = async () => {
             setAiLoading(true); setAiError(null);
@@ -540,9 +555,9 @@
             setAiLoading(false);
             if (r.error) { setAiError(r.error); return; }
             setAiState({ insights: r.insights, ts: Date.now() });
-            saveCachedAiInsights(r.insights);
+            saveCachedAiInsights(props, r.insights);
         };
-        const doClear = () => { clearCachedAiInsights(); setAiState({ insights: [], ts: 0 }); };
+        const doClear = () => { clearCachedAiInsights(props); setAiState({ insights: [], ts: 0 }); };
 
         const cacheAge = aiState?.ts ? Math.round((Date.now() - aiState.ts) / 60000) : null;
 
@@ -891,33 +906,92 @@
     }
 
     // ── Decision History sub-tab ──────────────────────────────────
-    function HistoryView() {
-        // Pull from Scout field log (localStorage key used elsewhere) + recent transactions
-        let log = [];
-        try { log = JSON.parse(localStorage.getItem('scout_field_log_v1') || '[]'); } catch (_) {}
+    function HistoryView({ props }) {
+        const leagueId = getLeagueId(props);
+        const myRid = props?.myRoster?.roster_id || window.S?.myRosterId;
+        const [remoteLog, setRemoteLog] = useState(null);
+
+        useEffect(() => {
+            let cancelled = false;
+            setRemoteLog(null);
+            if (!window.OD?.loadFieldLog) return;
+            window.OD.loadFieldLog(leagueId, 80).then(data => {
+                if (!cancelled) setRemoteLog(Array.isArray(data) ? data : []);
+            }).catch(() => {
+                if (!cancelled) setRemoteLog([]);
+            });
+            return () => { cancelled = true; };
+        }, [leagueId]);
+
+        let localLog = [];
+        try { localLog = JSON.parse(localStorage.getItem('scout_field_log_v1') || '[]'); } catch (_) {}
+        const logById = new Map();
+        [...(remoteLog || []), ...localLog].forEach(entry => {
+            if (!entry) return;
+            if (entry.leagueId && leagueId && String(entry.leagueId) !== String(leagueId)) return;
+            const id = entry.id || String(entry.ts || Math.random());
+            logById.set(id, { ...entry, kind: 'field-log' });
+        });
+        const log = Array.from(logById.values()).sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 50);
+
         const txns = [];
         const txnMap = window.S?.transactions || {};
         if (txnMap && typeof txnMap === 'object' && !Array.isArray(txnMap)) {
             Object.values(txnMap).forEach(arr => { if (Array.isArray(arr)) txns.push(...arr); });
         }
-        const myRid = window.S?.myRosterId;
-        const mine = txns.filter(t => {
+        const transactionEvents = txns.filter(t => {
             const addsMe = t.adds && Object.values(t.adds).some(r => String(r) === String(myRid));
             const dropsMe = t.drops && Object.values(t.drops).some(r => String(r) === String(myRid));
-            return addsMe || dropsMe;
-        }).sort((a, b) => (b.created || 0) - (a.created || 0)).slice(0, 25);
+            const tradeMe = t.type === 'trade' && (
+                (Array.isArray(t.roster_ids) && t.roster_ids.some(r => String(r) === String(myRid))) ||
+                (t.sides && Object.keys(t.sides).some(r => String(r) === String(myRid)))
+            );
+            return addsMe || dropsMe || tradeMe;
+        }).map(t => ({ kind: 'transaction', ts: (t.created || t.ts || 0) * 1000, transaction: t }));
 
-        if (!log.length && !mine.length) {
+        const liTradeEvents = (window.App?.LI?.tradeHistory || [])
+            .filter(t => t.sides && t.sides[myRid])
+            .map(t => ({ kind: 'transaction', ts: (t.ts || 0) * 1000, transaction: { ...t, type: 'trade', created: t.ts || 0, _fromDHQ: true } }));
+
+        const eventById = new Map();
+        [...transactionEvents, ...liTradeEvents].forEach(ev => {
+            const t = ev.transaction || {};
+            const id = t.transaction_id || t.id || (t.type + ':' + (t.created || t.ts || 0) + ':' + JSON.stringify(t.roster_ids || Object.keys(t.sides || {})));
+            eventById.set(id, ev);
+        });
+        const events = [...log, ...Array.from(eventById.values())].sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 50);
+
+        if (remoteLog === null && window.OD?.loadFieldLog && !events.length) {
+            return h(window.WR.Card, { padding: '32px' },
+                h('div', { style: { textAlign: 'center', color: 'var(--silver)', opacity: 0.7 } },
+                    'Loading shared decision history...')
+            );
+        }
+
+        if (!events.length) {
             return h(window.WR.Card, { padding: '32px' },
                 h('div', { style: { textAlign: 'center', color: 'var(--silver)', opacity: 0.7 } },
                     'No decisions logged yet. Your trades, waivers, and Scout field-log entries will show up here.')
             );
         }
         return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
-            mine.map((t, i) => {
+            events.map((ev, i) => {
+                if (ev.kind === 'field-log') {
+                    const date = ev.ts ? new Date(ev.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '\u2014';
+                    return h(window.WR.Card, { key: 'log' + (ev.id || i), padding: '10px 14px' },
+                        h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
+                            h(window.WR.Badge, { label: ev.category || 'note', kind: ev.category || 'note' }),
+                            h('div', { style: { flex: 1, fontSize: '0.82rem', color: 'var(--white)' } }, ev.text || 'Logged decision'),
+                            h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'JetBrains Mono, monospace' } }, date)
+                        )
+                    );
+                }
+                const t = ev.transaction || {};
                 const date = t.created ? new Date(t.created * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '\u2014';
                 const kind = t.type === 'trade' ? 'trade' : t.type === 'waiver' ? 'waiver' : 'fa';
-                const count = Object.keys(t.adds || {}).filter(pid => String(t.adds[pid]) === String(myRid)).length;
+                const count = kind === 'trade'
+                    ? ((t.sides?.[myRid]?.players || []).length || Object.keys(t.adds || {}).filter(pid => String(t.adds[pid]) === String(myRid)).length)
+                    : Object.keys(t.adds || {}).filter(pid => String(t.adds[pid]) === String(myRid)).length;
                 return h(window.WR.Card, { key: 'tx' + i, padding: '10px 14px' },
                     h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
                         h(window.WR.Badge, { label: kind, kind }),
@@ -1055,7 +1129,7 @@
             }),
             subTab === 'overview' && h(OverviewView, { kpis, insights, props }),
             subTab === 'patterns' && h(PatternsView, { props }),
-            subTab === 'history' && h(HistoryView),
+            subTab === 'history' && h(HistoryView, { props }),
             subTab === 'settings' && h(SettingsView, { settings, setSettings })
         );
     }

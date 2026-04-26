@@ -408,8 +408,30 @@
 
         // ── State ──
         const [tcTab, setTcTab] = useState(initialSubTab || 'dna');
-        useEffect(() => { if (initialSubTab) { setTcTab(initialSubTab); if (onSubTabConsumed) onSubTabConsumed(); } }, [initialSubTab]);
+        useEffect(() => {
+            if (!initialSubTab) return;
+            if (initialSubTab === 'finder') {
+                window._wrAnalyzerMode = 'find';
+                setTcTab('analyzer');
+            } else {
+                setTcTab(initialSubTab);
+            }
+            if (onSubTabConsumed) onSubTabConsumed();
+        }, [initialSubTab]);
         const [finderAutoTarget, setFinderAutoTarget] = useState(null);
+        useEffect(() => {
+            const openFinder = (target) => {
+                const next = target?.detail || target || window._wrTradeFinderTarget;
+                if (!next?.pid) return;
+                window._wrAnalyzerMode = 'find';
+                setTcTab('analyzer');
+                setFinderAutoTarget({ pid: next.pid, mode: next.mode || 'acquire' });
+                window._wrTradeFinderTarget = null;
+            };
+            window.addEventListener('wr:open-trade-finder', openFinder);
+            openFinder(window._wrTradeFinderTarget);
+            return () => window.removeEventListener('wr:open-trade-finder', openFinder);
+        }, []);
         const [ownerDna, setOwnerDna] = useState({});
         const [grudges, setGrudges] = useState([]);
         const [sortMode, setSortMode] = useState('health');

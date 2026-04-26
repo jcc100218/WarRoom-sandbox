@@ -96,6 +96,60 @@
         return Math.round(baseScore * posValue * 100) / 100;
     }
 
+    // Tier-aware base score that drops sharply with rank — replaces the old
+    // linear (250-rank)/25 curve which was too flat (rank 95 = 62% of rank 1).
+    // New shape: top-of-tier scores well-separated, late-round prospects collapse to near-zero.
+    function rankToTierBase(rank) {
+        if (!rank || rank > 250) return 0.5;
+        if (rank <= 5)   return 95 - (rank - 1) * 4;            // 95-79
+        if (rank <= 10)  return 75 - (rank - 6) * 4;            // 75-59
+        if (rank <= 20)  return 55 - (rank - 11) * 2.5;         // 55-32.5
+        if (rank <= 32)  return 30 - (rank - 21) * 1.5;         // 30-13.5
+        if (rank <= 50)  return 12 - (rank - 33) * 0.4;         // 12-5.2
+        if (rank <= 100) return 5 - (rank - 51) * 0.07;         // 5-1.5
+        if (rank <= 150) return 1.5 - (rank - 101) * 0.02;      // 1.5-0.5
+        if (rank <= 224) return Math.max(0.1, 0.5 - (rank - 151) * 0.005);
+        return 0.1;
+    }
+
+    // Pick-to-base score — overall draft pick → 0-100 value.
+    // Top-of-draft picks hold most of their value, R7 tail collapses.
+    function pickToBase(pick, isUDFA, hasTeam) {
+        if (pick) {
+            if (pick <= 5)   return 100;
+            if (pick <= 15)  return 80 - (pick - 6) * 1.5;     // 80-66.5
+            if (pick <= 32)  return 60 - (pick - 16) * 2;      // 60-28
+            if (pick <= 64)  return 28 - (pick - 33) * 0.5;    // 28-12.5
+            if (pick <= 100) return 12 - (pick - 65) * 0.15;   // 12-6.6
+            if (pick <= 140) return 6 - (pick - 101) * 0.07;   // 6-3.2
+            if (pick <= 180) return 3 - (pick - 141) * 0.04;   // 3-1.4
+            if (pick <= 220) return 1.3 - (pick - 181) * 0.02; // 1.3-0.5
+            return 0.4;  // R7 tail
+        }
+        if (isUDFA && hasTeam) return 0.6;
+        return 0.1;  // undrafted, no team
+    }
+
+    // Draft-capital multiplier — flatter curve (1.45 top → 0.30 undrafted).
+    // Applied as a 60/40 blend with pre-draft consensus value:
+    //   blended = preDraft * (0.6 + 0.4 * draftCapMult)
+    // R1.01 pick boosts ~18%, R4 fall costs ~6%, UDFA costs ~22%.
+    function draftCapitalMult(round, pick, isUDFA, hasTeam) {
+        if (round && pick) {
+            if (pick <= 5)   return 1.45;
+            if (pick <= 15)  return 1.35;
+            if (pick <= 32)  return 1.20;
+            if (pick <= 64)  return 1.05;
+            if (pick <= 100) return 0.95;
+            if (pick <= 140) return 0.85;
+            if (pick <= 180) return 0.75;
+            if (pick <= 220) return 0.65;
+            return 0.55;  // R7
+        }
+        if (isUDFA && hasTeam) return 0.45;
+        return 0.30;  // undrafted, no team
+    }
+
     // Map raw CSV pos to Sleeper-canonical positions (WR/RB/QB/TE/DL/LB/DB/EDGE)
     function mapCSVPos(pos) {
         if (!pos) return '';
@@ -138,7 +192,10 @@
                     rows.forEach(r => {
                         const key = (r.name || '').toLowerCase().trim();
                         if (!key) return;
+                        const dRoundRaw = (r.draft_round || '').trim();
+                        const dPickN = parseInt(r.draft_pick, 10);
                         enrichmentMap[key] = {
+                            displayName: r.name || '',
                             previousRank: parseInt(r.Rank, 10) || null,
                             school: r.school || '',
                             espnId: r.espn_id || '',
@@ -149,6 +206,13 @@
                             weight: r.weight || '',
                             speed: r.speed || '',
                             fantasyMultiplier: parseFloat(r.fantasyMultiplier) || 1.0,
+                            nflTeam: (r.nfl_team || '').trim(),
+                            draftRound: dRoundRaw && dRoundRaw.toUpperCase() !== 'UDFA'
+                                ? (Number.isFinite(parseInt(dRoundRaw, 10)) ? parseInt(dRoundRaw, 10) : null)
+                                : null,
+                            draftPick: Number.isFinite(dPickN) && dPickN > 0 ? dPickN : null,
+                            isUDFA: dRoundRaw.toUpperCase() === 'UDFA',
+                            pos: (r.pos || '').trim(),
                         };
                     });
                 }
@@ -178,9 +242,12 @@
                 const grade = Math.round(calculateGrade(rank) * 10) / 10;
                 const draftScore = calculateDraftScore(rank, pos);
                 const fantasyMultiplier = enrich.fantasyMultiplier || FANTASY_POS_MULT[pos] || 0.3;
-                // Dynasty value: draft score scaled to DHQ-ish numbers (0-10000 range)
-                // so rookies without a Sleeper DHQ can slot into the big-board ladder.
-                const dynastyValue = Math.round(draftScore * fantasyMultiplier * 1000);
+                // Component 1: rank-based value (our consensus tier curve)
+                const rankValue = Math.min(10000, Math.round(rankToTierBase(rank) * fantasyMultiplier * 60));
+                // Component 2: draft-capital-based value (where the NFL took them)
+                const draftCapitalValue = Math.min(10000, Math.round(pickToBase(enrich.draftPick, enrich.isUDFA, !!enrich.nflTeam) * fantasyMultiplier * 60));
+                // Legacy combined value (60/40 rank+capital) — used as fallback when FC has no data.
+                const dynastyValue = Math.min(10000, Math.round(rankValue * 0.6 + draftCapitalValue * 0.4));
 
                 // Source ranks (for "consensus baseline" comparison later)
                 const sourceRanks = {};
@@ -216,6 +283,8 @@
                     grade,
                     draftScore,
                     dynastyValue,
+                    rankValue,
+                    draftCapitalValue,
                     fantasyMultiplier,
                     // Enrichment
                     college: enrich.school || '',
@@ -227,21 +296,123 @@
                     size: enrich.size || '',
                     weight: enrich.weight || '',
                     speed: enrich.speed || '',
+                    nflTeam: enrich.nflTeam || '',
+                    draftRound: enrich.draftRound || null,
+                    draftPick: enrich.draftPick || null,
+                    isUDFA: !!enrich.isUDFA,
                     experience: row.Exp || '',
                     // Source ranks for analytics later
                     sourceRanks,
                 };
             }).filter(p => p.name);
 
+            // Merge drafted/UDFA players from enrichment that aren't in player.csv —
+            // ensures every drafted rookie is on the board, not just consensus-ranked ones.
+            const seenNames = new Set(prospects.map(p => p.name.toLowerCase().trim()));
+            // Also build a (surname, school) → existing prospect index so we don't
+            // double-create when an enrichment row is just a nickname variant of a
+            // ranked prospect (e.g., "Kc Concepcion" + "Kevin Concepcion" @ Texas A&M).
+            // When a synth would collide, copy its draft data into the existing row.
+            const surnameSchoolIndex = {};
+            prospects.forEach(p => {
+                const parts = p.name.toLowerCase().split(' ');
+                const surname = parts[parts.length - 1] || '';
+                const school = (p.school || p.college || '').toLowerCase();
+                if (surname && school) {
+                    surnameSchoolIndex[surname + '|' + school] = p;
+                }
+            });
+            let synthCount = 0;
+            let mergedCount = 0;
+            Object.entries(enrichmentMap).forEach(([key, e]) => {
+                if (seenNames.has(key)) return;
+                if (!e.nflTeam && !e.draftRound && !e.isUDFA) return; // only add if drafted/UDFA-signed
+                // Check for nickname-variant collision before synthesizing
+                const eParts = key.split(' ');
+                const eSurname = eParts[eParts.length - 1] || '';
+                const eSchool = (e.school || '').toLowerCase();
+                const collision = surnameSchoolIndex[eSurname + '|' + eSchool];
+                if (collision) {
+                    // Same surname + school = same player. Merge draft data into the ranked row.
+                    if (!collision.nflTeam) collision.nflTeam = e.nflTeam || '';
+                    if (!collision.draftRound) collision.draftRound = e.draftRound || null;
+                    if (!collision.draftPick) collision.draftPick = e.draftPick || null;
+                    if (!collision.isUDFA) collision.isUDFA = !!e.isUDFA;
+                    mergedCount++;
+                    return;
+                }
+                const displayName = e.displayName || key.replace(/\b\w/g, c => c.toUpperCase());
+                const rawPos = (e.pos || '').toUpperCase();
+                const mappedPos = rawPos ? mapCSVPos(rawPos) : '';
+                const rank = 999;
+                const draftScore = e.draftRound ? Math.max(0.1, (10 - e.draftRound)) : 0.1;
+                synthCount++;
+                // For synth prospects (no pre-draft consensus rank), lean entirely
+                // on draft capital — there's no consensus value to blend with.
+                const synthFmult = FANTASY_POS_MULT[rawPos] || 0.3;
+                const synthRankValue = 0;  // no consensus rank
+                const synthDraftCapitalValue = Math.min(10000, Math.round(pickToBase(e.draftPick, e.isUDFA, !!e.nflTeam) * synthFmult * 60));
+                const synthDynastyValue = synthDraftCapitalValue;
+                prospects.push({
+                    pid: 'csv_' + key.replace(/[^a-z0-9]/g, '_'),
+                    name: displayName,
+                    pos: mappedPos || rawPos || '',
+                    rawPos,
+                    mappedPos,
+                    rank,
+                    previousRank: e.previousRank,
+                    consensusRank: rank,
+                    tier: 7,
+                    grade: 1.0,
+                    draftScore,
+                    dynastyValue: synthDynastyValue,
+                    rankValue: synthRankValue,
+                    draftCapitalValue: synthDraftCapitalValue,
+                    fantasyMultiplier: synthFmult,
+                    college: e.school || '',
+                    school: e.school || '',
+                    photoUrl: e.photoUrl || '',
+                    espnId: e.espnId || '',
+                    summary: e.summary || '',
+                    year: e.year || '',
+                    size: e.size || '',
+                    weight: e.weight || '',
+                    speed: e.speed || '',
+                    nflTeam: e.nflTeam || '',
+                    draftRound: e.draftRound || null,
+                    draftPick: e.draftPick || null,
+                    isUDFA: !!e.isUDFA,
+                    experience: '',
+                    sourceRanks: {},
+                    isCSVOnly: true,
+                });
+            });
+            if ((synthCount || mergedCount) && window.wrLog) window.wrLog('scouting.synthesized', { synth: synthCount, merged: mergedCount });
+
             prospects.sort((a, b) => a.rank - b.rank);
             _prospects = prospects;
             _nameIndex = {};
+            const stripSuffix = s => s.replace(/\s+(jr\.?|sr\.?|ii|iii|iv)$/i, '').trim();
+            const stripPunct  = s => s.replace(/[^a-z0-9 ]/gi, ' ').replace(/\s+/g, ' ').trim();
+            // When two prospect rows map to the same key (e.g., "Kevin Concepcion"
+            // + "Kc Concepcion" both → "concepcion" surname-key), prefer the row
+            // with the lowest rank (= most comprehensive data, ranked in player.csv).
+            const setBest = (key, p) => {
+                const existing = _nameIndex[key];
+                if (!existing || p.rank < existing.rank) _nameIndex[key] = p;
+            };
             prospects.forEach(p => {
-                _nameIndex[p.name.toLowerCase().trim()] = p;
-                // Also index by "first last" variants
-                const parts = p.name.toLowerCase().split(' ');
+                const lc = p.name.toLowerCase().trim();
+                setBest(lc, p);
+                const noSuffix = stripSuffix(lc);
+                if (noSuffix !== lc) setBest(noSuffix, p);
+                const punctless = stripPunct(noSuffix);
+                if (punctless !== noSuffix) setBest(punctless, p);
+                const parts = noSuffix.split(' ');
                 if (parts.length >= 2) {
-                    _nameIndex[(parts[0] + ' ' + parts[parts.length - 1]).trim()] = p;
+                    setBest((parts[0] + ' ' + parts[parts.length - 1]).trim(), p);
+                    // Also index by surname + first-initial so "kc concepcion" finds "kevin concepcion"
+                    setBest(parts[0][0] + ' ' + parts[parts.length - 1], p);
                 }
             });
 
@@ -261,13 +432,17 @@
         if (!name) return null;
         const key = String(name).toLowerCase().trim();
         if (_nameIndex[key]) return _nameIndex[key];
-        // Fuzzy: strip punctuation + try first/last
-        const stripped = key.replace(/[^a-z0-9 ]/g, '').trim();
+        const noSuffix = key.replace(/\s+(jr\.?|sr\.?|ii|iii|iv)$/i, '').trim();
+        if (noSuffix !== key && _nameIndex[noSuffix]) return _nameIndex[noSuffix];
+        const stripped = noSuffix.replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
         if (_nameIndex[stripped]) return _nameIndex[stripped];
         const parts = stripped.split(' ');
         if (parts.length >= 2) {
             const firstLast = parts[0] + ' ' + parts[parts.length - 1];
             if (_nameIndex[firstLast]) return _nameIndex[firstLast];
+            // Last resort: surname + first-initial (handles nicknames: KC ↔ Kevin)
+            const initialKey = parts[0][0] + ' ' + parts[parts.length - 1];
+            if (_nameIndex[initialKey]) return _nameIndex[initialKey];
         }
         return null;
     }
