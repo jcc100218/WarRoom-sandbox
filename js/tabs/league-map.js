@@ -10,6 +10,7 @@
 function ReportSubView({
   runReport, loadSavedReports, saveReportsToStorage, DEFAULT_REPORTS,
   getPlayerColumns, getTeamColumns, getFilterableFields, getFilterOps, getFilterOptionSet, sortBtnStyle,
+  analyticsEmbedMode,
 }) {
   const [reportView, setReportView] = React.useState('list'); // 'list' | 'edit' | 'view'
   const [reports, setReports] = React.useState(() => {
@@ -45,6 +46,15 @@ function ReportSubView({
     setReportView('edit');
   }
 
+  function handleUseTemplate(report) {
+    setEditDraft({
+      ...JSON.parse(JSON.stringify(report)),
+      id: 'rpt_' + Date.now(),
+      name: report.name + ' Copy',
+    });
+    setReportView('edit');
+  }
+
   function handleEditReport(report) {
     setEditDraft(JSON.parse(JSON.stringify(report)));
     setReportView('edit');
@@ -76,8 +86,29 @@ function ReportSubView({
 
   // ── List View ───────────────────────────────────────────────────
   if (reportView === 'list') {
+    const previewReport = reports[0] || DEFAULT_REPORTS[0];
+    const previewResult = previewReport ? runReport(previewReport) : null;
+    const previewRows = (previewResult?.rows || []).filter(r => !r._groupHeader).slice(0, 6);
+    const previewCols = (previewResult?.columns || []).slice(0, 4);
     return (
       <div>
+        {analyticsEmbedMode && (
+          <div className="analytics-report-lab">
+            <div>
+              <span>Report Lab</span>
+              <strong>Build once, rerun all season</strong>
+              <p>Use templates for quick owner/player screens or create a sandbox report from scratch.</p>
+            </div>
+            <div className="analytics-report-templates">
+              {DEFAULT_REPORTS.map(r => (
+                <button key={r.id} onClick={() => handleUseTemplate(r)}>
+                  <strong>{r.name}</strong>
+                  <em>{r.dataSource} · {(r.columns || []).length} cols</em>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
           <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em' }}>CUSTOM REPORTS</div>
           <button onClick={handleNewReport} style={{ ...sortBtnStyle(false), marginLeft: 'auto', fontSize: '0.74rem' }}>+ New Report</button>
@@ -103,6 +134,28 @@ function ReportSubView({
             </div>
           ))}
         </div>
+        {analyticsEmbedMode && previewReport && (
+          <div className="analytics-report-preview">
+            <div className="analytics-panel-head">
+              <span>Live Preview</span>
+              <em>{previewReport.name}</em>
+            </div>
+            {previewRows.length ? (
+              <div>
+                <div className="analytics-report-preview-head" style={{ gridTemplateColumns: previewCols.map(() => '1fr').join(' ') }}>
+                  {previewCols.map(col => <span key={col.key}>{col.label}</span>)}
+                </div>
+                {previewRows.map((row, idx) => (
+                  <div key={idx} className="analytics-report-preview-row" style={{ gridTemplateColumns: previewCols.map(() => '1fr').join(' ') }}>
+                    {previewCols.map(col => <span key={col.key}>{row[col.key] == null ? '\u2014' : String(row[col.key])}</span>)}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="analytics-report-preview-empty">No rows match this report yet.</div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -297,7 +350,7 @@ function ReportSubView({
             ))}
           </div>
           {/* Rows */}
-          <div style={{ maxHeight: '600px', overflow: 'auto' }}>
+          <div style={analyticsEmbedMode ? {} : { maxHeight: '600px', overflow: 'auto' }}>
             {rows.length === 0 && <div style={{ padding: '24px', textAlign: 'center', color: 'var(--silver)', fontSize: '0.82rem' }}>No data matches the report criteria.</div>}
             {rows.map((row, idx) => {
               if (row._groupHeader) {
@@ -357,6 +410,7 @@ function LeagueMapTab({
   // the Overview/Analyst top tabs, or the sub-view tab row. Used by AnalyticsPanel
   // after the League Map nav entry was removed.
   embedSubView,
+  analyticsEmbedMode,
   leagueViewTab, setLeagueViewTab,
   leagueSelectedTeam, setLeagueSelectedTeam,
   leagueSort, setLeagueSort,
@@ -376,6 +430,7 @@ function LeagueMapTab({
   timeRecomputeTs,
   setTimeRecomputeTs,
   getAcquisitionInfo: getAcquisitionInfoProp,
+  getOwnerName: getOwnerNameProp,
 }) {
   // Defensive fallback — any render path that mounts LeagueMapTab without a
   // getAcquisitionInfo function (stale prop chain during initial mount, legacy
@@ -391,10 +446,15 @@ function LeagueMapTab({
   const normPos = window.App.normPos;
 
   function calcRawPts(s) { return window.App.calcRawPts(s, currentLeague?.scoring_settings); }
+  const sameId = (a, b) => a != null && b != null && String(a) === String(b);
   function getOwnerName(rosterId) {
-    const roster = currentLeague.rosters?.find(r => r.roster_id === rosterId);
-    const user = currentLeague.users?.find(u => u.user_id === roster?.owner_id);
-    return user?.display_name || user?.username || 'Unknown';
+    try {
+      const supplied = typeof getOwnerNameProp === 'function' ? getOwnerNameProp(rosterId) : '';
+      if (supplied && supplied !== 'Unknown') return supplied;
+    } catch (_) {}
+    const roster = currentLeague.rosters?.find(r => sameId(r.roster_id, rosterId) || sameId(r.owner_id, rosterId));
+    const user = currentLeague.users?.find(u => sameId(u.user_id, roster?.owner_id) || sameId(u.user_id, rosterId));
+    return user?.metadata?.team_name || user?.display_name || user?.username || 'Unknown';
   }
 
   // All Players visible columns — persisted per league.
@@ -421,6 +481,9 @@ function LeagueMapTab({
   // Rolling PPG window — shared with My Roster / FA so the setting is consistent.
   const [ppgWindow, setPpgWindow] = React.useState(() => { try { return localStorage.getItem('wr_ppg_window') || 'season'; } catch { return 'season'; } });
   React.useEffect(() => { try { localStorage.setItem('wr_ppg_window', ppgWindow); } catch {} }, [ppgWindow]);
+  const [pickOwnerFilter, setPickOwnerFilter] = React.useState('all');
+  const [pickStatusFilter, setPickStatusFilter] = React.useState('all');
+  const [pickYearFilter, setPickYearFilter] = React.useState('all');
   const [, forcePpgRerender] = React.useState(0);
   React.useEffect(() => {
       const h = () => forcePpgRerender(n => n + 1);
@@ -707,6 +770,7 @@ function LeagueMapTab({
   // Phase 8: when Analytics embeds this component, force the requested sub-view
   // and skip the outer chrome entirely. We still use all the local helpers/state.
   const _isEmbed = !!embedSubView;
+  const _analyticsEmbed = !!analyticsEmbedMode;
   const _activeSubView = _isEmbed ? embedSubView : leagueSubView;
   const _activeViewTab = _isEmbed ? 'analyst' : leagueViewTab;
 
@@ -1004,8 +1068,26 @@ function LeagueMapTab({
             if (key === 'team') return a.teamName.localeCompare(b.teamName) * dir;
             return 0;
         });
+        const playerSummary = {
+            total: allPlayers.length,
+            elite: allPlayers.filter(x => x.dhq >= 7000).length,
+            mine: allPlayers.filter(x => x.isMe).length,
+            avgDhq: Math.round(allPlayers.reduce((s, x) => s + (x.dhq || 0), 0) / Math.max(1, allPlayers.length)),
+        };
+        const posLeader = Object.entries(allPlayers.reduce((acc, x) => {
+            acc[x.pos] = (acc[x.pos] || 0) + 1;
+            return acc;
+        }, {})).sort((a, b) => b[1] - a[1])[0];
         return (
             <div>
+                {_analyticsEmbed && (
+                    <div className="analytics-embed-summary">
+                        <div><span>Player Pool</span><strong>{playerSummary.total.toLocaleString()}</strong><em>{filtered.length.toLocaleString()} shown</em></div>
+                        <div><span>Elite Assets</span><strong>{playerSummary.elite}</strong><em>7000+ DHQ</em></div>
+                        <div><span>Your Roster</span><strong>{playerSummary.mine}</strong><em>owned players in table</em></div>
+                        <div><span>Avg DHQ</span><strong>{playerSummary.avgDhq.toLocaleString()}</strong><em>{posLeader ? posLeader[0] + ' is deepest room' : 'all positions'}</em></div>
+                    </div>
+                )}
                 {/* Phase 8 deferred: search + position chips + SavedViewBar */}
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <input
@@ -1128,7 +1210,7 @@ function LeagueMapTab({
                             return <span key={c.key}>{c.label}</span>;
                         })}
                     </div>
-                    <div style={{ maxHeight: '600px', overflow: 'auto' }}>
+                    <div style={_analyticsEmbed ? {} : { maxHeight: '600px', overflow: 'auto' }}>
                         {filtered.map((x, idx) => {
                             const pw = window.App?.peakWindows?.[x.pos];
                             let peakColor = 'rgba(255,255,255,0.15)';
@@ -1220,68 +1302,139 @@ function LeagueMapTab({
         const leagueSeason = parseInt(currentLeague.season || activeYear);
         const draftRounds = currentLeague.settings?.draft_rounds || 5;
         const years = [leagueSeason, leagueSeason + 1, leagueSeason + 2];
+        const totalTeams = currentLeague.rosters?.length || 12;
+        const sortedRosters = [...(currentLeague.rosters || [])].sort((a, b) => {
+            const stA = standings.find(s => { const rr = currentLeague.rosters.find(r => sameId(r.owner_id, s.userId)); return sameId(rr?.roster_id, a.roster_id); });
+            const stB = standings.find(s => { const rr = currentLeague.rosters.find(r => sameId(r.owner_id, s.userId)); return sameId(rr?.roster_id, b.roster_id); });
+            const wA = stA?.wins ?? (a.settings?.wins ?? 0);
+            const wB = stB?.wins ?? (b.settings?.wins ?? 0);
+            if (wA !== wB) return wA - wB;
+            return (stA?.losses ?? (a.settings?.losses ?? 0)) - (stB?.losses ?? (b.settings?.losses ?? 0));
+        });
+        const pickOrder = {};
+        sortedRosters.forEach((r, i) => { pickOrder[String(r.roster_id)] = i + 1; });
+        const pickValue = (yr, rd) => window.App?.PlayerValue?.getPickValue?.(yr, rd, totalTeams) || Math.max(100, 9000 - rd * 1600);
+        const pickRows = years.flatMap(yr => Array.from({ length: draftRounds }, (_, rd) => rd + 1).flatMap(rd => {
+            return sortedRosters.map(r => {
+                const originalRid = r.roster_id;
+                const pickInRound = pickOrder[String(originalRid)] || 1;
+                const trade = tradedPicks.find(tp =>
+                    sameId(tp.season, yr) &&
+                    Number(tp.round) === rd &&
+                    sameId(tp.roster_id, originalRid)
+                );
+                const currentOwnerRid = trade ? trade.owner_id : originalRid;
+                const traded = !!trade && !sameId(trade.owner_id, originalRid);
+                const isMyPick = sameId(currentOwnerRid, myRoster?.roster_id);
+                const isMyOriginal = sameId(originalRid, myRoster?.roster_id);
+                const status = !traded ? 'Own' : isMyPick ? 'Acquired' : isMyOriginal ? 'Traded Away' : 'Moved';
+                return {
+                    year: yr,
+                    round: rd,
+                    originalRid,
+                    currentOwnerRid,
+                    traded,
+                    isMyPick,
+                    isMyOriginal,
+                    status,
+                    value: pickValue(yr, rd),
+                    label: rd + '.' + String(pickInRound).padStart(2, '0'),
+                };
+            });
+        }));
+        const filteredRows = pickRows.filter(row => {
+            if (pickYearFilter !== 'all' && String(row.year) !== String(pickYearFilter)) return false;
+            if (pickOwnerFilter !== 'all' && !sameId(row.currentOwnerRid, pickOwnerFilter)) return false;
+            if (pickStatusFilter === 'mine' && !row.isMyPick) return false;
+            if (pickStatusFilter === 'traded' && !row.traded) return false;
+            if (pickStatusFilter === 'acquired' && row.status !== 'Acquired') return false;
+            if (pickStatusFilter === 'away' && row.status !== 'Traded Away') return false;
+            return true;
+        });
+        const myRows = pickRows.filter(row => row.isMyPick);
+        const myValue = myRows.reduce((s, row) => s + (row.value || 0), 0);
+        const ownerSummary = {};
+        pickRows.forEach(row => {
+            const key = String(row.currentOwnerRid);
+            if (!ownerSummary[key]) ownerSummary[key] = { rid: row.currentOwnerRid, count: 0, value: 0 };
+            ownerSummary[key].count++;
+            ownerSummary[key].value += row.value || 0;
+        });
+        const leaders = Object.values(ownerSummary).sort((a, b) => b.value - a.value).slice(0, 4);
 
         // Use shared getOwnerName() defined above
 
         return (
             <div>
+                {_analyticsEmbed && (
+                    <div className="analytics-embed-summary">
+                        <div><span>My Pick Capital</span><strong>{myValue.toLocaleString()}</strong><em>{myRows.length} picks</em></div>
+                        <div><span>Early Picks</span><strong>{myRows.filter(r => r.round <= 2).length}</strong><em>R1-R2 through {leagueSeason + 2}</em></div>
+                        <div><span>Traded Picks</span><strong>{pickRows.filter(r => r.traded).length}</strong><em>league-wide moved picks</em></div>
+                        <div><span>Capital Leader</span><strong>{leaders[0] ? getOwnerName(leaders[0].rid) : '\u2014'}</strong><em>{leaders[0] ? leaders[0].value.toLocaleString() + ' DHQ' : 'no data'}</em></div>
+                    </div>
+                )}
+                <div className="analytics-filter-row">
+                    <select value={pickYearFilter} onChange={e => setPickYearFilter(e.target.value)}>
+                        <option value="all">All Years</option>
+                        {years.map(yr => <option key={yr} value={yr}>{yr}</option>)}
+                    </select>
+                    <select value={pickOwnerFilter} onChange={e => setPickOwnerFilter(e.target.value)}>
+                        <option value="all">All Owners</option>
+                        {(currentLeague.rosters || []).map(r => <option key={r.roster_id} value={r.roster_id}>{getOwnerName(r.roster_id)}</option>)}
+                    </select>
+                    {[
+                        ['all', 'All Picks'],
+                        ['mine', 'My Picks'],
+                        ['traded', 'Moved'],
+                        ['acquired', 'Acquired'],
+                        ['away', 'Traded Away'],
+                    ].map(([key, label]) => (
+                        <button key={key} onClick={() => setPickStatusFilter(key)} className={pickStatusFilter === key ? 'is-active' : ''}>{label}</button>
+                    ))}
+                </div>
+                {_analyticsEmbed && (
+                    <div className="analytics-pick-leaders">
+                        {leaders.map(leader => (
+                            <div key={leader.rid}>
+                                <strong>{getOwnerName(leader.rid)}</strong>
+                                <span>{leader.count} picks</span>
+                                <em>{leader.value.toLocaleString()} DHQ</em>
+                            </div>
+                        ))}
+                    </div>
+                )}
                 {years.map(yr => (
                     <div key={yr} style={{ marginBottom: '16px' }}>
                         <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.2rem', color: 'var(--gold)', marginBottom: '8px' }}>{yr} DRAFT PICKS</div>
                         <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', overflow: 'hidden' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 1fr 60px', gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase' }}>
-                                <span>Pick</span><span>Current Owner</span><span>Original Owner</span><span>Status</span>
+                            <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 1fr 90px 80px', gap: '4px', padding: '6px 10px', background: 'rgba(212,175,55,0.08)', borderBottom: '2px solid rgba(212,175,55,0.2)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase' }}>
+                                <span>Pick</span><span>Current Owner</span><span>Original Owner</span><span>Status</span><span>Value</span>
                             </div>
-                            <div style={{ maxHeight: '500px', overflow: 'auto' }}>
-                                {Array.from({ length: draftRounds }, (_, rd) => rd + 1).flatMap(rd => {
-                                    // Sort rosters by standings (wins desc) to assign pick order within each round
-                                    const sortedRosters = [...(currentLeague.rosters || [])].sort((a, b) => {
-                                        const stA = standings.find(s => { const rr = currentLeague.rosters.find(r => r.owner_id === s.userId); return rr?.roster_id === a.roster_id; });
-                                        const stB = standings.find(s => { const rr = currentLeague.rosters.find(r => r.owner_id === s.userId); return rr?.roster_id === b.roster_id; });
-                                        const wA = stA?.wins ?? (a.settings?.wins ?? 0);
-                                        const wB = stB?.wins ?? (b.settings?.wins ?? 0);
-                                        if (wA !== wB) return wA - wB;
-                                        return (stA?.losses ?? (a.settings?.losses ?? 0)) - (stB?.losses ?? (b.settings?.losses ?? 0));
-                                    });
-                                    const pickOrder = {};
-                                    sortedRosters.forEach((r, i) => { pickOrder[r.roster_id] = i + 1; });
-
-                                    return sortedRosters.map(r => {
-                                        const originalRid = r.roster_id;
-                                        const pickInRound = pickOrder[originalRid] || 1;
-                                        // Check if this pick was traded
-                                        const trade = tradedPicks.find(tp =>
-                                            String(tp.season) === String(yr) &&
-                                            tp.round === rd &&
-                                            tp.roster_id === originalRid
-                                        );
-                                        const currentOwnerRid = trade ? trade.owner_id : originalRid;
-                                        const traded = trade && trade.owner_id !== originalRid;
-                                        const isMyPick = currentOwnerRid === myRoster?.roster_id;
-                                        const isMyOriginal = originalRid === myRoster?.roster_id;
-                                        const pickLabel = rd + '.' + String(pickInRound).padStart(2, '0');
-
-                                        return (
-                                            <div key={yr+'-'+rd+'-'+originalRid} style={{
-                                                display: 'grid', gridTemplateColumns: '60px 1fr 1fr 60px', gap: '4px',
+                            <div style={_analyticsEmbed ? {} : { maxHeight: '500px', overflow: 'auto' }}>
+                                {filteredRows.filter(row => row.year === yr).map(row => (
+                                            <div key={yr+'-'+row.round+'-'+row.originalRid} style={{
+                                                display: 'grid', gridTemplateColumns: '70px 1fr 1fr 90px 80px', gap: '4px',
                                                 padding: '5px 10px', borderBottom: '1px solid rgba(255,255,255,0.03)',
                                                 fontSize: '0.72rem', alignItems: 'center',
-                                                background: isMyPick ? 'rgba(212,175,55,0.04)' : 'transparent'
+                                                background: row.isMyPick ? 'rgba(212,175,55,0.04)' : 'transparent'
                                             }}>
-                                                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, color: rd === 1 ? 'var(--gold)' : 'var(--silver)' }}>{pickLabel}</span>
-                                                <span style={{ color: isMyPick ? 'var(--gold)' : 'var(--white)', fontWeight: isMyPick ? 700 : 400 }}>
-                                                    {getOwnerName(currentOwnerRid)}{isMyPick ? ' (You)' : ''}
+                                                <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, color: row.round === 1 ? 'var(--gold)' : 'var(--silver)' }}>{row.label}</span>
+                                                <span style={{ color: row.isMyPick ? 'var(--gold)' : 'var(--white)', fontWeight: row.isMyPick ? 700 : 400 }}>
+                                                    {getOwnerName(row.currentOwnerRid)}{row.isMyPick ? ' (You)' : ''}
                                                 </span>
-                                                <span style={{ color: 'var(--silver)', opacity: traded ? 1 : 0.4 }}>
-                                                    {getOwnerName(originalRid)}{isMyOriginal ? ' (You)' : ''}
+                                                <span style={{ color: 'var(--silver)', opacity: row.traded ? 1 : 0.4 }}>
+                                                    {getOwnerName(row.originalRid)}{row.isMyOriginal ? ' (You)' : ''}
                                                 </span>
-                                                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: traded ? '#F0A500' : '#2ECC71' }}>
-                                                    {traded ? 'Traded' : 'Own'}
+                                                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: row.status === 'Acquired' ? 'var(--gold)' : row.traded ? '#F0A500' : '#2ECC71' }}>
+                                                    {row.status}
                                                 </span>
+                                                <span style={{ color: row.round === 1 ? 'var(--gold)' : 'var(--silver)', fontFamily: 'Inter, sans-serif', fontWeight: 700 }}>{row.value.toLocaleString()}</span>
                                             </div>
-                                        );
-                                    });
-                                })}
+                                ))}
+                                {filteredRows.filter(row => row.year === yr).length === 0 && (
+                                    <div style={{ padding: '18px', color: 'var(--silver)', opacity: 0.65, fontSize: '0.78rem', textAlign: 'center' }}>No picks match these filters.</div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1294,6 +1447,7 @@ function LeagueMapTab({
         return React.createElement(ReportSubView, {
           runReport, loadSavedReports, saveReportsToStorage, DEFAULT_REPORTS,
           getPlayerColumns, getTeamColumns, getFilterableFields, getFilterOps, getFilterOptionSet, sortBtnStyle,
+          analyticsEmbedMode: _analyticsEmbed,
         });
       })()}
       </React.Fragment>}

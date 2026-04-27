@@ -918,16 +918,39 @@
         };
 
         const update = (patch) => dispatch({ type: 'SETUP_CHANGE', payload: patch });
+        const upcoming = draftMeta.upcomingSettings || null;
+        const totalPicks = (state.rounds || 0) * (state.leagueSize || 0);
+        const poolCount = state.variant === 'rookie'
+            ? (window.getProspects?.()?.length || state.pool?.length || 0)
+            : (state.pool?.length || Object.keys(window.App?.LI?.playerScores || {}).length || 0);
+        const previewOrder = window.DraftCC?.state?.buildPickOrder
+            ? window.DraftCC.state.buildPickOrder(state.rounds, state.leagueSize, state.draftType, draftMeta.slotToRoster || {}, draftMeta.pickOwnership || {})
+            : [];
+        const ownedPreview = previewOrder.filter(p => Number(p.rosterId) === Number(state.userRosterId)).slice(0, 6);
+        const userPickPreview = ownedPreview.length ? ownedPreview : previewOrder.filter(p => Number(p.slot) === Number(state.userSlot)).slice(0, 6);
+        const slotOwner = draftMeta.slotToRoster?.[state.userSlot]?.ownerName || (state.userSlot === draftMeta.mySlot ? 'You' : 'Team ' + state.userSlot);
+        const fallbackPickPreview = Array.from({ length: Math.min(6, state.rounds || 0) }, (_, i) => {
+            const round = i + 1;
+            const slot = state.draftType === 'snake' && round % 2 === 0 ? state.leagueSize - state.userSlot + 1 : state.userSlot;
+            return { round, slot, overall: ((round - 1) * state.leagueSize) + slot, ownerName: slotOwner, traded: false };
+        });
+        const pickPreviewRows = userPickPreview.length ? userPickPreview : fallbackPickPreview;
+        const setupSummary = [
+            state.variant === 'rookie' ? 'Rookie pool' : 'Startup pool',
+            state.draftType === 'snake' ? 'Snake draft' : 'Linear draft',
+            state.rounds + ' rounds',
+            state.leagueSize + ' teams',
+        ].join(' - ');
 
         return (
-            <div style={{ fontFamily: FONT_UI, padding: '4px 0', maxWidth: 760, margin: '0 auto' }}>
+            <div className="draft-setup-shell">
                 {showResume && (
                     <div style={{
                         padding: '12px 16px',
                         background: 'linear-gradient(90deg, rgba(212,175,55,0.12), rgba(212,175,55,0.02))',
                         border: '1px solid rgba(212,175,55,0.35)',
                         borderRadius: '8px',
-                        marginBottom: '18px',
+                        marginBottom: '14px',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '12px',
@@ -935,316 +958,171 @@
                         <div style={{ flex: 1 }}>
                             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', marginBottom: '2px' }}>Resume draft in progress?</div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--silver)' }}>
-                                {state.picks.length} picks made · Round {state.pickOrder[state.currentIdx]?.round || '?'}
+                                {state.picks.length} picks made - Round {state.pickOrder[state.currentIdx]?.round || '?'}
                             </div>
                         </div>
-                        <button onClick={onResumeYes} style={{
-                            padding: '6px 16px',
-                            background: 'var(--gold)',
-                            color: 'var(--black)',
-                            border: 'none',
-                            borderRadius: '5px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            fontSize: '0.76rem',
-                            fontFamily: FONT_UI,
-                        }}>Resume</button>
-                        <button onClick={onResumeNo} style={{
-                            padding: '6px 12px',
-                            background: 'transparent',
-                            color: 'var(--silver)',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '5px',
-                            cursor: 'pointer',
-                            fontSize: '0.74rem',
-                            fontFamily: FONT_UI,
-                        }}>Discard</button>
+                        <button onClick={onResumeYes} style={{ padding: '6px 16px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '5px', fontWeight: 700, cursor: 'pointer', fontSize: '0.76rem', fontFamily: FONT_UI }}>Resume</button>
+                        <button onClick={onResumeNo} style={{ padding: '6px 12px', background: 'transparent', color: 'var(--silver)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '5px', cursor: 'pointer', fontSize: '0.74rem', fontFamily: FONT_UI }}>Discard</button>
                     </div>
                 )}
 
-                {/* Header — label changes by forcedMode */}
-                <div style={{ marginBottom: '20px' }}>
-                    <div style={{
-                        fontFamily: FONT_DISPL,
-                        fontSize: '1.8rem',
-                        fontWeight: 700,
-                        color: forcedMode === 'live-sync' ? 'rgba(155,138,251,1)' : 'var(--gold)',
-                        letterSpacing: '0.06em',
-                        marginBottom: '4px',
-                    }}>
+                <div className="draft-setup-head">
+                    <h2 style={{ color: forcedMode === 'live-sync' ? 'rgba(155,138,251,1)' : 'var(--gold)' }}>
                         {forcedMode === 'live-sync' ? 'FOLLOW LIVE DRAFT' : 'MOCK DRAFT CENTER'}
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.7 }}>
-                        {forcedMode === 'live-sync'
-                            ? 'Mirror a live Sleeper draft in real time · read-only'
-                            : 'Multi-panel dashboard · Owner DNA · persona-aware CPU picker'}
-                    </div>
+                    </h2>
+                    <p>{forcedMode === 'live-sync' ? 'Read-only Sleeper mirror with War Room draft intelligence.' : 'Configure the draft, preview your pick path, then launch the command center.'}</p>
                 </div>
 
-                {/* ═══════════ FORCED LIVE-SYNC PATH (separate view) ═══════════ */}
                 {forcedMode === 'live-sync' && (
-                    <div>
+                    <div className="draft-setup-panel" style={{ marginBottom: 12, borderColor: 'rgba(124,107,248,0.26)' }}>
                         <LiveSyncDraftPicker state={state} update={update} leagueId={state.leagueId} />
                         {state.sleeperDraftId && (
-                            <div style={{
-                                padding: '10px 14px',
-                                marginBottom: '12px',
-                                background: 'rgba(124,107,248,0.08)',
-                                border: '1px solid rgba(124,107,248,0.3)',
-                                borderRadius: '6px',
-                                fontSize: '0.7rem',
-                                color: 'rgba(155,138,251,0.9)',
-                                fontFamily: FONT_UI,
-                                lineHeight: 1.5,
-                            }}>
-                                <strong>Read-only mirror.</strong> Pool type + config below sets what you see in the dashboard.
-                                Picks come from Sleeper every 5 seconds — War Room never writes back to the draft.
+                            <div className="draft-setup-note" style={{ marginTop: 8 }}>
+                                Read-only mirror. Pool type and config below only shape the War Room dashboard.
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* ═══════════ DEFAULT MOCK DRAFT PATH ═══════════ */}
-                {!forcedMode && (
-                    <>
-                        {/* Primary CTA: matched-to-scheduled-draft banner */}
-                        {state.mode === 'solo' && draftMeta.upcomingSettings && (draftMeta.upcomingSettings.rounds || draftMeta.upcomingSettings.teams) && (
-                            <div style={{
-                                padding: '14px 18px',
-                                marginBottom: '16px',
-                                background: 'linear-gradient(135deg, rgba(46,204,113,0.14), rgba(46,204,113,0.03))',
-                                border: '1px solid rgba(46,204,113,0.35)',
-                                borderRadius: '8px',
-                                fontFamily: FONT_UI,
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <span style={{ fontSize: '1.4rem' }}>📅</span>
-                                    <div style={{ flex: 1, lineHeight: 1.45 }}>
-                                        <div style={{
-                                            fontSize: '0.62rem',
-                                            color: '#2ECC71',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.1em',
-                                            fontWeight: 700,
-                                            marginBottom: '2px',
-                                        }}>Mocking your upcoming draft</div>
-                                        <div style={{ fontSize: '0.9rem', color: 'var(--white)', fontWeight: 700, fontFamily: FONT_DISPL, letterSpacing: '0.02em' }}>
-                                            {draftMeta.upcomingSettings.type || 'snake'} · {draftMeta.upcomingSettings.rounds || '?'}R × {draftMeta.upcomingSettings.teams || '?'}T
-                                        </div>
-                                        {draftMeta.upcomingSettings.startTime && (
-                                            <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.8, marginTop: '2px' }}>
-                                                Scheduled {new Date(draftMeta.upcomingSettings.startTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-                                            </div>
-                                        )}
-                                    </div>
+                {!forcedMode && state.mode === 'scenario' && <ScenarioPicker state={state} update={update} />}
+                {!forcedMode && state.mode === 'ghost' && <GhostDraftPicker state={state} update={update} leagueId={state.leagueId} />}
+
+                <div className="draft-setup-grid">
+                    <section className="draft-setup-panel">
+                        {state.mode === 'solo' && upcoming && (upcoming.rounds || upcoming.teams) && (
+                            <div className="draft-setup-match">
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#2ECC71', flexShrink: 0 }} />
+                                <div>
+                                    <strong>Mocking your upcoming draft</strong>
+                                    <span>{upcoming.type || 'snake'} - {upcoming.rounds || '?'}R x {upcoming.teams || '?'}T{upcoming.startTime ? ' - ' + new Date(upcoming.startTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : ''}</span>
                                 </div>
                             </div>
                         )}
 
-                        {/* Scenario picker (only visible when user opened Other → picked scenario) */}
-                        {state.mode === 'scenario' && (
-                            <ScenarioPicker state={state} update={update} />
-                        )}
+                        <div className="draft-setup-label">Pool Type</div>
+                        <div className="draft-setup-choice" style={{ marginTop: 6, marginBottom: 12 }}>
+                            {['startup', 'rookie'].map(v => (
+                                <button key={v} type="button" className={state.variant === v ? 'is-active' : ''} onClick={() => update({ variant: v })}>
+                                    {v}
+                                    <span>{v === 'rookie' ? (csvReady ? (window.getProspects?.()?.length || 0) + ' prospects loaded' : 'loading CSV...') : 'DHQ-ranked veterans + rookies'}</span>
+                                </button>
+                            ))}
+                        </div>
 
-                        {/* Ghost picker (only visible when user opened Other → picked ghost) */}
-                        {state.mode === 'ghost' && (
-                            <GhostDraftPicker state={state} update={update} leagueId={state.leagueId} />
-                        )}
-                    </>
-                )}
+                        <div className="draft-setup-form">
+                            <div className="draft-setup-two">
+                                <div>
+                                    <div className="draft-setup-label">Draft Rounds</div>
+                                    <select value={state.rounds} onChange={e => update({ rounds: +e.target.value })} style={selStyle}>
+                                        {[3, 4, 5, 6, 7, 8, 10, 12, 16, 20, 23, 25].map(v => <option key={v} value={v} style={{ background: '#111' }}>{v} rounds</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <div className="draft-setup-label">League Size</div>
+                                    <select value={state.leagueSize} onChange={e => {
+                                        const n = +e.target.value;
+                                        update({ leagueSize: n, userSlot: Math.min(state.userSlot, n) });
+                                    }} style={selStyle}>
+                                        {(() => {
+                                            const standard = [8, 10, 12, 14, 16, 20, 24, 28, 32];
+                                            const opts = new Set(standard);
+                                            if (state.leagueSize) opts.add(state.leagueSize);
+                                            return [...opts].sort((a, b) => a - b).map(v => <option key={v} value={v} style={{ background: '#111' }}>{v} teams</option>);
+                                        })()}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="draft-setup-two">
+                                <div>
+                                    <div className="draft-setup-label">Your Draft Position</div>
+                                    <select value={state.userSlot} onChange={e => update({ userSlot: +e.target.value })} style={selStyle}>
+                                        {Array.from({ length: state.leagueSize }, (_, i) => {
+                                            const slot = i + 1;
+                                            const info = draftMeta.slotToRoster[slot];
+                                            const isMine = slot === draftMeta.mySlot;
+                                            const ownerLabel = info?.ownerName ? ' - ' + info.ownerName : '';
+                                            return <option key={slot} value={slot} style={{ background: '#111' }}>{slot}.01{ownerLabel}{isMine ? ' (YOU)' : ''}</option>;
+                                        })}
+                                    </select>
+                                </div>
+                                <div>
+                                    <div className="draft-setup-label">Draft Type</div>
+                                    <select value={state.draftType} onChange={e => update({ draftType: e.target.value })} style={selStyle}>
+                                        <option value="snake" style={{ background: '#111' }}>Snake</option>
+                                        <option value="linear" style={{ background: '#111' }}>Linear</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
 
-                {/* Variant toggle */}
-                <div style={{ marginBottom: '16px' }}>
-                    <div style={{
-                        fontSize: '0.64rem',
-                        fontWeight: 700,
-                        color: 'var(--gold)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        marginBottom: '6px',
-                    }}>Pool Type</div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        {['startup', 'rookie'].map(v => (
-                            <button key={v} onClick={() => update({ variant: v })} style={{
-                                flex: 1,
-                                padding: '10px 14px',
-                                background: state.variant === v ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.03)',
-                                border: '1px solid ' + (state.variant === v ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'),
-                                borderRadius: '6px',
-                                color: state.variant === v ? 'var(--gold)' : 'var(--silver)',
-                                fontSize: '0.82rem',
-                                fontWeight: 600,
-                                fontFamily: FONT_UI,
-                                cursor: 'pointer',
-                                textTransform: 'capitalize',
-                            }}>
-                                {v}
-                                {v === 'rookie' && csvReady && (
-                                    <span style={{ fontSize: '0.6rem', opacity: 0.7, display: 'block', marginTop: '2px' }}>
-                                        {(window.getProspects?.()?.length || 0)} prospects loaded
-                                    </span>
-                                )}
-                                {v === 'rookie' && !csvReady && (
-                                    <span style={{ fontSize: '0.6rem', opacity: 0.5, display: 'block', marginTop: '2px' }}>
-                                        loading CSV…
-                                    </span>
-                                )}
-                                {v === 'startup' && (
-                                    <span style={{ fontSize: '0.6rem', opacity: 0.7, display: 'block', marginTop: '2px' }}>
-                                        DHQ-ranked veterans + rookies
-                                    </span>
-                                )}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                    <section className="draft-setup-panel">
+                        <div className="draft-hq-panel-head">
+                            <span>Pick Path Preview</span>
+                            <em>{setupSummary}</em>
+                        </div>
+                        <div className="draft-setup-kpis">
+                            <div><span>Your slot</span><strong>{state.userSlot} of {state.leagueSize}</strong><em>{slotOwner}</em></div>
+                            <div><span>Total picks</span><strong>{totalPicks}</strong><em>{state.rounds} rounds</em></div>
+                            <div><span>Pool</span><strong>{poolCount || '--'}</strong><em>{state.variant === 'rookie' ? 'prospects' : 'players'}</em></div>
+                            <div><span>Format</span><strong>{state.draftType}</strong><em>{state.speed} CPU</em></div>
+                        </div>
+                        <div className="draft-setup-label" style={{ marginBottom: 6 }}>Your first picks</div>
+                        <div className="draft-setup-timeline">
+                            {pickPreviewRows.map((p, i) => (
+                                <div key={p.round + '-' + p.slot + '-' + i}>
+                                    <strong>{p.round}.{String(p.slot).padStart(2, '0')}</strong>
+                                    <span>Overall {p.overall} - {p.ownerName || slotOwner}</span>
+                                    <em>{p.traded ? 'acquired' : 'native'}</em>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
 
-                {/* Config rows */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-                    <div>
-                        <div style={{ fontSize: '0.64rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>Draft Rounds</div>
-                        <select value={state.rounds} onChange={e => update({ rounds: +e.target.value })} style={selStyle}>
-                            {[3, 4, 5, 6, 7, 8, 10, 12, 16, 20, 23, 25].map(v => <option key={v} value={v} style={{ background: '#111' }}>{v} rounds</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <div style={{ fontSize: '0.64rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>League Size</div>
-                        <select value={state.leagueSize} onChange={e => {
-                            const n = +e.target.value;
-                            update({ leagueSize: n, userSlot: Math.min(state.userSlot, n) });
-                        }} style={selStyle}>
-                            {(() => {
-                                // Build options: standard sizes PLUS the current leagueSize if it's non-standard (e.g., 32-team league)
-                                const standard = [8, 10, 12, 14, 16, 20, 24, 28, 32];
-                                const opts = new Set(standard);
-                                if (state.leagueSize) opts.add(state.leagueSize);
-                                return [...opts].sort((a, b) => a - b).map(v => (
-                                    <option key={v} value={v} style={{ background: '#111' }}>{v} teams</option>
-                                ));
-                            })()}
-                        </select>
-                    </div>
-                    <div>
-                        <div style={{ fontSize: '0.64rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>Your Draft Position</div>
-                        <select value={state.userSlot} onChange={e => update({ userSlot: +e.target.value })} style={selStyle}>
-                            {Array.from({ length: state.leagueSize }, (_, i) => {
-                                const slot = i + 1;
-                                const info = draftMeta.slotToRoster[slot];
-                                const isMine = slot === draftMeta.mySlot;
-                                const ownerLabel = info?.ownerName ? ' — ' + info.ownerName : '';
-                                return <option key={slot} value={slot} style={{ background: '#111' }}>{slot}.01{ownerLabel}{isMine ? ' (YOU)' : ''}</option>;
-                            })}
-                        </select>
-                    </div>
-                    <div>
-                        <div style={{ fontSize: '0.64rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>Snake / Linear</div>
-                        <select value={state.draftType} onChange={e => update({ draftType: e.target.value })} style={selStyle}>
-                            <option value="snake" style={{ background: '#111' }}>Snake</option>
-                            <option value="linear" style={{ background: '#111' }}>Linear</option>
-                        </select>
-                    </div>
-                </div>
-
-                {/* Speed */}
-                <div style={{ marginBottom: '18px' }}>
-                    <div style={{ fontSize: '0.64rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>CPU Speed</div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                        {['slow', 'medium', 'fast'].map(v => (
-                            <button key={v} onClick={() => update({ speed: v })} style={{
-                                flex: 1,
-                                padding: '6px 12px',
-                                background: state.speed === v ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.03)',
-                                border: '1px solid ' + (state.speed === v ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'),
-                                borderRadius: '5px',
-                                color: state.speed === v ? 'var(--gold)' : 'var(--silver)',
-                                fontSize: '0.74rem',
-                                fontFamily: FONT_UI,
-                                cursor: 'pointer',
-                                textTransform: 'capitalize',
-                            }}>{v}</button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Summary line */}
-                <div style={{
-                    padding: '9px 12px',
-                    marginBottom: '16px',
-                    border: '1px solid rgba(212,175,55,0.15)',
-                    borderRadius: '6px',
-                    background: 'rgba(255,255,255,0.02)',
-                    fontSize: '0.74rem',
-                    color: 'var(--silver)',
-                }}>
-                    <span style={{ color: 'var(--gold)', fontWeight: 600 }}>Your slot:</span> Pick {state.userSlot} of {state.leagueSize}
-                    {'\u00A0\u00A0·\u00A0\u00A0'}<span style={{ color: 'var(--gold)', fontWeight: 600 }}>{state.draftType === 'snake' ? 'Snake' : 'Linear'}</span>
-                    {'\u00A0\u00A0·\u00A0\u00A0'}{state.rounds} rounds · {state.rounds * state.leagueSize} total picks
-                </div>
-
-                <button
-                    onClick={onStartDraft}
-                    disabled={state.variant === 'rookie' && !csvReady}
-                    style={{
-                        width: '100%',
-                        padding: '14px',
-                        background: state.variant === 'rookie' && !csvReady
-                            ? 'rgba(212,175,55,0.3)'
-                            : (forcedMode === 'live-sync' ? '#9b8afb' : 'var(--gold)'),
-                        color: forcedMode === 'live-sync' ? '#fff' : 'var(--black)',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontFamily: FONT_DISPL,
-                        fontSize: '1.1rem',
-                        fontWeight: 700,
-                        cursor: state.variant === 'rookie' && !csvReady ? 'wait' : 'pointer',
-                        letterSpacing: '0.06em',
-                    }}
-                >
-                    {state.variant === 'rookie' && !csvReady
-                        ? 'LOADING PROSPECTS…'
-                        : (forcedMode === 'live-sync' ? 'START MIRROR' : 'START DRAFT')}
-                </button>
-
-                {/* Other mock options — collapsed by default, hides Scenario/Ghost/Templates */}
-                {!forcedMode && (
-                    <div style={{ marginTop: '20px' }}>
+                    <section className="draft-setup-panel is-start">
+                        <div className="draft-hq-panel-head">
+                            <span>Simulation Controls</span>
+                            <em>{state.mode}</em>
+                        </div>
+                        <div className="draft-setup-label">CPU Speed</div>
+                        <div className="draft-setup-speed">
+                            {['slow', 'medium', 'fast'].map(v => (
+                                <button key={v} type="button" className={state.speed === v ? 'is-active' : ''} onClick={() => update({ speed: v })}>{v}</button>
+                            ))}
+                        </div>
+                        <div className="draft-setup-note" style={{ marginTop: 10 }}>
+                            {setupSummary}. The command center will use owner DNA, needs, draft history, and your saved Big Board order.
+                        </div>
                         <button
-                            onClick={() => setShowOther(v => !v)}
+                            type="button"
+                            className="draft-setup-start"
+                            onClick={onStartDraft}
+                            disabled={state.variant === 'rookie' && !csvReady}
                             style={{
-                                width: '100%',
-                                padding: '10px 14px',
-                                background: 'transparent',
-                                border: '1px dashed rgba(255,255,255,0.1)',
-                                borderRadius: '6px',
-                                color: 'var(--silver)',
-                                cursor: 'pointer',
-                                fontSize: '0.72rem',
-                                fontFamily: FONT_UI,
-                                letterSpacing: '0.04em',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
+                                background: state.variant === 'rookie' && !csvReady ? 'rgba(212,175,55,0.3)' : (forcedMode === 'live-sync' ? '#9b8afb' : 'var(--gold)'),
+                                color: forcedMode === 'live-sync' ? '#fff' : 'var(--black)',
+                                borderColor: state.variant === 'rookie' && !csvReady ? 'rgba(212,175,55,0.3)' : (forcedMode === 'live-sync' ? '#9b8afb' : 'var(--gold)'),
                             }}
                         >
-                            <span>{showOther ? '▼' : '▶'} Other mock options</span>
-                            <span style={{ fontSize: '0.6rem', opacity: 0.6 }}>
-                                {state.mode === 'scenario' ? '🎯 Scenario active' : state.mode === 'ghost' ? '👻 Ghost active' : 'Scenarios · Ghost replay · Templates'}
-                            </span>
+                            {state.variant === 'rookie' && !csvReady ? 'LOADING PROSPECTS...' : (forcedMode === 'live-sync' ? 'START MIRROR' : 'START DRAFT')}
                         </button>
-                        {showOther && (
-                            <div style={{
-                                marginTop: '12px',
-                                padding: '14px',
-                                background: 'rgba(255,255,255,0.02)',
-                                border: '1px solid rgba(255,255,255,0.06)',
-                                borderRadius: '6px',
-                            }}>
-                                <ModeSelector state={state} update={update} />
-                                <TemplateLoader state={state} dispatch={dispatch} />
+
+                        {!forcedMode && (
+                            <div className="draft-setup-secondary">
+                                <button type="button" onClick={() => setShowOther(v => !v)}>
+                                    <span>{showOther ? 'Hide other mock options' : 'Other mock options'}</span>
+                                    <span>{state.mode === 'scenario' ? 'Scenario active' : state.mode === 'ghost' ? 'Ghost active' : 'Scenarios - Ghost replay - Templates'}</span>
+                                </button>
+                                {showOther && (
+                                    <div className="draft-setup-other">
+                                        <ModeSelector state={state} update={update} />
+                                        <TemplateLoader state={state} dispatch={dispatch} />
+                                    </div>
+                                )}
                             </div>
                         )}
-                    </div>
-                )}
+                    </section>
+                </div>
             </div>
         );
     }

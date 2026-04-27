@@ -287,6 +287,7 @@
         const calcComplementarity = window.App?.TradeEngine?.calcComplementarity || function(mine, theirs) { if (!mine || !theirs) return 0; let score = 0; for (const n of mine.needs) { const t = theirs.posAssessment[n.pos]; if (t?.status === 'surplus') score += n.urgency === 'deficit' ? 25 : 12; else if (t?.status === 'ok' && n.urgency === 'deficit') score += 6; } for (const n of theirs.needs) { const m = mine.posAssessment[n.pos]; if (m?.status === 'surplus') score += n.urgency === 'deficit' ? 25 : 12; else if (m?.status === 'ok' && n.urgency === 'deficit') score += 6; } if (mine.window !== theirs.window) score += 15; return Math.min(100, score); };
         const calcOwnerPosture = window.App?.TradeEngine?.calcOwnerPosture || function(assessment, dnaKey) { if (!assessment) return POSTURES.NEUTRAL; const { tier, panic } = assessment; if (panic >= 4) return POSTURES.DESPERATE; if (tier === 'REBUILDING' || dnaKey === 'ACCEPTOR') return POSTURES.SELLER; if (tier === 'ELITE' && panic <= 1) return POSTURES.LOCKED; if ((tier === 'CONTENDER' || tier === 'CROSSROADS') && panic >= 2) return POSTURES.BUYER; return POSTURES.NEUTRAL; };
         const calcPsychTaxes = window.App?.TradeEngine?.calcPsychTaxes || function(myAssess, theirAssess, theirDnaKey, theirPosture) { const taxes = []; const ePct = { FLEECER:10, DOMINATOR:28, STALWART:20, ACCEPTOR:5, DESPERATE:15, NONE:12 }[theirDnaKey] || 12; taxes.push({ name:'Endowment Effect', impact:-Math.round(ePct/2), type:'TAX', desc:`~${ePct}% mental inflation on their own players.` }); if (theirAssess?.panic >= 3) taxes.push({ name:'Panic Premium', impact:8+(theirAssess.panic-2)*6, type:'BONUS', desc:`Panic ${theirAssess.panic}/5 — urgency overrides caution.` }); if (theirDnaKey === 'DOMINATOR') taxes.push({ name:'Status Tax', impact:-18, type:'TAX', desc:'Must visibly win the trade for ego/status.' }); if (['STALWART','DOMINATOR'].includes(theirDnaKey)) taxes.push({ name:'Loss Aversion', impact:-8, type:'TAX', desc:'Losing a familiar player hurts more than gaining a new one.' }); if (theirDnaKey === 'ACCEPTOR') taxes.push({ name:'Rebuilding Discount', impact:+10, type:'BONUS', desc:'They mentally discount current starters.' }); const myStrengths = myAssess?.strengths || []; const theirNeedPos = theirAssess?.needs?.slice(0,3).map(n=>n.pos) || []; if (theirNeedPos.some(p => myStrengths.includes(p))) taxes.push({ name:'Need Fulfillment', impact:+12, type:'BONUS', desc:'Your surplus fills their critical gap.' }); if (myAssess && theirAssess) { if (myAssess.window !== theirAssess.window) taxes.push({ name:'Window Alignment', impact:+8, type:'BONUS', desc:'Opposite windows = natural asset exchange.' }); else taxes.push({ name:'Window Friction', impact:-5, type:'TAX', desc:'Same window reduces natural motivation.' }); } if (theirPosture?.key === 'LOCKED') taxes.push({ name:'Locked Roster Tax', impact:-12, type:'TAX', desc:'High satisfaction + attachment.' }); else if (theirPosture?.key === 'SELLER') taxes.push({ name:'Seller Momentum', impact:+10, type:'BONUS', desc:'Actively shopping. Trade conversations welcomed.' }); return taxes; };
+        const calcAcceptanceLikelihood = window.App?.TradeEngine?.calcAcceptanceLikelihood || window.App?.calcAcceptanceLikelihood || function(myValue, theirValue, _dnaKey, psychTaxes, _myAssess, _theirAssess, opts) { const maxSide = Math.max(myValue, theirValue, 1); const valueLean = (myValue - theirValue) / maxSide; const tax = (psychTaxes || []).reduce((sum, t) => sum + (t.impact || 0), 0); const complexity = Math.max(0, ((opts?.totalPieces) || 0) - 4) * 5; return Math.round(Math.max(3, Math.min(95, 50 + valueLean * 70 + Math.max(-15, Math.min(15, tax)) - complexity))); };
 
         const grudgeDecay = d => d < 30 ? 1.0 : d < 60 ? 0.6 : d < 90 ? 0.3 : 0.1;
         const GRUDGE_KEY = lid => `od_grudges_v1_${lid}`;
@@ -407,12 +408,19 @@
         }
 
         // ── State ──
-        const [tcTab, setTcTab] = useState(initialSubTab || 'dna');
+        const [tcTab, setTcTab] = useState(initialSubTab || 'dealhq');
+        const [dealMode, setDealMode] = useState('fillNeed');
+        const [dealFocusPid, setDealFocusPid] = useState(null);
+        const [selectedDealPartnerId, setSelectedDealPartnerId] = useState(null);
+        const [dealHqNotice, setDealHqNotice] = useState(null);
         useEffect(() => {
             if (!initialSubTab) return;
             if (initialSubTab === 'finder') {
                 window._wrAnalyzerMode = 'find';
-                setTcTab('analyzer');
+                setDealMode('acquire');
+                setTcTab('dealhq');
+            } else if (initialSubTab === 'dna') {
+                setTcTab('profiles');
             } else {
                 setTcTab(initialSubTab);
             }
@@ -424,7 +432,9 @@
                 const next = target?.detail || target || window._wrTradeFinderTarget;
                 if (!next?.pid) return;
                 window._wrAnalyzerMode = 'find';
-                setTcTab('analyzer');
+                setDealMode(next.mode === 'my' ? 'shop' : 'acquire');
+                setDealFocusPid(next.pid);
+                setTcTab('dealhq');
                 setFinderAutoTarget({ pid: next.pid, mode: next.mode || 'acquire' });
                 window._wrTradeFinderTarget = null;
             };
@@ -491,11 +501,24 @@
         const allRosters = currentLeague.rosters || [];
         const leagueUsers = currentLeague.users || [];
         const leagueId = currentLeague.id || currentLeague.league_id;
+        const WR_KEYS = window.App?.WR_KEYS || window.WR_KEYS || {};
+        const WrStorage = window.App?.WrStorage || window.WrStorage || null;
+        const savedDealsKey = (WR_KEYS.SAVED_TRADES && leagueId)
+            ? WR_KEYS.SAVED_TRADES(leagueId)
+            : `wr_saved_trades_${leagueId || 'default'}`;
+        const [savedDeals, setSavedDeals] = useState([]);
+        useEffect(() => {
+            if (!leagueId) return;
+            const loaded = WrStorage?.get
+                ? WrStorage.get(savedDealsKey, [])
+                : (() => { try { return JSON.parse(localStorage.getItem(savedDealsKey) || '[]'); } catch(e) { return []; } })();
+            setSavedDeals(Array.isArray(loaded) ? loaded : []);
+        }, [leagueId, savedDealsKey, WrStorage]);
 
         // Fetch draft slot maps for accurate pick ownership (slot_to_roster_id from Sleeper)
         const [draftSlotMaps, setDraftSlotMaps] = useState({});
         useEffect(() => {
-            if (!leagueId) return;
+            if (!leagueId || !allRosters.length) return;
             (async () => {
                 try {
                     const drafts = await fetch('https://api.sleeper.app/v1/league/' + leagueId + '/drafts').then(r => r.ok ? r.json() : []);
@@ -508,20 +531,29 @@
                         fetch('https://api.sleeper.app/v1/draft/' + d.draft_id).then(r => r.ok ? r.json() : null).catch(() => null)
                     ));
                     const maps = {};
+                    const rosterIdByOwnerId = {};
+                    allRosters.forEach(r => { if (r.owner_id != null) rosterIdByOwnerId[String(r.owner_id)] = String(r.roster_id); });
                     details.forEach((d, i) => {
-                        if (!d?.slot_to_roster_id) return;
+                        if (!d?.slot_to_roster_id && !d?.draft_order && !relevantDrafts[i]?.draft_order) return;
                         const year = Number(relevantDrafts[i].season);
                         const rosterToSlot = {};
-                        Object.entries(d.slot_to_roster_id).forEach(([slot, rosterId]) => {
-                            rosterToSlot[String(rosterId)] = parseInt(slot);
-                        });
+                        if (d.slot_to_roster_id) {
+                            Object.entries(d.slot_to_roster_id).forEach(([slot, rosterId]) => {
+                                rosterToSlot[String(rosterId)] = parseInt(slot);
+                            });
+                        } else {
+                            Object.entries(d.draft_order || relevantDrafts[i].draft_order || {}).forEach(([ownerOrRosterId, slot]) => {
+                                const rosterId = rosterIdByOwnerId[String(ownerOrRosterId)] || (allRosters.some(r => String(r.roster_id) === String(ownerOrRosterId)) ? String(ownerOrRosterId) : null);
+                                if (rosterId) rosterToSlot[rosterId] = parseInt(slot);
+                            });
+                        }
                         maps[year] = rosterToSlot;
                     });
                     setDraftSlotMaps(maps);
                     console.log('[TradeCalc] Draft slot maps loaded:', Object.keys(maps).length, 'years');
                 } catch (e) { console.warn('[TradeCalc] Draft slot maps failed:', e); }
             })();
-        }, [leagueId]);
+        }, [leagueId, allRosters.length]);
 
         function ownerNameForRosterId(rid) { const r = allRosters.find(x => String(x.roster_id) === String(rid)); if (!r) return null; const u = leagueUsers.find(x => x.user_id === r.owner_id); return u?.display_name || null; }
 
@@ -599,11 +631,406 @@
         const avgHealth = assessments.length ? Math.round(assessments.reduce((s,a) => s + a.healthScore, 0) / assessments.length) : 0;
         const eliteTeamCount = assessments.filter(a => a.tier === 'ELITE').length;
         const highPanic = assessments.filter(a => a.panic >= 3).length;
-
         function updateDna(ownerId, dnaKey) {
             const updated = { ...ownerDna, [ownerId]: dnaKey };
             setOwnerDna(updated);
             if (window.OD?.saveDNA) window.OD.saveDNA(leagueId, updated);
+        }
+
+        function formatPickLabel(year, round, fromRosterId) {
+            const slot = draftSlotMaps?.[Number(year)]?.[String(fromRosterId)] || null;
+            if (slot) return `${year} ${round}.${String(slot).padStart(2, '0')}`;
+            return `${year} R${round}`;
+        }
+
+        function makePickId(year, round, fromRosterId) {
+            return `PICK-${year}-${round}-${fromRosterId}`;
+        }
+
+        function pickValueForParts(year, round, fromRosterId) {
+            const hasKnownSlot = draftSlotMaps?.[Number(year)]?.[String(fromRosterId)];
+            if (hasKnownSlot && typeof _resolvePickValue === 'function') {
+                const resolved = _resolvePickValue(year, Number(round), fromRosterId, allRosters, draftSlotMaps);
+                if (resolved?.value != null) return resolved.value;
+            }
+            return getPickValue(year, Number(round), allRosters.length);
+        }
+
+        function playerAsset(pid) {
+            const p = playersData[pid];
+            if (!p) return null;
+            const pos = normPos(p.position) || p.position || '?';
+            const value = getPlayerValue(pid).value || 0;
+            return {
+                type: 'player',
+                id: String(pid),
+                pid,
+                name: p.full_name || `${p.first_name || ''} ${p.last_name || ''}`.trim() || String(pid),
+                pos,
+                team: p.team || 'FA',
+                age: p.age || null,
+                value,
+            };
+        }
+
+        function pickAsset(pick) {
+            if (!pick) return null;
+            const year = pick.year || pick.season;
+            const round = Number(pick.round);
+            const fromRosterId = pick.fromRosterId || pick.roster_id || pick.originalRosterId;
+            const value = pick.val || pick.value || pickValueForParts(year, round, fromRosterId);
+            return {
+                type: 'pick',
+                id: makePickId(year, round, fromRosterId),
+                year,
+                round,
+                fromRosterId,
+                label: formatPickLabel(year, round, fromRosterId),
+                via: ownerNameForRosterId(fromRosterId),
+                value,
+            };
+        }
+
+        function assetsForRoster(roster, opts = {}) {
+            if (!roster) return [];
+            const playerIds = [...new Set([...(roster.players || []), ...(roster.reserve || []), ...(roster.taxi || [])])];
+            const exclude = new Set(opts.exclude || []);
+            return playerIds
+                .filter(pid => !exclude.has(pid))
+                .map(playerAsset)
+                .filter(a => a && a.value > 0 && (!opts.positions || opts.positions.includes(a.pos)))
+                .sort((a, b) => b.value - a.value);
+        }
+
+        function pickAssetsForOwner(ownerId) {
+            return (picksByOwner[String(ownerId)] || [])
+                .map(pickAsset)
+                .filter(Boolean)
+                .sort((a, b) => b.value - a.value || a.year - b.year || a.round - b.round);
+        }
+
+        function sideBreakdown(players = [], picks = [], faab = 0) {
+            const playerValue = players.reduce((s, a) => s + (a.value || 0), 0);
+            const pickValue = picks.reduce((s, a) => s + (a.value || 0), 0);
+            const faabValue = Math.round((faab || 0) * FAAB_RATE);
+            return {
+                playerValue,
+                pickValue,
+                pickCount: picks.length,
+                faab: faab || 0,
+                faabValue,
+                total: playerValue + pickValue + faabValue,
+            };
+        }
+
+        function dealWindowImpact(givePlayers, receivePlayers) {
+            const yearsFor = asset => {
+                const end = typeof window.App?.getValueWindowEnd === 'function'
+                    ? window.App.getValueWindowEnd(asset.pos)
+                    : ((window.App?.peakWindows || {})[asset.pos] || [24, 29])[1];
+                return Math.max(0, end - (asset.age || 25));
+            };
+            const give = (givePlayers || []).reduce((s, p) => s + yearsFor(p), 0);
+            const receive = (receivePlayers || []).reduce((s, p) => s + yearsFor(p), 0);
+            const delta = receive - give;
+            if (delta >= 3) return { label: 'Extends window', color: '#2ECC71' };
+            if (delta <= -3) return { label: 'Shortens window', color: '#E74C3C' };
+            return { label: 'Window neutral', color: 'var(--silver)' };
+        }
+
+        function explainRosterSwing(partner, givePlayers, receivePlayers) {
+            const receivePos = [...new Set((receivePlayers || []).map(p => p.pos))];
+            const givePos = [...new Set((givePlayers || []).map(p => p.pos))];
+            const myNeeds = (myAssessment?.needs || []).map(n => n.pos);
+            const theirNeeds = (partner?.needs || []).map(n => n.pos);
+            const fixesMine = receivePos.find(pos => myNeeds.includes(pos));
+            const fixesTheirs = givePos.find(pos => theirNeeds.includes(pos));
+            if (fixesMine && fixesTheirs) return `Mutual need fit: you add ${fixesMine}, they add ${fixesTheirs}.`;
+            if (fixesMine) return `Addresses your ${fixesMine} gap.`;
+            if (fixesTheirs) return `Fills their ${fixesTheirs} need.`;
+            if (receivePos.length || givePos.length) return `Asset swap centered on ${[...receivePos, ...givePos].slice(0, 2).join('/')}.`;
+            return 'Draft capital and FAAB shape the deal more than roster fit.';
+        }
+
+        function buildDeal(partner, input) {
+            if (!partner || !myAssessment) return null;
+            const dnaKey = ownerDna[partner.ownerId] || 'NONE';
+            const dna = DNA_TYPES[dnaKey] || DNA_TYPES.NONE;
+            const posture = calcOwnerPosture(partner, dnaKey);
+            const taxes = calcPsychTaxes(myAssessment, partner, dnaKey, posture);
+            const grudge = calcGrudgeTax(myAssessment.ownerId, partner.ownerId, grudges, dnaKey);
+            const givePlayers = input.givePlayers || [];
+            const receivePlayers = input.receivePlayers || [];
+            const givePicks = input.givePicks || [];
+            const receivePicks = input.receivePicks || [];
+            const giveFaab = input.giveFaab || 0;
+            const receiveFaab = input.receiveFaab || 0;
+            const give = sideBreakdown(givePlayers, givePicks, giveFaab);
+            const receive = sideBreakdown(receivePlayers, receivePicks, receiveFaab);
+            if (give.total <= 0 || receive.total <= 0) return null;
+            const pieceCount = givePlayers.length + receivePlayers.length + givePicks.length + receivePicks.length;
+            let likelihood = calcAcceptanceLikelihood(give.total, receive.total, dnaKey, taxes, myAssessment, partner, { totalPieces: pieceCount });
+            likelihood = Math.round(Math.max(3, Math.min(95, likelihood + (grudge.total || 0))));
+            const gradeRaw = window.App?.TradeEngine?.fairnessGrade
+                ? window.App.TradeEngine.fairnessGrade(give.total, receive.total)
+                : { grade: receive.total >= give.total ? 'B+' : 'C', label: receive.total >= give.total ? 'Win' : 'Overpay', color: receive.total >= give.total ? '#2ECC71' : '#E74C3C' };
+            const userGain = receive.total - give.total;
+            const fit = myAssessment ? calcComplementarity(myAssessment, partner) : 0;
+            const valueScore = Math.max(0, Math.min(100, 50 + (userGain / Math.max(give.total, receive.total, 1)) * 120));
+            const confidenceScore = Math.round(likelihood * 0.45 + fit * 0.25 + valueScore * 0.30);
+            const confidence = confidenceScore >= 72 ? 'High' : confidenceScore >= 50 ? 'Medium' : 'Low';
+            const windowImpact = dealWindowImpact(givePlayers, receivePlayers);
+            const swing = explainRosterSwing(partner, givePlayers, receivePlayers);
+            const caution = [];
+            if (likelihood < 40) caution.push('Low acceptance odds');
+            if (posture.key === 'LOCKED') caution.push('Locked roster');
+            if (userGain < -Math.max(500, receive.total * 0.12)) caution.push('Meaningful overpay');
+            if (!swing.includes('need') && !swing.includes('gap')) caution.push('Weak roster-fit signal');
+            if (givePicks.length && receivePicks.length) caution.push('Pick timing matters');
+            const whyAccept = input.whyAccept || (partner.needs?.length
+                ? `They need ${partner.needs.slice(0, 2).map(n => n.pos).join('/')} and this gives them usable assets.`
+                : `Their ${posture.label.toLowerCase()} posture keeps them open to a clean value offer.`);
+            const whyYou = input.whyYou || (userGain >= 0
+                ? `You gain ${Math.abs(Math.round(userGain)).toLocaleString()} DHQ while improving deal fit.`
+                : `You pay ${Math.abs(Math.round(userGain)).toLocaleString()} DHQ for a roster or window upgrade.`);
+            return {
+                id: input.id || `deal_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+                mode: input.mode || dealMode,
+                type: input.type || 'Deal',
+                partnerOwnerId: partner.ownerId,
+                partnerRosterId: partner.rosterId,
+                partnerName: partner.ownerName,
+                partnerTeam: partner.teamName,
+                dnaKey,
+                posture,
+                givePlayers,
+                receivePlayers,
+                givePicks,
+                receivePicks,
+                giveFaab,
+                receiveFaab,
+                totals: { give, receive },
+                userGain,
+                likelihood,
+                grade: gradeRaw.grade,
+                gradeLabel: gradeRaw.label,
+                gradeColor: gradeRaw.color || gradeRaw.col || 'var(--gold)',
+                fit,
+                confidence,
+                confidenceScore,
+                taxes,
+                grudge,
+                whyAccept,
+                whyYou,
+                swing,
+                windowImpact,
+                caution,
+                rank: Math.round(likelihood * 1.2 + fit * 0.8 + valueScore + (confidenceScore / 2)),
+                createdAt: input.createdAt || new Date().toISOString(),
+                status: input.status || 'idea',
+            };
+        }
+
+        function maybeBalanceFaab(partner, givePlayers, receivePlayers, givePicks = [], receivePicks = []) {
+            const give = sideBreakdown(givePlayers, givePicks, 0).total;
+            const receive = sideBreakdown(receivePlayers, receivePicks, 0).total;
+            const gap = receive - give;
+            const maxMyFaab = Math.max(0, Math.min(myAssessment?.faabRemaining || 0, 300));
+            const maxTheirFaab = Math.max(0, Math.min(partner?.faabRemaining || 0, 300));
+            if (gap > 100 && gap <= 600 && maxMyFaab > 0) return { giveFaab: Math.min(maxMyFaab, Math.ceil(gap / FAAB_RATE)), receiveFaab: 0 };
+            if (gap < -100 && Math.abs(gap) <= 600 && maxTheirFaab > 0) return { giveFaab: 0, receiveFaab: Math.min(maxTheirFaab, Math.ceil(Math.abs(gap) / FAAB_RATE)) };
+            return { giveFaab: 0, receiveFaab: 0 };
+        }
+
+        function addCandidate(candidates, partner, input) {
+            const deal = buildDeal(partner, input);
+            if (!deal) return;
+            const sig = JSON.stringify([
+                deal.partnerOwnerId,
+                deal.givePlayers.map(p => p.pid).sort(),
+                deal.receivePlayers.map(p => p.pid).sort(),
+                deal.givePicks.map(p => p.id).sort(),
+                deal.receivePicks.map(p => p.id).sort(),
+                deal.giveFaab,
+                deal.receiveFaab,
+            ]);
+            if (candidates.some(d => d._sig === sig)) return;
+            candidates.push({ ...deal, _sig: sig });
+        }
+
+        function generateDealsForPartner(partner, mode, focusPid) {
+            const myRosterObj = allRosters.find(r => r.roster_id === myRosterId);
+            const theirRosterObj = allRosters.find(r => r.roster_id === partner?.rosterId);
+            if (!partner || !myRosterObj || !theirRosterObj) return [];
+            const myNeedPos = (myAssessment?.needs || []).map(n => n.pos);
+            const mySurplusPos = myAssessment?.strengths || [];
+            const theirNeedPos = (partner.needs || []).map(n => n.pos);
+            const myPlayers = assetsForRoster(myRosterObj);
+            const theirPlayers = assetsForRoster(theirRosterObj);
+            const myChips = myPlayers.filter(p => !myNeedPos.includes(p.pos) || mySurplusPos.includes(p.pos));
+            const theirPicks = pickAssetsForOwner(partner.ownerId);
+            const myPicks = pickAssetsForOwner(myAssessment?.ownerId);
+            const candidates = [];
+
+            const focusAsset = focusPid ? playerAsset(focusPid) : null;
+            const targetPool = focusAsset && (theirRosterObj.players || []).includes(focusPid)
+                ? [focusAsset]
+                : theirPlayers.filter(p => mode === 'fillNeed' ? myNeedPos.includes(p.pos) : true).slice(0, 8);
+            const shopPool = focusAsset && (myRosterObj.players || []).includes(focusPid)
+                ? [focusAsset]
+                : myPlayers.filter(p => mode === 'sellSurplus' || mode === 'shop' ? (mySurplusPos.includes(p.pos) || theirNeedPos.includes(p.pos)) : true).slice(0, 10);
+
+            if (mode === 'acquire' || mode === 'fillNeed') {
+                targetPool.slice(0, 6).forEach(target => {
+                    const one = myChips.find(p => p.value >= target.value * 0.75 && p.value <= target.value * 1.25);
+                    if (one) {
+                        const faab = maybeBalanceFaab(partner, [one], [target]);
+                        addCandidate(candidates, partner, {
+                            mode,
+                            type: one.pos === target.pos ? 'Lateral upgrade' : 'Need fill',
+                            givePlayers: [one],
+                            receivePlayers: [target],
+                            ...faab,
+                            whyAccept: theirNeedPos.includes(one.pos) ? `They need ${one.pos}, and ${one.name} gives them immediate cover.` : `The value is close enough for a clean one-for-one conversation.`,
+                            whyYou: myNeedPos.includes(target.pos) ? `You address ${target.pos} without opening a worse hole.` : `You consolidate into the preferred asset.`,
+                        });
+                    }
+                    const lower = myChips.find(p => p.value < target.value && p.value >= target.value * 0.45);
+                    const bridgePick = lower ? myPicks.find(pk => lower.value + pk.value >= target.value * 0.88 && lower.value + pk.value <= target.value * 1.35) : null;
+                    if (lower && bridgePick) {
+                        const faab = maybeBalanceFaab(partner, [lower], [target], [bridgePick], []);
+                        addCandidate(candidates, partner, {
+                            mode,
+                            type: 'Player + pick',
+                            givePlayers: [lower],
+                            givePicks: [bridgePick],
+                            receivePlayers: [target],
+                            ...faab,
+                            whyAccept: `They get a roster piece plus draft capital instead of one asset.`,
+                            whyYou: `You convert depth and a pick into a higher-fit ${target.pos}.`,
+                        });
+                    }
+                    for (let i = 0; i < Math.min(myChips.length, 9); i++) {
+                        for (let j = i + 1; j < Math.min(myChips.length, 9); j++) {
+                            const pair = [myChips[i], myChips[j]];
+                            const total = pair[0].value + pair[1].value;
+                            if (total >= target.value * 0.88 && total <= target.value * 1.35) {
+                                const faab = maybeBalanceFaab(partner, pair, [target]);
+                                addCandidate(candidates, partner, {
+                                    mode,
+                                    type: 'Consolidation',
+                                    givePlayers: pair,
+                                    receivePlayers: [target],
+                                    ...faab,
+                                    whyAccept: `They add two playable assets and patch more roster surface area.`,
+                                    whyYou: `You consolidate roster slots into a stronger ${target.pos}.`,
+                                });
+                                j = 99;
+                                i = 99;
+                            }
+                        }
+                    }
+                });
+            }
+
+            if (mode === 'shop' || mode === 'sellSurplus' || mode === 'picks') {
+                shopPool.slice(0, 7).forEach(asset => {
+                    const partnerFit = theirNeedPos.includes(asset.pos);
+                    const playerBack = theirPlayers.find(p => p.value >= asset.value * 0.60 && p.value <= asset.value * 1.10 && (!myNeedPos.length || myNeedPos.includes(p.pos)));
+                    const pickBack = theirPicks.find(pk => pk.value >= asset.value * 0.45 && pk.value <= asset.value * 1.2);
+                    if (mode !== 'picks' && playerBack) {
+                        const bridgePick = partnerFit ? theirPicks.find(pk => playerBack.value + pk.value >= asset.value * 0.82 && playerBack.value + pk.value <= asset.value * 1.25) : null;
+                        const receivePicks = bridgePick ? [bridgePick] : [];
+                        const faab = maybeBalanceFaab(partner, [asset], [playerBack], [], receivePicks);
+                        addCandidate(candidates, partner, {
+                            mode,
+                            type: bridgePick ? 'Rebalance package' : 'Value swap',
+                            givePlayers: [asset],
+                            receivePlayers: [playerBack],
+                            receivePicks,
+                            ...faab,
+                            whyAccept: partnerFit ? `They need ${asset.pos}, and this uses your surplus against their gap.` : `They get the better single player while giving back a useful fit.`,
+                            whyYou: myNeedPos.includes(playerBack.pos) ? `You use surplus to improve ${playerBack.pos}.` : `You reset value without losing deal optionality.`,
+                        });
+                    }
+                    if (pickBack) {
+                        const extraPick = theirPicks.find(pk => pk.id !== pickBack.id && pickBack.value + pk.value <= asset.value * 1.25 && pickBack.value + pk.value >= asset.value * 0.75);
+                        const receivePicks = extraPick ? [pickBack, extraPick] : [pickBack];
+                        const faab = maybeBalanceFaab(partner, [asset], [], [], receivePicks);
+                        addCandidate(candidates, partner, {
+                            mode,
+                            type: 'Pick capital',
+                            givePlayers: [asset],
+                            receivePicks,
+                            ...faab,
+                            whyAccept: partnerFit ? `They turn pick capital into a player at a position of need.` : `They buy production without giving up a core player.`,
+                            whyYou: `You separate pick capital from roster value and improve future flexibility.`,
+                        });
+                    }
+                });
+            }
+
+            if (!candidates.length && theirPlayers.length && myPlayers.length) {
+                const target = theirPlayers[0];
+                const chip = myPlayers.find(p => p.value >= target.value * 0.7) || myPlayers[0];
+                const faab = maybeBalanceFaab(partner, [chip], [target]);
+                addCandidate(candidates, partner, {
+                    mode,
+                    type: 'Baseline offer',
+                    givePlayers: [chip],
+                    receivePlayers: [target],
+                    ...faab,
+                    whyAccept: 'Baseline value match generated from available rosters.',
+                    whyYou: 'Use this as a starting point for manual refinement.',
+                });
+            }
+
+            return candidates
+                .sort((a, b) => b.rank - a.rank || b.likelihood - a.likelihood)
+                .slice(0, 8)
+                .map(({ _sig, ...deal }) => deal);
+        }
+
+        function persistSavedDeals(next) {
+            setSavedDeals(next);
+            if (WrStorage?.set) WrStorage.set(savedDealsKey, next);
+            else localStorage.setItem(savedDealsKey, JSON.stringify(next));
+        }
+
+        function saveDeal(deal) {
+            if (!deal) return;
+            const clean = { ...deal, status: 'saved', createdAt: new Date().toISOString() };
+            const next = [clean, ...savedDeals.filter(d => d.id !== clean.id)].slice(0, 24);
+            persistSavedDeals(next);
+            setDealHqNotice('Deal saved');
+        }
+
+        function removeSavedDeal(id) {
+            persistSavedDeals(savedDeals.filter(d => d.id !== id));
+        }
+
+        function loadDealIntoAnalyzer(deal) {
+            if (!deal) return;
+            setTradeOwner({ A: myAssessment?.ownerId || null, B: deal.partnerOwnerId || null });
+            setTradeIds({
+                A: (deal.givePlayers || []).map(p => p.pid || p.id),
+                B: (deal.receivePlayers || []).map(p => p.pid || p.id),
+            });
+            setTradePickIds({
+                A: (deal.givePicks || []).map(p => p.id),
+                B: (deal.receivePicks || []).map(p => p.id),
+            });
+            setTradeFaab({ A: deal.giveFaab || 0, B: deal.receiveFaab || 0 });
+            setSearchText({ A: '', B: '' });
+            setTcTab('analyzer');
+            window._wrAnalyzerMode = 'build';
+        }
+
+        function clearAnalyzer() {
+            setTradeIds({ A: [], B: [] });
+            setTradePickIds({ A: [], B: [] });
+            setTradeFaab({ A: 0, B: 0 });
+            setSearchText({ A: '', B: '' });
         }
 
         // ── Sub-components ──
@@ -912,6 +1339,83 @@
             const derivedDnaKey = deriveDNAFromHistory(a.ownerId, grudges);
             const derivedDna = derivedDnaKey ? DNA_TYPES[derivedDnaKey] : null;
             const profile = window.App?.LI?.ownerProfiles?.[rid] || {};
+            const ownerRoster = allRosters.find(r => String(r.roster_id) === String(rid));
+            const ownerPickAssets = pickAssetsForOwner(a.ownerId);
+            const pickCapital = ownerPickAssets.reduce((s, p) => s + (p.value || 0), 0);
+            const earlyPickCount = ownerPickAssets.filter(p => p.round <= 2).length;
+            const rosterAssets = assetsForRoster(ownerRoster).slice(0, 8);
+            const posRows = Object.entries(a.posAssessment || {}).sort((pa, pb) => (TC_POS_ORDER[pa[0]] ?? 9) - (TC_POS_ORDER[pb[0]] ?? 9)).map(([pos, data]) => {
+                const leaders = (data.sortedIds || []).slice(0, 3).map(pid => {
+                    const p = playersData[pid] || {};
+                    return {
+                        pid,
+                        name: p.full_name || `${p.first_name || ''} ${p.last_name || ''}`.trim() || pid,
+                        team: p.team || 'FA',
+                        value: getPlayerValue(pid).value || 0,
+                    };
+                });
+                const needGap = Math.max(0, (data.startingReq || 1) - (data.nflStarters || 0));
+                const surplus = Math.max(0, (data.actual || 0) - (data.ideal || 0));
+                const qualityPct = Math.round(Math.min(1, (data.nflStarters || 0) / Math.max(1, data.startingReq || 1)) * 100);
+                const statusLabel = data.status === 'deficit' ? `Need ${needGap || 1} starter${needGap === 1 ? '' : 's'}`
+                    : data.status === 'thin' ? 'Thin depth'
+                    : data.status === 'surplus' ? `Surplus ${surplus || '+'}`
+                    : 'Stable';
+                return { pos, data, leaders, needGap, surplus, qualityPct, statusLabel };
+            });
+            const starterNeed = posRows.find(r => r.data.status === 'deficit') || posRows.find(r => r.data.status === 'thin') || null;
+            const cleanSurplus = posRows.find(r => r.data.status === 'surplus') || null;
+            const starterCoverage = (() => {
+                const req = posRows.reduce((s, r) => s + Math.max(1, r.data.startingReq || 1), 0);
+                const filled = posRows.reduce((s, r) => s + Math.min(r.data.nflStarters || 0, Math.max(1, r.data.startingReq || 1)), 0);
+                return req ? Math.round((filled / req) * 100) : 0;
+            })();
+            const favoritePartner = Object.entries(profile.partners || {}).sort((a, b) => b[1] - a[1])[0] || null;
+            const favoritePartnerName = favoritePartner ? ownerNameForRosterId(favoritePartner[0]) || `Team ${favoritePartner[0]}` : 'No pattern';
+            const timing = profile.weekTiming || {};
+            const timingRead = (timing.late || 0) >= Math.max(timing.early || 0, timing.mid || 0) ? 'Late-season mover'
+                : (timing.early || 0) >= Math.max(timing.mid || 0, timing.late || 0) ? 'Early-season mover'
+                : 'Mid-season mover';
+            const tradeBias = (profile.picksAcquired || 0) > (profile.picksSold || 0) + 2 ? 'Collects picks'
+                : (profile.picksSold || 0) > (profile.picksAcquired || 0) + 2 ? 'Spends picks'
+                : 'Balanced assets';
+            const marketRead = starterNeed
+                ? `${a.ownerName} is most exposed at ${starterNeed.pos}; offers that solve that room should rate better.`
+                : cleanSurplus
+                    ? `${a.ownerName} has tradeable depth at ${cleanSurplus.pos}; use that room as the package entry point.`
+                    : `${a.ownerName} is balanced enough that value and psychology matter more than a single roster hole.`;
+            const sortedOwnerTrades = ownerTrades.slice().sort((ta, tb) => {
+                const aSeason = parseInt(ta.season) || 0;
+                const bSeason = parseInt(tb.season) || 0;
+                if (bSeason !== aSeason) return bSeason - aSeason;
+                return (tb.week || 0) - (ta.week || 0);
+            });
+            const shortPlayerName = pid => {
+                const p = playersData[pid] || {};
+                return p.full_name || `${p.first_name || ''} ${p.last_name || ''}`.trim() || String(pid);
+            };
+            const summarizeTradeSide = side => {
+                const players = (side?.players || []).slice(0, 2).map(shortPlayerName);
+                const picks = (side?.picks || []).slice(0, 2).map(pk => `${pk.season || pk.year || ''} R${pk.round || '?'}`.trim());
+                const totalAssets = (side?.players || []).length + (side?.picks || []).length;
+                const parts = [...players, ...picks].filter(Boolean);
+                if (!parts.length) return 'No assets listed';
+                const extra = Math.max(0, totalAssets - parts.length);
+                return parts.join(', ') + (extra ? ` +${extra}` : '');
+            };
+            const renderTradeSpot = (label, trade, tone) => {
+                if (!trade) return null;
+                const otherRid = (trade.roster_ids || []).find(r => String(r) !== String(rid));
+                const mySide = trade.sides?.[rid] || trade.sides?.[String(rid)] || {};
+                const theirSide = otherRid != null ? (trade.sides?.[otherRid] || trade.sides?.[String(otherRid)] || {}) : {};
+                const net = (mySide.totalValue || 0) - (theirSide.totalValue || 0);
+                const color = tone === 'win' ? '#2ECC71' : '#E74C3C';
+                return <div className="tc-owner-trade-spot">
+                    <span>{label}</span>
+                    <strong style={{ color }}>{net >= 0 ? '+' : ''}{Math.round(net).toLocaleString()}</strong>
+                    <em>{trade.season} W{trade.week || '-'} vs {ownerNameForRosterId(otherRid) || 'Unknown'}</em>
+                </div>;
+            };
             return (
                 <div style={{ background: 'var(--off-black)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '12px', padding: '18px 20px' }}>
                     {/* Hero strip */}
@@ -989,41 +1493,72 @@
                         </div>
                     )}
 
-                    {/* Roster Audit */}
-                    {a.posAssessment && Object.keys(a.posAssessment).length > 0 && (
-                        <div style={{ marginBottom: '14px' }}>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'flex', gap: '8px', alignItems: 'baseline', flexWrap: 'wrap' }}>
-                                <span>Roster Audit</span>
-                                {a.strengths?.length > 0 && <span style={{ fontSize: '0.66rem', color: '#2ECC71', opacity: 0.9 }}>surplus: {a.strengths.join(', ')}</span>}
-                                {a.needs?.filter(n => n.urgency === 'deficit').length > 0 && <span style={{ fontSize: '0.66rem', color: '#E74C3C', opacity: 0.9 }}>deficit: {a.needs.filter(n => n.urgency === 'deficit').map(n => n.pos).join(', ')}</span>}
-                            </div>
-                            <div className="tc-pos-grid">
-                                {Object.entries(a.posAssessment).sort((pa, pb) => (TC_POS_ORDER[pa[0]] ?? 9) - (TC_POS_ORDER[pb[0]] ?? 9)).map(([pos, data]) => <TcPosRow key={pos} pos={pos} assessment={data} />)}
-                            </div>
-                        </div>
-                    )}
+                    <div className="tc-owner-market-read">
+                        <span>Market Read</span>
+                        <strong>{marketRead}</strong>
+                    </div>
 
-                    {/* Trade History (condensed) */}
-                    {ownerTrades.length > 0 && (
-                        <div>
-                            <div style={{ display: 'flex', gap: '12px', marginBottom: '6px', flexWrap: 'wrap', fontSize: '0.72rem', alignItems: 'baseline' }}>
-                                <span style={{ color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.66rem' }}>Trade History</span>
-                                <span style={{ color: '#2ECC71' }}>Won {profile.tradesWon || 0}</span>
-                                <span style={{ color: '#E74C3C' }}>Lost {profile.tradesLost || 0}</span>
-                                <span style={{ color: 'var(--silver)' }}>Fair {profile.tradesFair || 0}</span>
-                                <span style={{ color: (profile.avgValueDiff || 0) >= 0 ? '#2ECC71' : '#E74C3C', marginLeft: 'auto' }}>Avg {(profile.avgValueDiff || 0) >= 0 ? '+' : ''}{Math.round(profile.avgValueDiff || 0)} DHQ</span>
+                    <div className="tc-owner-signal-grid">
+                        <div><span>Starter Coverage</span><strong>{starterCoverage}%</strong><em>{starterNeed ? `Watch ${starterNeed.pos}` : 'No urgent room'}</em></div>
+                        <div><span>Pick Capital</span><strong>{Math.round(pickCapital).toLocaleString()}</strong><em>{ownerPickAssets.length} picks · {earlyPickCount} early</em></div>
+                        <div><span>Trade Bias</span><strong>{tradeBias}</strong><em>{profile.picksAcquired || 0} picks in / {profile.picksSold || 0} out</em></div>
+                        <div><span>Timing</span><strong>{timingRead}</strong><em>{favoritePartnerName}{favoritePartner ? ` (${favoritePartner[1]})` : ''}</em></div>
+                    </div>
+
+                    <div className="tc-owner-profile-grid">
+                        <section className="tc-owner-panel">
+                            <div className="tc-owner-panel-head">
+                                <span>Roster Audit</span>
+                                <em>{a.strengths?.length ? `Surplus ${a.strengths.join(', ')}` : 'No clean surplus'}{a.needs?.length ? ` · Needs ${a.needs.slice(0, 4).map(n => n.pos).join(', ')}` : ''}</em>
                             </div>
-                            <div style={{ maxHeight: '220px', overflowY: 'auto', background: 'var(--black)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '6px' }}>
-                                {ownerTrades.slice(0, 10).sort((ta, tb) => {
-                                    const aSeason = parseInt(ta.season) || 0;
-                                    const bSeason = parseInt(tb.season) || 0;
-                                    if (bSeason !== aSeason) return bSeason - aSeason;
-                                    return (tb.week || 0) - (ta.week || 0);
-                                }).map((t, ti) => {
-                                    const otherRid = t.roster_ids.find(r => r !== rid);
+                            <div className="tc-owner-pos-table">
+                                {posRows.map(row => {
+                                    const statusColor = { surplus:'var(--gold)', ok:'var(--win-green)', thin:'#F0A500', deficit:'#E74C3C' }[row.data.status] || 'var(--silver)';
+                                    return <div key={row.pos} className="tc-owner-pos-row">
+                                        <div className="tc-owner-pos-main">
+                                            <strong style={{ color: posColor(row.pos) }}>{row.pos}</strong>
+                                            <span style={{ color: statusColor }}>{row.statusLabel}</span>
+                                        </div>
+                                        <div className="tc-owner-pos-meter">
+                                            <i style={{ width: `${row.qualityPct}%`, background: statusColor }} />
+                                        </div>
+                                        <div className="tc-owner-pos-count">{row.data.nflStarters}/{row.data.startingReq} starters · {row.data.actual}/{row.data.ideal} total</div>
+                                        <div className="tc-owner-pos-leaders">
+                                            {row.leaders.length ? row.leaders.map(p => <span key={p.pid}>{p.name} <em>{p.value ? p.value.toLocaleString() : '--'}</em></span>) : <span>No assets</span>}
+                                        </div>
+                                    </div>;
+                                })}
+                            </div>
+                        </section>
+
+                        <section className="tc-owner-panel">
+                            <div className="tc-owner-panel-head">
+                                <span>Moveable Assets</span>
+                                <em>{a.faabRemaining || 0} FAAB · {ownerPickAssets.length} picks</em>
+                            </div>
+                            <div className="tc-owner-asset-cloud">
+                                {rosterAssets.map(asset => <span key={asset.pid} style={{ borderColor: posColor(asset.pos) + '66' }}>{asset.name}<em>{asset.pos} · {asset.value.toLocaleString()}</em></span>)}
+                                {ownerPickAssets.slice(0, 5).map(pick => <span key={pick.id} style={{ borderColor: (PICK_COLORS[pick.round] || 'var(--gold)') + '66' }}>{pick.label}<em>{pick.value.toLocaleString()}</em></span>)}
+                            </div>
+                        </section>
+                    </div>
+
+                    <section className="tc-owner-panel tc-owner-history-panel">
+                        <div className="tc-owner-panel-head">
+                            <span>Trade History</span>
+                            <em>{profile.tradesWon || 0} won · {profile.tradesLost || 0} lost · {profile.tradesFair || 0} fair · Avg {(profile.avgValueDiff || 0) >= 0 ? '+' : ''}{Math.round(profile.avgValueDiff || 0).toLocaleString()} DHQ</em>
+                        </div>
+                        <div className="tc-owner-trade-spots">
+                            {renderTradeSpot('Best win', profile.biggestWin, 'win')}
+                            {renderTradeSpot('Biggest loss', profile.biggestLoss, 'loss')}
+                        </div>
+                        {sortedOwnerTrades.length > 0 ? (
+                            <div className="tc-owner-trade-list">
+                                {sortedOwnerTrades.slice(0, 8).map((t, ti) => {
+                                    const otherRid = (t.roster_ids || []).find(r => String(r) !== String(rid));
                                     const otherUser = ownerNameForRosterId(otherRid) || ('Owner ' + otherRid);
-                                    const mySide = t.sides?.[rid] || { players: [], picks: [] };
-                                    const theirSide = t.sides?.[otherRid] || { players: [], picks: [] };
+                                    const mySide = t.sides?.[rid] || t.sides?.[String(rid)] || { players: [], picks: [] };
+                                    const theirSide = otherRid != null ? (t.sides?.[otherRid] || t.sides?.[String(otherRid)] || { players: [], picks: [] }) : { players: [], picks: [] };
                                     const myValue = mySide.totalValue || 0;
                                     const theirValue = theirSide.totalValue || 0;
                                     const won = myValue > theirValue * 1.15;
@@ -1031,19 +1566,21 @@
                                     const verdict = won ? 'Won' : lost ? 'Lost' : 'Fair';
                                     const verdictCol = won ? '#2ECC71' : lost ? '#E74C3C' : 'var(--silver)';
                                     return (
-                                        <div key={ti} style={{ padding: '7px 10px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px', fontSize: '0.7rem' }}>
-                                                <span style={{ color: 'var(--silver)', opacity: 0.6 }}>{t.season} W{t.week}</span>
-                                                <span style={{ fontWeight: 700, color: verdictCol, padding: '1px 6px', borderRadius: '3px', background: verdictCol + '15' }}>{verdict}</span>
-                                                <span style={{ color: 'var(--silver)' }}>vs {otherUser}</span>
-                                                <span style={{ color: verdictCol, fontWeight: 700, marginLeft: 'auto' }}>{myValue >= theirValue ? '+' : ''}{(myValue - theirValue).toLocaleString()}</span>
+                                        <div key={ti} className="tc-owner-trade-row">
+                                            <div>
+                                                <span>{t.season} W{t.week || '-'}</span>
+                                                <strong style={{ color: verdictCol }}>{verdict}</strong>
+                                                <em>vs {otherUser}</em>
                                             </div>
+                                            <p><b>Got</b> {summarizeTradeSide(mySide)}</p>
+                                            <p><b>Sent</b> {summarizeTradeSide(theirSide)}</p>
+                                            <strong style={{ color: verdictCol }}>{myValue >= theirValue ? '+' : ''}{Math.round(myValue - theirValue).toLocaleString()}</strong>
                                         </div>
                                     );
                                 })}
                             </div>
-                        </div>
-                    )}
+                        ) : <div className="tc-owner-empty">No trade history found for this owner.</div>}
+                    </section>
 
                     {/* Legacy grid retained only for backwards compat — hidden */}
                     <div style={{ display: 'none' }}>
@@ -1264,12 +1801,273 @@
             );
         }
 
+        function renderDealHQ() {
+            if (!assessments.length || !myAssessment) {
+                return <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem' }}>No trade data loaded yet.</div>;
+            }
+
+            const myStrengths = myAssessment.strengths || [];
+            const myNeeds = myAssessment.needs || [];
+            const partnerBoard = assessments
+                .filter(a => a.rosterId !== myRosterId)
+                .map(a => {
+                    const dnaKey = ownerDna[a.ownerId] || 'NONE';
+                    const dna = DNA_TYPES[dnaKey] || DNA_TYPES.NONE;
+                    const posture = calcOwnerPosture(a, dnaKey);
+                    const compat = calcComplementarity(myAssessment, a);
+                    const theirNeeds = a.needs || [];
+                    const mutualNeedFit = theirNeeds.filter(n => myStrengths.includes(n.pos)).length;
+                    const theyHaveNeed = myNeeds.filter(n => (a.strengths || []).includes(n.pos)).length;
+                    const pickAssets = pickAssetsForOwner(a.ownerId);
+                    const pickCapital = pickAssets.reduce((s, p) => s + p.value, 0);
+                    const profile = window.App?.LI?.ownerProfiles?.[a.rosterId] || {};
+                    const tradeVol = profile.trades || 0;
+                    const score = Math.round(compat * 1.2 + mutualNeedFit * 18 + theyHaveNeed * 14 + (a.panic || 0) * 7 + Math.min(20, tradeVol * 2) + (posture.key === 'LOCKED' ? -16 : 0));
+                    const tag = score >= 90 ? 'Attack' : score >= 70 ? 'Prime' : score >= 50 ? 'Possible' : a.panic >= 3 ? 'Pressure' : 'Long shot';
+                    const tagColor = tag === 'Attack' || tag === 'Prime' ? '#2ECC71' : tag === 'Possible' ? '#F0A500' : tag === 'Pressure' ? '#BB8FCE' : 'var(--silver)';
+                    return { assessment:a, dnaKey, dna, posture, compat, mutualNeedFit, theyHaveNeed, pickAssets, pickCapital, profile, score, tag, tagColor };
+                })
+                .sort((a, b) => b.score - a.score || b.compat - a.compat);
+
+            const selectedItem = partnerBoard.find(p => String(p.assessment.ownerId) === String(selectedDealPartnerId)) || partnerBoard[0] || null;
+            const selectedPartner = selectedItem?.assessment || null;
+            const deals = selectedPartner ? generateDealsForPartner(selectedPartner, dealMode, dealFocusPid) : [];
+            const bestDeal = deals[0] || null;
+            const bestPartner = partnerBoard[0];
+            const leverageCounts = {};
+            myStrengths.forEach(pos => {
+                leverageCounts[pos] = assessments.filter(a => a.rosterId !== myRosterId && (a.needs || []).some(n => n.pos === pos)).length;
+            });
+            const topLeverage = Object.entries(leverageCounts).sort((a, b) => b[1] - a[1])[0] || null;
+            const deadlineWeek = currentLeague?.settings?.trade_deadline;
+            const seasonContext = deadlineWeek ? `Deadline W${deadlineWeek}` : `${currentLeague?.season || ''} market`;
+            const dealModes = [
+                { key:'fillNeed', label:'Fill Need' },
+                { key:'sellSurplus', label:'Sell Surplus' },
+                { key:'shop', label:'Shop Player' },
+                { key:'acquire', label:'Acquire Player' },
+                { key:'picks', label:'Pick Focus' },
+            ];
+            const focusRoster = dealMode === 'shop' || dealMode === 'sellSurplus'
+                ? allRosters.find(r => r.roster_id === myRosterId)
+                : allRosters.find(r => r.roster_id === selectedPartner?.rosterId);
+            const focusPositions = dealMode === 'fillNeed'
+                ? myNeeds.map(n => n.pos)
+                : dealMode === 'sellSurplus'
+                    ? myStrengths
+                    : null;
+            const focusOptions = assetsForRoster(focusRoster, focusPositions ? { positions: focusPositions } : {}).slice(0, 18);
+
+            function assetLine(asset) {
+                if (!asset) return null;
+                if (asset.type === 'pick') {
+                    return <div key={asset.id} className="tc-dhq-asset">
+                        <span className="tc-dhq-asset-dot" style={{ background:PICK_COLORS[asset.round] || 'var(--gold)' }} />
+                        <span>{asset.label}{asset.via ? <em> via {asset.via}</em> : null}</span>
+                        <strong>{asset.value.toLocaleString()}</strong>
+                    </div>;
+                }
+                return <div key={asset.pid || asset.id} className="tc-dhq-asset">
+                    <span className="tc-dhq-asset-dot" style={{ background:posColor(asset.pos) }} />
+                    <span>{asset.name} <em>{asset.pos} {asset.team}</em></span>
+                    <strong>{asset.value.toLocaleString()}</strong>
+                </div>;
+            }
+
+            function sideSummary(label, deal, side) {
+                const players = side === 'give' ? deal.givePlayers : deal.receivePlayers;
+                const picks = side === 'give' ? deal.givePicks : deal.receivePicks;
+                const faab = side === 'give' ? deal.giveFaab : deal.receiveFaab;
+                const totals = deal.totals[side];
+                return <div className="tc-dhq-side">
+                    <div className="tc-dhq-side-head">
+                        <span>{label}</span>
+                        <strong>{totals.total.toLocaleString()}</strong>
+                    </div>
+                    <div className="tc-dhq-breakdown">
+                        <span>Players {totals.playerValue.toLocaleString()}</span>
+                        <span>Picks {totals.pickValue.toLocaleString()} / {totals.pickCount}</span>
+                        <span>FAAB ${faab || 0}</span>
+                    </div>
+                    <div className="tc-dhq-assets">
+                        {players.map(assetLine)}
+                        {picks.map(assetLine)}
+                        {faab > 0 && <div className="tc-dhq-asset">
+                            <span className="tc-dhq-asset-dot" style={{ background:'var(--win-green)' }} />
+                            <span>FAAB</span>
+                            <strong>${faab}</strong>
+                        </div>}
+                    </div>
+                </div>;
+            }
+
+            function dealCard(deal, idx) {
+                const deltaColor = deal.userGain >= 0 ? '#2ECC71' : '#E74C3C';
+                const likelihoodColor2 = deal.likelihood >= 70 ? '#2ECC71' : deal.likelihood >= 45 ? '#F0A500' : '#E74C3C';
+                return <div key={deal.id} className={`tc-dhq-deal-card${idx === 0 ? ' tc-dhq-top-deal' : ''}`}>
+                    <div className="tc-dhq-deal-top">
+                        <div>
+                            <span className="tc-dhq-eyebrow">{deal.type}</span>
+                            <h3>{deal.partnerName}</h3>
+                        </div>
+                        <div className="tc-dhq-score-stack">
+                            <strong style={{ color:likelihoodColor2 }}>{deal.likelihood}%</strong>
+                            <span>{deal.confidence} confidence</span>
+                        </div>
+                    </div>
+                    <div className="tc-dhq-deal-grid">
+                        {sideSummary('You Send', deal, 'give')}
+                        {sideSummary('You Get', deal, 'receive')}
+                    </div>
+                    <div className="tc-dhq-verdict-row">
+                        <span style={{ color:deltaColor }}>{deal.userGain >= 0 ? '+' : ''}{Math.round(deal.userGain).toLocaleString()} DHQ</span>
+                        <span style={{ color:deal.gradeColor }}>{deal.grade} {deal.gradeLabel}</span>
+                        <span>{deal.fit}% partner fit</span>
+                        <span style={{ color:deal.windowImpact.color }}>{deal.windowImpact.label}</span>
+                    </div>
+                    <div className="tc-dhq-readout">
+                        <div><b>Why they accept</b><span>{deal.whyAccept}</span></div>
+                        <div><b>Why you consider it</b><span>{deal.whyYou}</span></div>
+                        <div><b>Roster swing</b><span>{deal.swing}</span></div>
+                    </div>
+                    {deal.caution.length > 0 && <div className="tc-dhq-cautions">{deal.caution.slice(0, 3).map(c => <span key={c}>{c}</span>)}</div>}
+                    <div className="tc-dhq-actions">
+                        <button onClick={() => loadDealIntoAnalyzer(deal)}>Load Analyzer</button>
+                        <button onClick={() => saveDeal(deal)}>Save Deal</button>
+                        <button onClick={clearAnalyzer}>Clear</button>
+                    </div>
+                </div>;
+            }
+
+            return <div className="tc-dhq-shell wr-fade-in">
+                <div className="tc-dhq-hero">
+                    <div>
+                        <div className="tc-dhq-kicker">Deal HQ</div>
+                        <h2>Trade command center</h2>
+                        <p>Rank partners, generate advisory packages, and inspect the roster impact before opening a negotiation.</p>
+                    </div>
+                    <div className="tc-dhq-hero-actions">
+                        <button onClick={() => setTcTab('analyzer')}>Manual Analyzer</button>
+                        <button onClick={() => setTcTab('profiles')}>Owner Profiles</button>
+                    </div>
+                </div>
+
+                <div className="tc-dhq-metrics">
+                    <div><span>Best Partner</span><strong>{bestPartner?.assessment.ownerName || '--'}</strong><em>{bestPartner ? `${bestPartner.score} market score` : 'No target'}</em></div>
+                    <div><span>Market Leverage</span><strong>{topLeverage ? topLeverage[0] : '--'}</strong><em>{topLeverage ? `${topLeverage[1]} teams need it` : 'No surplus edge'}</em></div>
+                    <div><span>Season Context</span><strong>{seasonContext}</strong><em>{highPanic} high-panic teams</em></div>
+                    <div><span>Saved Deals</span><strong>{savedDeals.length}</strong><em>{bestDeal ? `Top idea ${bestDeal.likelihood}%` : 'No package yet'}</em></div>
+                </div>
+
+                {dealHqNotice && <div className="tc-dhq-notice" onAnimationEnd={() => setDealHqNotice(null)}>{dealHqNotice}</div>}
+
+                <div className="tc-dhq-grid">
+                    <section className="tc-dhq-panel tc-dhq-partners">
+                        <div className="tc-dhq-panel-head">
+                            <span>Trade Partners</span>
+                            <em>ranked by fit, need, posture, activity</em>
+                        </div>
+                        {partnerBoard.map(item => {
+                            const a = item.assessment;
+                            const selected = selectedPartner && String(selectedPartner.ownerId) === String(a.ownerId);
+                            return <button key={a.rosterId} className={`tc-dhq-partner${selected ? ' is-selected' : ''}`} onClick={() => setSelectedDealPartnerId(a.ownerId)}>
+                                <div className="tc-dhq-partner-main">
+                                    <strong>{a.ownerName}</strong>
+                                    <span>{a.teamName}</span>
+                                </div>
+                                <div className="tc-dhq-partner-score" style={{ color:item.tagColor }}>
+                                    <strong>{item.score}</strong>
+                                    <span>{item.tag}</span>
+                                </div>
+                                <div className="tc-dhq-chipline">
+                                    <span style={{ color:item.posture.color }}>{item.posture.label}</span>
+                                    {item.dnaKey !== 'NONE' && <span style={{ color:item.dna.color }}>{item.dna.label}</span>}
+                                    <span>{item.pickAssets.length} picks</span>
+                                    <span>${a.faabRemaining || 0} FAAB</span>
+                                </div>
+                                <div className="tc-dhq-chipline">
+                                    {(a.needs || []).slice(0, 4).map(n => <i key={n.pos} className={n.urgency === 'deficit' ? 'need' : ''}>{n.pos}</i>)}
+                                    {(a.strengths || []).slice(0, 4).map(s => <i key={s}>+{s}</i>)}
+                                </div>
+                            </button>;
+                        })}
+                    </section>
+
+                    <section className="tc-dhq-panel tc-dhq-packages">
+                        <div className="tc-dhq-panel-head">
+                            <span>Deal Packages</span>
+                            <em>{selectedPartner ? selectedPartner.ownerName : 'Select a partner'}</em>
+                        </div>
+                        <div className="tc-dhq-modebar">
+                            {dealModes.map(m => <button key={m.key} className={dealMode === m.key ? 'is-active' : ''} onClick={() => { setDealMode(m.key); setDealFocusPid(null); }}>{m.label}</button>)}
+                        </div>
+                        {(dealMode === 'shop' || dealMode === 'acquire' || dealMode === 'fillNeed' || dealMode === 'sellSurplus') && focusOptions.length > 0 && (
+                            <div className="tc-dhq-focusbar">
+                                <span>{dealMode === 'shop' || dealMode === 'sellSurplus' ? 'Focus asset' : 'Target asset'}</span>
+                                <button className={!dealFocusPid ? 'is-active' : ''} onClick={() => setDealFocusPid(null)}>Auto</button>
+                                {focusOptions.map(p => <button key={p.pid} className={String(dealFocusPid) === String(p.pid) ? 'is-active' : ''} onClick={() => setDealFocusPid(p.pid)}>{p.name} <em>{p.value.toLocaleString()}</em></button>)}
+                            </div>
+                        )}
+                        {deals.length ? deals.map(dealCard) : <div className="tc-dhq-empty">No package found for this mode. Try another partner, clear the focus asset, or use the manual analyzer.</div>}
+                    </section>
+
+                    <aside className="tc-dhq-panel tc-dhq-dossier">
+                        <div className="tc-dhq-panel-head">
+                            <span>Partner Dossier</span>
+                            <em>{selectedPartner?.teamName || 'No partner selected'}</em>
+                        </div>
+                        {selectedItem && selectedPartner ? <>
+                            <div className="tc-dhq-dossier-card">
+                                <h3>{selectedPartner.ownerName}</h3>
+                                <div className="tc-dhq-chipline">
+                                    <span style={{ color:selectedPartner.tierColor }}>{selectedPartner.tier}</span>
+                                    <span style={{ color:selectedItem.posture.color }}>{selectedItem.posture.label}</span>
+                                    <span>{selectedItem.compat}% fit</span>
+                                </div>
+                                <p>{selectedItem.dna?.strategy || selectedItem.posture.desc}</p>
+                            </div>
+                            <div className="tc-dhq-dossier-grid">
+                                <div><span>Record</span><strong>{selectedPartner.wins}-{selectedPartner.losses}{selectedPartner.ties ? '-' + selectedPartner.ties : ''}</strong></div>
+                                <div><span>Weekly</span><strong>{selectedPartner.weeklyPts || '--'}</strong></div>
+                                <div><span>Trade W-L</span><strong>{selectedItem.profile.tradesWon || 0}-{selectedItem.profile.tradesLost || 0}</strong></div>
+                                <div><span>Avg Trade</span><strong>{(selectedItem.profile.avgValueDiff || 0) >= 0 ? '+' : ''}{Math.round(selectedItem.profile.avgValueDiff || 0)}</strong></div>
+                            </div>
+                            <div className="tc-dhq-dossier-block">
+                                <b>Needs</b>
+                                <div className="tc-dhq-chipline">{(selectedPartner.needs || []).slice(0, 6).map(n => <i key={n.pos} className={n.urgency === 'deficit' ? 'need' : ''}>{n.pos}</i>)}</div>
+                            </div>
+                            <div className="tc-dhq-dossier-block">
+                                <b>Assets they may move</b>
+                                <div className="tc-dhq-chipline">{(selectedPartner.strengths || []).slice(0, 6).map(s => <i key={s}>+{s}</i>)}{selectedItem.pickAssets.slice(0, 3).map(p => <i key={p.id}>{p.label}</i>)}</div>
+                            </div>
+                            <div className="tc-dhq-dossier-block">
+                                <b>Acceptance drivers</b>
+                                <ul>
+                                    <li>{selectedItem.posture.desc}</li>
+                                    {selectedPartner.panic >= 3 && <li>Panic level {selectedPartner.panic}/5 creates urgency.</li>}
+                                    {selectedItem.mutualNeedFit > 0 && <li>Your surplus matches {selectedItem.mutualNeedFit} of their needs.</li>}
+                                    {selectedItem.dnaKey !== 'NONE' && <li>{selectedItem.dna.label}: {selectedItem.dna.desc}</li>}
+                                </ul>
+                            </div>
+                            <div className="tc-dhq-dossier-block">
+                                <b>Saved deals</b>
+                                {savedDeals.length ? savedDeals.slice(0, 5).map(d => <div key={d.id} className="tc-dhq-saved">
+                                    <button onClick={() => loadDealIntoAnalyzer(d)}>{d.partnerName || 'Saved deal'} <span>{d.likelihood}%</span></button>
+                                    <button onClick={() => removeSavedDeal(d.id)}>X</button>
+                                </div>) : <p>No saved deals yet.</p>}
+                            </div>
+                        </> : <div className="tc-dhq-empty">Select a partner to view their dossier.</div>}
+                    </aside>
+                </div>
+            </div>;
+        }
+
         // ── renderTradeAnalyzer ──
         function renderTradeAnalyzer() {
             if (!Object.keys(playersData).length) return <div style={{ color:'var(--silver)', textAlign:'center', padding:'2rem' }}>No player data loaded.</div>;
 
-            // Use slot-specific pick values when draftSlotMaps available
-            const pickVal = (pkId) => { const p = pkId.split('-'); const fromRid = p[3] || p[0]; const { value } = typeof _resolvePickValue === 'function' ? _resolvePickValue(p[1], Number(p[2]), fromRid, allRosters, draftSlotMaps) : { value: getPickValue(p[1], Number(p[2]), allRosters.length) }; return value; };
+            // Use the same ownership-aware value path as the pick list.
+            const pickVal = (pkId) => { const p = pkId.split('-'); return pickValueForParts(p[1], Number(p[2]), p[3]); };
             const totalA = tradeIds.A.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0)
                 + tradePickIds.A.reduce((s, pkId) => s + pickVal(pkId), 0)
                 + Math.round((tradeFaab.A || 0) * FAAB_RATE);
@@ -1311,6 +2109,15 @@
             const verdictColor = userGain > fairMargin ? 'var(--win-green)' : userGain < -fairMargin ? '#E74C3C' : 'var(--gold)';
             const verdictText = userGain > fairMargin ? 'YOU WIN' : userGain < -fairMargin ? 'YOU LOSE' : 'EVEN TRADE';
             const diffDisplay = userGain > 0 ? `+${absDiff.toLocaleString()}` : userGain < 0 ? `-${absDiff.toLocaleString()}` : '+/-0';
+            const sentPositions = [...new Set(tradeIds.A.map(pid => normPos(playersData[pid]?.position)).filter(Boolean))];
+            const receivedPositions = [...new Set(tradeIds.B.map(pid => normPos(playersData[pid]?.position)).filter(Boolean))];
+            const pickCapitalDelta = tradePickIds.B.reduce((s, pkId) => s + pickVal(pkId), 0) - tradePickIds.A.reduce((s, pkId) => s + pickVal(pkId), 0);
+            const pickQuantityDelta = tradePickIds.B.length - tradePickIds.A.length;
+            const faabDelta = (tradeFaab.B || 0) - (tradeFaab.A || 0);
+            const rosterImpactLabel = receivedPositions.length || sentPositions.length
+                ? `+${receivedPositions.join('/') || 'none'} / -${sentPositions.join('/') || 'none'}`
+                : 'No players selected';
+            const starterValueDelta = tradeIds.B.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0) - tradeIds.A.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0);
 
             function rosterPlayersFor(side) {
                 const ownerId = tradeOwner[side]; if (!ownerId) return null;
@@ -1330,30 +2137,7 @@
             function addPick(side, pickId) { if (tradePickIds[side].includes(pickId)) return; setTradePickIds(prev => ({ ...prev, [side]: [...prev[side], pickId] })); }
             function removePick(side, pickId) { setTradePickIds(prev => ({ ...prev, [side]: prev[side].filter(id => id !== pickId) })); }
             function makePickId(year, round, fromRosterId) { return `PICK-${year}-${round}-${fromRosterId}`; }
-            // Phase 5: compute draft slot (1..N) for the given "from" roster — used to render picks as "2026 2.01".
-            // For rookie drafts, slot = inverse of current standings (worst team picks 1). Tiebreaker: fewer points for.
-            const _draftOrderCache = (() => {
-                const sorted = [...allRosters].sort((a, b) => {
-                    const aW = a.settings?.wins || 0, bW = b.settings?.wins || 0;
-                    if (aW !== bW) return aW - bW;
-                    const aP = (a.settings?.fpts || 0) + (a.settings?.fpts_decimal || 0) / 100;
-                    const bP = (b.settings?.fpts || 0) + (b.settings?.fpts_decimal || 0) / 100;
-                    return aP - bP;
-                });
-                const map = {};
-                sorted.forEach((r, i) => { map[String(r.roster_id)] = i + 1; });
-                return map;
-            })();
-            function draftSlot(fromRid) { return _draftOrderCache[String(fromRid)] || null; }
-            function pickLabel(round, fromRid) {
-                if (fromRid != null) {
-                    const slot = draftSlot(fromRid);
-                    if (slot) return round + '.' + String(slot).padStart(2, '0');
-                }
-                // Fallback: ordinal round label
-                const s = ['th','st','nd','rd']; const v = round % 100;
-                return round + (s[(v-20)%10] || s[v] || s[0]) + ' Round';
-            }
+            function pickLabel(year, round, fromRid) { return formatPickLabel(year, round, fromRid); }
             const ownerOptions = [{ id: null, label: '-- None --' }, ...assessments.map(a => ({ id: a.ownerId, label: `${a.ownerName} (${a.teamName})` }))];
 
             function TradeSide({ side, color, label }) {
@@ -1361,7 +2145,7 @@
                 const pickIds = tradePickIds[side];
                 const faab = tradeFaab[side] || 0;
                 const tot = ids.reduce((s, id) => s + (getPlayerValue(id).value || 0), 0)
-                    + pickIds.reduce((s, pkId) => { const p = pkId.split('-'); return s + getPickValue(p[1], Number(p[2]), allRosters.length); }, 0)
+                    + pickIds.reduce((s, pkId) => { const p = pkId.split('-'); return s + pickValueForParts(p[1], Number(p[2]), p[3]); }, 0)
                     + Math.round(faab * FAAB_RATE);
                 const rosterPlayers = rosterPlayersFor(side);
                 const ownerId = tradeOwner[side] || null;
@@ -1396,7 +2180,7 @@
                         {pickIds.map(pkId => {
                             const parts = pkId.split('-');
                             const yr = parts[1], rd = Number(parts[2]), fromRid = parts[3];
-                            const val = getPickValue(yr, rd, allRosters.length);
+                            const val = pickValueForParts(yr, rd, fromRid);
                             const pct = Math.round((val / MAX_VALUE) * 100);
                             const pickColor = PICK_COLORS[rd] || 'var(--silver)';
                             const via = ownerNameForRosterId(fromRid);
@@ -1405,7 +2189,7 @@
                                 <div key={pkId} className="tc-ta-player-row">
                                     <button className="tc-ta-remove" onClick={() => removePick(side, pkId)}>X</button>
                                     <span className="tc-ta-pos-dot" style={{ background: pickColor }} />
-                                    <span style={{ flex:1, fontSize:'0.82rem', fontWeight:600 }}>{yr} {pickLabel(rd, fromRid)}{!isOwn && via && <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
+                                    <span style={{ flex:1, fontSize:'0.82rem', fontWeight:600 }}>{pickLabel(yr, rd, fromRid)}{!isOwn && via && <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
                                     <div className="tc-ta-val-col" style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2 }}>
                                         <div className="tc-ta-val-bar-wrap"><div className="tc-ta-val-bar-fill" style={{ width:`${pct}%`, background: pickColor }} /></div>
                                         <span style={{ fontSize:'0.7rem', fontWeight:700, color: pickColor }}>{val.toLocaleString()}</span>
@@ -1445,7 +2229,7 @@
                                             {ownerPicksList.map(({ year, round, fromRosterId }) => {
                                                 const pkId = makePickId(year, round, fromRosterId);
                                                 const added = pickIds.includes(pkId);
-                                                const val = getPickValue(year, round, allRosters.length);
+                                                const val = pickValueForParts(year, round, fromRosterId);
                                                 const pickColor = PICK_COLORS[round] || 'var(--silver)';
                                                 const via = ownerNameForRosterId(fromRosterId);
                                                 const r2 = allRosters.find(x => x.owner_id === ownerId);
@@ -1453,7 +2237,7 @@
                                                 return (
                                                     <div key={pkId} className={`tc-ta-roster-item${added?' tc-added':''}`} onClick={() => !added && addPick(side, pkId)}>
                                                         <span className="tc-ta-pos-dot" style={{ background: pickColor }} />
-                                                        <span style={{ flex:1, fontWeight:600 }}>{year} {pickLabel(round, fromRosterId)}{!isOwn2 && via && <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
+                                                        <span style={{ flex:1, fontWeight:600 }}>{pickLabel(year, round, fromRosterId)}{!isOwn2 && via && <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.3rem' }}>via {via}</span>}</span>
                                                         <span className="tc-ta-player-val" style={{ color: pickColor }}>{val.toLocaleString()}</span>
                                                     </div>
                                                 );
@@ -1553,12 +2337,34 @@
 
                     {/* Verdict */}
                     {hasTrade && (
-                        <div className="tc-ta-verdict" id="wr-export-trade">
-                            <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis')} style={{ background:'none', border:'1px solid rgba(212,175,55,0.25)', borderRadius:'4px', padding:'2px 8px', color:'var(--gold)', fontSize:'0.68rem', cursor:'pointer', fontFamily:'Inter, sans-serif' }}>Share</button></div>
+                        <div className="tc-ta-verdict tc-ta-sticky-summary" id="wr-export-trade">
+                            <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis')} style={{ background:'none', border:'1px solid rgba(212,175,55,0.25)', borderRadius:'4px', padding:'2px 8px', color:'var(--gold)', fontSize:'0.68rem', cursor:'pointer', fontFamily:'Inter, sans-serif' }}>Snapshot</button></div>
                             <div style={{ display:'flex', alignItems:'baseline', gap:'0.6rem', flexWrap:'wrap' }}>
                                 <span className="tc-verdict-diff" style={{ color: verdictColor }}>{diffDisplay}</span>
                                 <span style={{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.1rem', color: verdictColor }}>{verdictText}</span>
                                 <span style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.655 }}>(gave {totalA.toLocaleString()} / received {totalB.toLocaleString()})</span>
+                            </div>
+                            <div className="tc-ta-impact-grid">
+                                <div>
+                                    <span>Roster Impact</span>
+                                    <strong>{rosterImpactLabel}</strong>
+                                    <em>{starterValueDelta >= 0 ? '+' : ''}{Math.round(starterValueDelta).toLocaleString()} player DHQ</em>
+                                </div>
+                                <div>
+                                    <span>Pick Capital</span>
+                                    <strong>{pickCapitalDelta >= 0 ? '+' : ''}{Math.round(pickCapitalDelta).toLocaleString()}</strong>
+                                    <em>{pickQuantityDelta >= 0 ? '+' : ''}{pickQuantityDelta} picks</em>
+                                </div>
+                                <div>
+                                    <span>FAAB</span>
+                                    <strong>{faabDelta >= 0 ? '+' : ''}${faabDelta}</strong>
+                                    <em>{Math.round(faabDelta * FAAB_RATE).toLocaleString()} DHQ equiv.</em>
+                                </div>
+                                <div>
+                                    <span>Acceptance</span>
+                                    <strong style={{ color: likelihoodColor }}>{likelihood}%</strong>
+                                    <em>{netTaxTotal >= 0 ? '+' : ''}{netTaxTotal} psych modifier</em>
+                                </div>
                             </div>
                             {otherOwnerId && (
                                 <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', flexWrap:'wrap' }}>
@@ -1754,7 +2560,7 @@
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.5 }}>{t.healthScore} health {'\u00B7'} {t.wins}-{t.losses} {'\u00B7'} {t.tier}</span>
                         {showCTA && <React.Fragment>
-                            <button onClick={() => { const targetRoster = allRosters.find(r => r.roster_id === t.rosterId); const topPid = (targetRoster?.players || []).map(pid => ({ pid, val: getPlayerValue(pid).value })).filter(p => p.val > 0).sort((a, b) => b.val - a.val)[0]; if (topPid) { setFinderAutoTarget({ pid: topPid.pid, mode: 'acquire' }); } setTcTab('finder'); }} style={{ marginLeft: 'auto', padding: '5px 12px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '4px', fontFamily: 'Inter, sans-serif', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 700 }}>GENERATE TRADES</button>
+                            <button onClick={() => { const targetRoster = allRosters.find(r => r.roster_id === t.rosterId); const topPid = (targetRoster?.players || []).map(pid => ({ pid, val: getPlayerValue(pid).value })).filter(p => p.val > 0).sort((a, b) => b.val - a.val)[0]; setSelectedDealPartnerId(t.ownerId); setDealMode('acquire'); if (topPid) { setDealFocusPid(topPid.pid); setFinderAutoTarget({ pid: topPid.pid, mode: 'acquire' }); } setTcTab('dealhq'); }} style={{ marginLeft: 'auto', padding: '5px 12px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '4px', fontFamily: 'Inter, sans-serif', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 700 }}>GENERATE TRADES</button>
                         </React.Fragment>}
                     </div>
                 </div>
@@ -1822,17 +2628,15 @@
             );
         }
 
-        // ── Phase 5: 2-tab Trade Analyzer layout ──
-        // Owner Profiles (DNA) + Trade Analyzer (Builder + Finder merged via inline toggle below).
-        // Removed as separate tabs: Trade Finder (now a mode inside Analyzer), Roster Audit
-        // (now embedded in owner detail), Trade History (removed per user feedback). Legacy
-        // tcTab values are normalized to 'dna' so saved deep-links don't break.
-        const _activeTcTab = (tcTab === 'analyzer') ? 'analyzer' : 'dna';
+        // ── Deal HQ layout ──
+        // Deal HQ is now the primary Trade Center surface. Owner Profiles and
+        // the manual analyzer remain available as supporting views.
+        const _activeTcTab = tcTab === 'analyzer' ? 'analyzer' : (tcTab === 'profiles' || tcTab === 'dna') ? 'profiles' : 'dealhq';
         return (
             <div style={{ padding: 'var(--card-pad, 14px 16px)' }}>
                 <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' }}>TRADE CENTER</div>
                 <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
-                    {['dna','analyzer'].map(tab => (
+                    {['dealhq','profiles','analyzer'].map(tab => (
                         <button key={tab} onClick={() => setTcTab(tab)} style={{
                             padding: '6px 14px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif',
                             textTransform: 'uppercase', letterSpacing: '0.04em',
@@ -1840,10 +2644,11 @@
                             color: _activeTcTab === tab ? 'var(--black)' : 'var(--silver)',
                             border: '1px solid ' + (_activeTcTab === tab ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
                             borderRadius: '4px', cursor: 'pointer'
-                        }}>{({dna:'Owner Profiles',analyzer:'Trade Analyzer'})[tab]}</button>
+                        }}>{({dealhq:'Deal HQ',profiles:'Owner Profiles',analyzer:'Trade Analyzer'})[tab]}</button>
                     ))}
                 </div>
-                {_activeTcTab === 'dna' && (canAccess('owner-dna') ? renderOwnerDna() : React.createElement(UpgradeGate, { feature:'owner-dna', title:'UNLOCK OWNER DNA', description:'Profile every manager\'s trading psychology. Know who\'s a Fleecer, who\'s Desperate, and exactly how to approach each trade conversation.', targetTier:'warroom' }))}
+                {_activeTcTab === 'dealhq' && (canAccess('trade-finder') ? renderDealHQ() : React.createElement(UpgradeGate, { feature:'trade-finder', title:'UNLOCK DEAL HQ', description:'Generate advisory trade packages with partner fit, owner psychology, pick capital, FAAB, and roster impact.', targetTier:'warroom' }))}
+                {_activeTcTab === 'profiles' && (canAccess('owner-dna') ? renderOwnerDna() : React.createElement(UpgradeGate, { feature:'owner-dna', title:'UNLOCK OWNER DNA', description:'Profile every manager\'s trading psychology. Know who\'s a Fleecer, who\'s Desperate, and exactly how to approach each trade conversation.', targetTier:'warroom' }))}
                 {_activeTcTab === 'analyzer' && renderTradeAnalyzer()}
             </div>
         );

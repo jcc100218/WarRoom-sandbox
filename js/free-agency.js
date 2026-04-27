@@ -24,11 +24,12 @@
         depthChart: { label: 'NFL Depth Chart Position',shortLabel: 'Depth',  width: '50px', group: 'scout'   },
         injury:     { label: 'Injury Status',           shortLabel: 'Inj',    width: '46px', sortKey: 'injury',  group: 'stats' },
         faab:       { label: 'Suggested FAAB Bid',      shortLabel: 'FAAB',   width: '60px', group: 'stats'   },
+        fit:        { label: 'Roster Fit',              shortLabel: 'Fit',    width: '76px', group: 'stats'   },
     };
     const FA_COLUMN_PRESETS = {
-        default: ['pos','team','age','dhq','ppg','peakYr'],
+        default: ['pos','team','age','dhq','ppg','faab','fit'],
         scout:   ['pos','age','college','height','weight','depthChart'],
-        bidding: ['pos','team','dhq','ppg','faab','injury'],
+        bidding: ['pos','team','dhq','ppg','faab','fit','injury'],
         full:    Object.keys(FA_COLUMNS),
     };
 
@@ -38,8 +39,12 @@
         const [faBudget, setFaBudget] = useState({ total: 0, spent: 0 });
         const [faSort, setFaSort] = useState({ key: 'dhq', dir: -1 });
         const [faSelectedPid, setFaSelectedPid] = useState(null);
-        const [waiverBoardExpanded, setWaiverBoardExpanded] = useState(false);
-        const [visibleFaCols, setVisibleFaCols] = useState(() => (window.App?.WrStorage?.get?.('wr_fa_cols') || FA_COLUMN_PRESETS.default));
+        const [faSearch, setFaSearch] = useState('');
+        const [visibleFaCols, setVisibleFaCols] = useState(() => {
+            const stored = window.App?.WrStorage?.get?.('wr_fa_cols');
+            const valid = Array.isArray(stored) ? stored.filter(k => FA_COLUMNS[k]) : [];
+            return valid.length ? valid : FA_COLUMN_PRESETS.default;
+        });
         const [faColPreset, setFaColPreset] = useState('default');
         const [showFaColPicker, setShowFaColPicker] = useState(false);
         // Rolling PPG window — shared localStorage key with My Roster so the setting persists across tabs.
@@ -97,13 +102,23 @@
         }, [playersData, rostered, timeRecomputeTs, isDraftProspect]);
 
         const posColors = window.App.POS_COLORS;
+        const faPosOrder = { QB:0, RB:1, WR:2, TE:3, K:4, DL:5, LB:6, DB:7 };
 
         function faSortIndicator(key) { return faSort.key === key ? (faSort.dir === -1 ? ' \u25BC' : ' \u25B2') : ''; }
         function handleFaSort(key) { setFaSort(prev => prev.key === key ? { ...prev, dir: prev.dir * -1 } : { key, dir: -1 }); }
 
         // Sort filtered results
         const sortedPlayers = useMemo(() => {
-            const filtered = availablePlayers.filter(x => !faFilter || (normPos(x.p.position) === faFilter || x.p.position === faFilter));
+            const q = faSearch.trim().toLowerCase();
+            const filtered = availablePlayers.filter(x => {
+                const pos = normPos(x.p.position) || x.p.position || '';
+                if (faFilter && pos !== faFilter) return false;
+                if (!q) return true;
+                const name = (x.p.full_name || ((x.p.first_name || '') + ' ' + (x.p.last_name || '')).trim()).toLowerCase();
+                const team = (x.p.team || 'FA').toLowerCase();
+                const college = (x.p.college || '').toLowerCase();
+                return name.includes(q) || team.includes(q) || pos.toLowerCase().includes(q) || college.includes(q);
+            });
             return filtered.sort((a, b) => {
                 const dir = faSort.dir;
                 const k = faSort.key;
@@ -136,9 +151,8 @@
                 if (k === 'injury') return dir * ((a.p.injury_status || '').localeCompare(b.p.injury_status || ''));
                 return 0;
             }).slice(0, 50);
-        }, [availablePlayers, faFilter, faSort, statsData]);
+        }, [availablePlayers, faFilter, faSearch, faSort, statsData]);
 
-        const faGridCols = '28px 1fr 36px 32px 54px 42px 42px 42px 36px 42px';
         const faHeaderStyle = { fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' };
 
         // Compute roster needs for recommendations
@@ -268,15 +282,321 @@
         const selStats = faSelectedPid ? statsData[faSelectedPid] || {} : {};
         const selPrevStats = faSelectedPid ? (prevStatsData || {})[faSelectedPid] || {} : {};
         const selDhq = faSelectedPid ? (window.App?.LI?.playerScores?.[faSelectedPid] || 0) : 0;
-        const selMeta = faSelectedPid ? (window.App?.LI?.playerMeta?.[faSelectedPid] || {}) : {};
         const selPpg = selStats.gp > 0 ? +(calcRawPts(selStats) / selStats.gp).toFixed(1) : (selPrevStats.gp > 0 ? +(calcRawPts(selPrevStats) / selPrevStats.gp).toFixed(1) : 0);
         const selPos = selPlayer ? normPos(selPlayer.position) : '';
-	        const selPeakYrs = selPlayer ? peakYearsFor(selPos, selPlayer.age) : 0;
-	        const selValueYrs = selPlayer ? valueYearsFor(selPos, selPlayer.age) : 0;
+        const selPeakYrs = selPlayer ? peakYearsFor(selPos, selPlayer.age) : 0;
+        const selValueYrs = selPlayer ? valueYearsFor(selPos, selPlayer.age) : 0;
         const selFaab = faSelectedPid ? faabSuggest(selDhq, selPos, selPlayer?.age) : null;
         const selInitials = selPlayer ? ((selPlayer.first_name||'?')[0] + (selPlayer.last_name||'?')[0]).toUpperCase() : '';
 
-        // ── COMMAND VIEW: FAAB decision engine ──
+        function openFaPlayer(pid) {
+            if (window.WR && typeof window.WR.openPlayerCard === 'function') {
+                window.WR.openPlayerCard(pid, { scoringSettings: currentLeague?.scoring_settings });
+            } else if (typeof window.openFWPlayerModal === 'function') {
+                window.openFWPlayerModal(pid, playersData, statsData, currentLeague?.scoring_settings);
+            } else {
+                setFaSelectedPid(pid);
+            }
+        }
+
+        function playerName(p) {
+            return p?.full_name || ((p?.first_name || '') + ' ' + (p?.last_name || '')).trim() || 'Unknown';
+        }
+
+        function seasonPpgFor(pid) {
+            const st = statsData[pid] || {};
+            const prevSt = (prevStatsData || {})[pid] || {};
+            if (st.gp > 0) return +(calcRawPts(st) / st.gp).toFixed(1);
+            if (prevSt.gp > 0) return +(calcRawPts(prevSt) / prevSt.gp).toFixed(1);
+            return 0;
+        }
+
+        function windowRead(pos, age) {
+            const peakYrs = peakYearsFor(pos, age);
+            const valueYrs = valueYearsFor(pos, age);
+            if (peakYrs >= 4) return { label: peakYrs + 'yr peak', short: 'Rising', color: '#2ECC71', peakYrs, valueYrs };
+            if (peakYrs >= 1) return { label: peakYrs + 'yr peak', short: 'Prime', color: 'var(--gold)', peakYrs, valueYrs };
+            if (valueYrs >= 1) return { label: valueYrs + 'yr value', short: 'Vet', color: '#F0A500', peakYrs, valueYrs };
+            return { label: 'short term', short: 'Post', color: '#E74C3C', peakYrs, valueYrs };
+        }
+
+        function fitRead(pos) {
+            const need = assess?.needs?.find(n => n.pos === pos);
+            if (need?.urgency === 'deficit') return { label: 'Fills deficit', short: 'Deficit', score: 4, color: '#2ECC71', need };
+            if (need) return { label: 'Fills thin room', short: 'Thin', score: 3, color: '#2ECC71', need };
+            if (assess?.strengths?.includes(pos)) return { label: 'Surplus stash', short: 'Stash', score: 1, color: 'var(--silver)', need: null };
+            return { label: 'Depth add', short: 'Depth', score: 2, color: 'var(--silver)', need: null };
+        }
+
+        function gradeForStatus(status) {
+            if (status === 'surplus') return { grade: 'A', color: '#2ECC71', weight: 3 };
+            if (status === 'ok') return { grade: 'B', color: 'var(--silver)', weight: 2 };
+            if (status === 'thin') return { grade: 'C', color: '#F0A500', weight: 1 };
+            return { grade: 'D', color: '#E74C3C', weight: 0 };
+        }
+
+        function rosterNeedsPosition(roster, pos) {
+            const reqCount = rosterPositions.filter(s =>
+                normPos(s) === pos ||
+                (s === 'FLEX' && ['RB','WR','TE'].includes(pos)) ||
+                (s === 'SUPER_FLEX' && ['QB','RB','WR','TE'].includes(pos))
+            ).length;
+            const minimum = Math.max(1, reqCount);
+            const count = (roster?.players || []).filter(pid => normPos(playersData[pid]?.position) === pos).length;
+            return count < minimum;
+        }
+
+        function decorateFaCandidate(x) {
+            const pos = x.pos || normPos(x.p?.position) || x.p?.position || '';
+            const ppg = x.ppg != null ? x.ppg : seasonPpgFor(x.pid);
+            const win = windowRead(pos, x.p?.age);
+            const fit = fitRead(pos);
+            const faab = x.faab || faabSuggest(x.dhq, pos, x.p?.age);
+            const why = fit.need
+                ? 'Addresses your ' + pos + ' ' + fit.need.urgency + ' and keeps the bid in a controlled range.'
+                : win.peakYrs > 0
+                    ? 'Adds usable dynasty runway without forcing a major FAAB commitment.'
+                    : 'Short-window depth. Treat as a tactical add, not a core asset.';
+            return { ...x, pos, ppg, faab, fit, fitScore: fit.score, peakYrs: win.peakYrs, valueYrs: win.valueYrs, windowLabel: win.label, windowShort: win.short, windowColor: win.color, why };
+        }
+
+        const faabMarketRows = (currentLeague.rosters || []).map(r => {
+            const user = (currentLeague.users || []).find(u => u.user_id === r.owner_id);
+            const rBudget = Number(currentLeague?.settings?.waiver_budget || 0);
+            const rSpent = Number(r.settings?.waiver_budget_used || 0);
+            const rRemaining = Math.max(0, rBudget - rSpent);
+            return {
+                roster: r,
+                rosterId: r.roster_id,
+                name: user?.display_name || user?.username || ('Team ' + r.roster_id),
+                remaining: rRemaining,
+                pct: rBudget > 0 ? Math.round((rRemaining / rBudget) * 100) : 0,
+                isMe: r.roster_id === myRoster?.roster_id,
+            };
+        }).sort((a, b) => b.remaining - a.remaining);
+        const myFaabRank = faabMarketRows.findIndex(r => r.isMe) + 1;
+        const leagueAvgRemaining = faabMarketRows.length
+            ? Math.round(faabMarketRows.reduce((s, r) => s + r.remaining, 0) / faabMarketRows.length)
+            : 0;
+        const canOutbidRows = faabMarketRows.filter(r => !r.isMe && r.remaining > remaining).slice(0, 5);
+
+        const rosterGapRows = ['QB','RB','WR','TE','K','DL','LB','DB']
+            .filter(pos => (assess?.posAssessment || {})[pos])
+            .map(pos => {
+                const data = assess.posAssessment[pos] || {};
+                const grade = gradeForStatus(data.status || 'ok');
+                const bestWire = availablePlayers.find(x => x.pos === pos);
+                return { pos, data, ...grade, bestWire };
+            })
+            .sort((a, b) => a.weight - b.weight || (faPosOrder[a.pos] ?? 9) - (faPosOrder[b.pos] ?? 9));
+
+        const actionBoardPlayers = availablePlayers
+            .map(decorateFaCandidate)
+            .sort((a, b) => (b.fitScore * 5000 + b.dhq + (b.ppg || 0) * 35) - (a.fitScore * 5000 + a.dhq + (a.ppg || 0) * 35));
+        const priorityAdds = (recommendations.length ? recommendations : actionBoardPlayers)
+            .map(decorateFaCandidate)
+            .sort((a, b) => (b.fitScore * 5000 + b.dhq) - (a.fitScore * 5000 + a.dhq))
+            .slice(0, 5);
+        const dropCandidates = (myRoster?.players || [])
+            .filter(pid => !(myRoster?.starters || []).includes(pid))
+            .map(pid => {
+                const p = playersData[pid];
+                if (!p) return null;
+                const pos = normPos(p.position) || p.position;
+                const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+                const win = windowRead(pos, p.age);
+                return { pid, p, pos, dhq, name: playerName(p), windowLabel: win.label, windowColor: win.color };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.dhq - b.dhq)
+            .slice(0, 6);
+        const usedUpgradeAdds = new Set();
+        const upgradePairs = dropCandidates.map(drop => {
+            const add = actionBoardPlayers.find(x =>
+                !usedUpgradeAdds.has(x.pid) &&
+                x.dhq > drop.dhq + 400 &&
+                (x.pos === drop.pos || x.fitScore >= 3)
+            );
+            if (!add) return null;
+            usedUpgradeAdds.add(add.pid);
+            return { drop, add, gain: add.dhq - drop.dhq };
+        }).filter(Boolean).slice(0, 4);
+        const recentDrops = (() => {
+            const out = [];
+            const transactions = window.S?.transactions || {};
+            const curWeek = window.S?.currentWeek || 1;
+            for (let w = curWeek; w >= Math.max(1, curWeek - 2); w--) {
+                (transactions['w' + w] || []).forEach(t => {
+                    if (t.type !== 'free_agent' && t.type !== 'waiver') return;
+                    Object.keys(t.drops || {}).forEach(pid => {
+                        const p = playersData[pid];
+                        const dhq = window.App?.LI?.playerScores?.[pid] || 0;
+                        if (!p || dhq < 1500 || rostered.has(String(pid))) return;
+                        out.push({ pid, name: playerName(p), pos: normPos(p.position) || p.position, dhq, week: w });
+                    });
+                });
+            }
+            return out.sort((a, b) => b.dhq - a.dhq).slice(0, 4);
+        })();
+        const positionThreats = Array.from(new Set([...(assess?.needs || []).map(n => n.pos), ...actionBoardPlayers.slice(0, 6).map(x => x.pos)]))
+            .slice(0, 6)
+            .map(pos => {
+                const top = faabMarketRows.find(r => !r.isMe && rosterNeedsPosition(r.roster, pos));
+                return { pos, top };
+            })
+            .filter(x => x.top);
+
+        function renderCandidateRow(x, i, isPrimary) {
+            const dhqCol = x.dhq >= 4000 ? '#3498DB' : x.dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.45)';
+            return (
+                <button key={x.pid} className={'fa-hq-candidate' + (isPrimary ? ' is-primary' : '')} onClick={() => openFaPlayer(x.pid)}>
+                    <span className="fa-hq-rank">{i + 1}</span>
+                    <span className="fa-hq-player-main">
+                        <strong>{playerName(x.p)}</strong>
+                        <em>{x.p.team || 'FA'} · {x.pos} · {x.windowLabel}</em>
+                    </span>
+                    <span className="fa-hq-player-fit" style={{ color: x.fit.color }}>{x.fit.short}</span>
+                    <span className="fa-hq-player-value">
+                        <strong style={{ color: dhqCol }}>{x.dhq ? x.dhq.toLocaleString() : '—'}</strong>
+                        <em>{x.faab ? '$' + x.faab.lo + '-' + x.faab.hi : 'No bid'}</em>
+                    </span>
+                    <span className="fa-hq-why">{x.why}</span>
+                </button>
+            );
+        }
+
+        function renderActionHQ(compact = false) {
+            const topAdds = priorityAdds.slice(0, compact ? 4 : 5);
+            const boardRows = actionBoardPlayers.slice(0, compact ? 6 : 8);
+            const swapRows = upgradePairs.slice(0, compact ? 3 : 4);
+            const freshRows = recentDrops.slice(0, compact ? 2 : 3);
+            const deficitChips = (assess?.needs || []).filter(n => n.urgency === 'deficit').map(n => n.pos);
+            const thinChips = (assess?.needs || []).filter(n => n.urgency === 'thin').map(n => n.pos);
+            const starterReq = rosterGapRows.reduce((s, r) => s + Math.max(1, r.data.startingReq || r.data.minQuality || 1), 0);
+            const starterFilled = rosterGapRows.reduce((s, r) => {
+                const req = Math.max(1, r.data.startingReq || r.data.minQuality || 1);
+                const filled = r.data.nflStarters || Math.min(r.data.actual || 0, req);
+                return s + Math.min(filled, req);
+            }, 0);
+            const starterCoverage = starterReq ? Math.round((starterFilled / starterReq) * 100) : null;
+            const pressureScore = boardRows.reduce((s, r) => s + (r.faab?.competitors || 0), 0);
+            const pressure = pressureScore >= 14 ? 'High' : pressureScore >= 7 ? 'Moderate' : 'Low';
+            const pressureColor = pressure === 'High' ? '#E74C3C' : pressure === 'Moderate' ? '#F0A500' : '#2ECC71';
+            const faabColor = remaining > budget * 0.5 ? '#2ECC71' : remaining > budget * 0.25 ? '#F0A500' : '#E74C3C';
+            return (
+                <section className={'fa-hq-shell' + (compact ? ' is-compact' : '')}>
+                    <div className="fa-hq-hero">
+                        <div>
+                            <span>Free Agency Action HQ</span>
+                            <h2>{topAdds[0] ? topAdds[0].p.full_name || playerName(topAdds[0].p) : 'No urgent add surfaced'}</h2>
+                            <p>{topAdds[0] ? topAdds[0].why : 'Your market is clean enough to browse for stashes and tactical depth.'}</p>
+                        </div>
+                        <div className="fa-hq-hero-kpis">
+                            {hasFAAB && <div><span>FAAB</span><strong style={{ color: faabColor }}>${remaining}</strong><em>#{myFaabRank || '—'}/{faabMarketRows.length || '—'} · avg ${leagueAvgRemaining}</em></div>}
+                            <div><span>Pressure</span><strong style={{ color: pressureColor }}>{pressure}</strong><em>{pressureScore} competitor signals</em></div>
+                            <div><span>Coverage</span><strong>{starterCoverage == null ? '—' : starterCoverage + '%'}</strong><em>{deficitChips.length ? deficitChips.join(', ') + ' deficits' : starterCoverage == null ? 'Assessment pending' : 'No red rooms'}</em></div>
+                        </div>
+                    </div>
+
+                    <div className="fa-hq-grid">
+                        <aside className="fa-hq-panel">
+                            <div className="fa-hq-panel-head">
+                                <span>Priority Moves</span>
+                                <em>{topAdds.length} add targets · {swapRows.length} swaps</em>
+                            </div>
+                            <div className="fa-hq-stack">
+                                {topAdds.length ? topAdds.map((x, i) => (
+                                    <button key={x.pid} className="fa-hq-mini-card" onClick={() => openFaPlayer(x.pid)}>
+                                        <strong>{playerName(x.p)} <span style={{ color: posColors[x.pos] || 'var(--silver)' }}>{x.pos}</span></strong>
+                                        <em>{x.fit.label} · {x.dhq.toLocaleString()} DHQ{x.faab ? ' · $' + x.faab.lo + '-' + x.faab.hi : ''}</em>
+                                    </button>
+                                )) : <div className="fa-hq-empty">No priority adds match your current roster needs.</div>}
+                            </div>
+
+                            <div className="fa-hq-subhead">Best Add/Drop Upgrades</div>
+                            <div className="fa-hq-stack">
+                                {swapRows.length ? swapRows.map(pair => (
+                                    <button key={pair.drop.pid + '-' + pair.add.pid} className="fa-hq-swap" onClick={() => openFaPlayer(pair.add.pid)}>
+                                        <span><b>Drop</b>{pair.drop.name}<em>{pair.drop.dhq.toLocaleString()}</em></span>
+                                        <span><b>Add</b>{playerName(pair.add.p)}<em>+{pair.gain.toLocaleString()}</em></span>
+                                    </button>
+                                )) : <div className="fa-hq-empty">No obvious add/drop upgrade found from the current wire.</div>}
+                            </div>
+
+                            <div className="fa-hq-subhead">Fresh Drop Alerts</div>
+                            <div className="fa-hq-stack">
+                                {freshRows.length ? freshRows.map(d => (
+                                    <button key={d.pid} className="fa-hq-mini-card is-alert" onClick={() => openFaPlayer(d.pid)}>
+                                        <strong>{d.name} <span>{d.pos}</span></strong>
+                                        <em>Dropped W{d.week} · {d.dhq.toLocaleString()} DHQ</em>
+                                    </button>
+                                )) : <div className="fa-hq-empty">No startable recent drops are sitting on the wire.</div>}
+                            </div>
+                        </aside>
+
+                        <main className="fa-hq-panel fa-hq-board">
+                            <div className="fa-hq-panel-head">
+                                <span>Ranked Waiver Board</span>
+                                <em>bid range, fit, window, and reason</em>
+                            </div>
+                            <div className="fa-hq-board-list">
+                                {boardRows.map((x, i) => renderCandidateRow(x, i, i === 0))}
+                            </div>
+                        </main>
+
+                        <aside className="fa-hq-panel">
+                            <div className="fa-hq-panel-head">
+                                <span>Market Leverage</span>
+                                <em>{canOutbidRows.length ? canOutbidRows.length + ' teams can outbid you' : 'You control most bids'}</em>
+                            </div>
+                            {hasFAAB && <div className="fa-hq-faab-card">
+                                <strong style={{ color: faabColor }}>${remaining}</strong>
+                                <span>of ${budget} left · #{myFaabRank || '—'} in FAAB</span>
+                                <i style={{ width: budget > 0 ? Math.max(3, Math.round((remaining / budget) * 100)) + '%' : '0%', background: faabColor }} />
+                            </div>}
+                            <div className="fa-hq-competitors">
+                                {(canOutbidRows.length ? canOutbidRows : faabMarketRows.filter(r => !r.isMe).slice(0, 4)).map(r => (
+                                    <div key={r.rosterId}>
+                                        <span>{r.name}</span>
+                                        <strong>${r.remaining}</strong>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="fa-hq-subhead">Position Threats</div>
+                            <div className="fa-hq-threats">
+                                {positionThreats.length ? positionThreats.map(t => (
+                                    <div key={t.pos}>
+                                        <span style={{ color: posColors[t.pos] || 'var(--silver)' }}>{t.pos}</span>
+                                        <em>{t.top.name}</em>
+                                        <strong>${t.top.remaining}</strong>
+                                    </div>
+                                )) : <div className="fa-hq-empty">No clear outbid threat by position.</div>}
+                            </div>
+
+                            <div className="fa-hq-subhead">Roster Gap Matrix</div>
+                            <div className="fa-hq-gap-matrix">
+                                {rosterGapRows.map(row => (
+                                    <div key={row.pos}>
+                                        <span style={{ color: posColors[row.pos] || row.color }}>{row.pos}</span>
+                                        <strong style={{ color: row.color }}>{row.grade}</strong>
+                                        <em>{row.data.nflStarters || Math.min(row.data.actual || 0, row.data.minQuality || row.data.startingReq || 0)}/{row.data.minQuality || row.data.startingReq || 0}</em>
+                                        <i>{row.bestWire ? playerName(row.bestWire.p) : 'No wire target'}</i>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="fa-hq-chipline">
+                                {deficitChips.map(pos => <span key={'d'+pos} className="is-bad">DEF {pos}</span>)}
+                                {thinChips.map(pos => <span key={'t'+pos}>THIN {pos}</span>)}
+                                {(assess?.strengths || []).map(pos => <span key={'s'+pos} className="is-good">PLUS {pos}</span>)}
+                            </div>
+                        </aside>
+                    </div>
+                </section>
+            );
+        }
+
+        // ── COMMAND VIEW: shared Action HQ, without the deep market table ──
         if (viewMode === 'command') {
             if (!canAccess('fa-decision-engine')) {
                 return React.createElement(UpgradeGate, {
@@ -286,506 +606,48 @@
                     targetTier: 'warroom'
                 });
             }
-            // Categorize recommendations into tiers
-            const mustAdd = recommendations.filter(r => r.need?.urgency === 'deficit' && r.dhq >= 800).slice(0, 3);
-            const strongBuys = recommendations.filter(r => r.need && !mustAdd.find(m => m.pid === r.pid) && r.dhq >= 500).slice(0, 4);
-            // Value plays / stash candidates: young upside picks.
-            // For non-FAAB leagues faab is always null — show stash candidates regardless.
-            const _vpFloor = hasFAAB ? 500 : 200;
-            const valuePlays = availablePlayers
-                .filter(x => x.dhq >= _vpFloor && x.dhq < 2000 && (x.p.age || 30) <= 25)
-                .slice(0, 4)
-                .map(x => {
-                    const st2 = statsData[x.pid] || {};
-                    const ppg2 = st2.gp > 0 ? +(calcRawPts(st2) / st2.gp).toFixed(1) : 0;
-                    const fb = faabSuggest(x.dhq, x.pos, x.p.age);
-                    return { ...x, ppg: ppg2, faab: fb };
-                })
-                .filter(x => hasFAAB ? x.faab !== null : true); // non-FAAB: always show
-
-            // Market pressure
-            const needCount = assess?.needs?.length || 0;
-            const competitorCount = recommendations.reduce((s, r) => s + (r.faab?.competitors || 0), 0);
-            const pressure = competitorCount > needCount * 3 ? 'HIGH' : competitorCount > needCount ? 'MODERATE' : 'LOW';
-            const pressureCol = pressure === 'HIGH' ? '#E74C3C' : pressure === 'MODERATE' ? '#F0A500' : '#2ECC71';
-
-            // Recommended total spend
-            const recSpend = recommendations.slice(0, 3).reduce((s, r) => s + (r.faab?.sug || 0), 0);
-
-            let _mustAddIdx = 0;
-            const renderFaCard = (r, tier, tierCol) => {
-                const isMustFirst = tier === 'must' && _mustAddIdx++ === 0;
-                return (
-                <div key={r.pid} className={isMustFirst ? 'wr-pulse-gold' : undefined} onClick={() => {
-                    // Phase 6: route to unified PlayerCard (SI-2) — fall back to inline panel if not loaded
-                    if (window.WR && typeof window.WR.openPlayerCard === 'function') { window.WR.openPlayerCard(r.pid, { scoringSettings: currentLeague?.scoring_settings }); }
-                    else if (typeof window.openFWPlayerModal === 'function') { window.openFWPlayerModal(r.pid, playersData, statsData, currentLeague?.scoring_settings); }
-                    else { setFaSelectedPid(r.pid); }
-                }} style={{ background: faSelectedPid === r.pid ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.02)', border: '1px solid ' + (faSelectedPid === r.pid ? 'var(--gold)' : 'rgba(212,175,55,0.15)'), borderLeft: '3px solid ' + tierCol, borderRadius: '8px', padding: '12px', cursor: 'pointer', transition: 'background 0.12s' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--white)' }}>{r.p?.full_name || 'Unknown'}</span>
-                        <span style={{ fontSize: '0.74rem', color: posColors[r.pos] || 'var(--silver)', fontWeight: 700 }}>{r.pos}</span>
-                        <span style={{ marginLeft: 'auto', fontFamily: 'Inter, sans-serif', fontSize: '0.88rem', fontWeight: 700, color: 'var(--gold)' }}>{r.dhq?.toLocaleString()}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontSize: '0.76rem' }}>
-                        {r.ppg > 0 && <span style={{ color: 'var(--silver)' }}>{r.ppg} PPG</span>}
-	                        <span style={{ color: r.peakYrs > 0 ? '#2ECC71' : r.valueYrs > 0 ? '#F0A500' : '#E74C3C' }}>{r.peakYrs > 0 ? r.peakYrs + 'yr peak' : r.valueYrs + 'yr value'}</span>
-                        {r.need && <span style={{ color: '#E74C3C', fontWeight: 700 }}>fills {r.need.pos} {r.need.urgency}</span>}
-                        {r.faab && <span style={{ fontWeight: 700, color: 'var(--gold)', background: 'rgba(212,175,55,0.1)', padding: '1px 6px', borderRadius: '3px' }}>{'$' + r.faab.lo + '-' + r.faab.hi}</span>}
-                        {r.faab && <span style={{ color: r.faab.confCol, fontSize: '0.72rem' }}>{r.faab.conf}</span>}
-                    </div>
-                </div>
-            ); };
-
             return (
-                <div style={{ padding: '20px 24px', maxWidth: '1200px', margin: '0 auto' }} className="wr-fade-in">
-                    <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '16px' }}>WAIVER RECOMMENDATIONS</div>
-
-                    {/* Decision summary */}
-                    <div style={{ display: 'grid', gridTemplateColumns: hasFAAB ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)', gap: '12px', marginBottom: '20px' }}>
-                        {hasFAAB && <div className="wr-glass" style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '10px', padding: '14px', textAlign: 'center' }}>
-                            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.8rem', fontWeight: 600, color: remaining > budget * 0.5 ? '#2ECC71' : remaining > budget * 0.25 ? '#F0A500' : '#E74C3C' }}>{'$' + remaining}</div>
-                            <div style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>FAAB remaining</div>
-                            {recSpend > 0 && <div style={{ fontSize: '0.74rem', color: 'var(--gold)', marginTop: '4px' }}>Recommended spend: ${recSpend}</div>}
-                        </div>}
-                        <div style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '10px', padding: '14px', textAlign: 'center' }}>
-                            <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.4rem', color: 'var(--white)' }}>{assess?.needs?.slice(0, 3).map(n => n.pos).join(', ') || 'None'}</div>
-                            <div style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>Priority positions</div>
-                        </div>
-                        <div style={{ background: 'var(--black)', border: '2px solid ' + pressureCol + '40', borderRadius: '10px', padding: '14px', textAlign: 'center' }}>
-                            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.4rem', fontWeight: 600, color: pressureCol }}>{pressure}</div>
-                            <div style={{ fontSize: '0.76rem', color: 'var(--silver)' }}>Market pressure</div>
-                        </div>
+                <div className="fa-page wr-fade-in">
+                    <div className="fa-page-title">
+                        <h1>FREE AGENCY</h1>
+                        <p>Action-first waiver decisions, FAAB leverage, and roster-fit targeting.</p>
                     </div>
-
-                    {/* Tiered targets */}
-                    <div style={{ display: 'grid', gridTemplateColumns: faSelectedPid ? '1fr 380px' : '1fr', gap: '20px' }}>
-                        <div>
-                            {mustAdd.length > 0 && <div style={{ marginBottom: '16px' }}>
-                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: '#E74C3C', letterSpacing: '0.06em', marginBottom: '8px' }}>{hasFAAB ? 'MUST ADD' : 'PRIORITY ADDS'}</div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {mustAdd.map(r => renderFaCard(r, 'must', '#E74C3C'))}
-                                </div>
-                            </div>}
-
-                            {strongBuys.length > 0 && <div style={{ marginBottom: '16px' }}>
-                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: '#2ECC71', letterSpacing: '0.06em', marginBottom: '8px' }}>{hasFAAB ? 'STRONG BUYS' : 'DEPTH OPTIONS'}</div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {strongBuys.map(r => renderFaCard(r, 'strong', '#2ECC71'))}
-                                </div>
-                            </div>}
-
-                            {valuePlays.length > 0 && <div style={{ marginBottom: '16px' }}>
-                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: '#3498DB', letterSpacing: '0.06em', marginBottom: '8px' }}>{hasFAAB ? 'VALUE PLAYS' : 'STASH CANDIDATES'}</div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {valuePlays.map(r => renderFaCard(r, 'value', '#3498DB'))}
-                                </div>
-                            </div>}
-
-                            {recommendations.length === 0 && <div style={{ color: 'var(--silver)', textAlign: 'center', padding: '2rem', opacity: 0.5 }}>No targets available. Your roster may be well-covered.</div>}
-
-                            <div style={{ textAlign: 'center', padding: '12px', fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.4 }}>Switch to Analyst view for full free agent list and filters</div>
-                        </div>
-
-                        {/* Inline player detail */}
-                        {faSelectedPid && selPlayer && <div style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '20px', alignSelf: 'start', position: 'sticky', top: '80px' }}>
-                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '14px' }}>
-                                <div style={{ width: '56px', height: '56px', borderRadius: '12px', overflow: 'hidden', background: 'rgba(212,175,55,0.1)', border: '2px solid rgba(212,175,55,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                    <img src={'https://sleepercdn.com/content/nfl/players/' + faSelectedPid + '.jpg'} style={{ width: '56px', height: '56px', objectFit: 'cover' }} onError={e => { e.target.style.display='none'; const s=document.createElement('span'); s.style.cssText='font-size:18px;font-weight:700;color:var(--gold)'; s.textContent=selInitials; e.target.after(s); }} />
-                                </div>
-                                <div>
-                                    <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.3rem', color: 'var(--white)' }}>{selPlayer.full_name}</div>
-                                    <div style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{selPos} {'\u00B7'} {selPlayer.team || 'FA'} {'\u00B7'} Age {selPlayer.age || '?'}</div>
-                                </div>
-                                <button onClick={() => setFaSelectedPid(null)} style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--silver)', width: '24px', height: '24px', borderRadius: '50%', cursor: 'pointer', fontSize: '12px' }}>&times;</button>
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '14px' }}>
-                                {[{ val: selDhq > 0 ? selDhq.toLocaleString() : '\u2014', label: 'DHQ', col: selDhq >= 4000 ? '#2ECC71' : 'var(--gold)' },
-                                  { val: selPpg || '\u2014', label: 'PPG', col: selPpg >= 10 ? '#2ECC71' : 'var(--silver)' },
-	                        { val: selPeakYrs > 0 ? selPeakYrs + 'yr' : selValueYrs + 'yr', label: selPeakYrs > 0 ? 'PEAK' : 'VALUE', col: selPeakYrs >= 4 ? '#2ECC71' : selPeakYrs >= 1 ? 'var(--gold)' : selValueYrs >= 1 ? '#F0A500' : '#E74C3C' }
-                                ].map((s, i) => <div key={i} style={{ textAlign: 'center', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
-                                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.2rem', fontWeight: 600, color: s.col }}>{s.val}</div>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>{s.label}</div>
-                                </div>)}
-                            </div>
-                            {selFaab && <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
-                                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', marginBottom: '4px' }}>BID RECOMMENDATION</div>
-                                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.6rem', fontWeight: 600, color: 'var(--gold)' }}>{'$' + selFaab.lo + ' \u2013 $' + selFaab.hi}</div>
-                                <div style={{ fontSize: '0.76rem', color: 'var(--silver)', marginTop: '2px' }}>Suggested: <strong style={{ color: 'var(--white)' }}>{'$' + selFaab.sug}</strong></div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: selFaab.confCol }} />
-                                    <span style={{ fontSize: '0.74rem', color: selFaab.confCol }}>{selFaab.conf} ({selFaab.competitors} team{selFaab.competitors !== 1 ? 's' : ''} competing)</span>
-                                </div>
-                            </div>}
-                            {assess && (() => {
-                                const need2 = assess.needs?.find(n => n.pos === selPos);
-                                return <div style={{ fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '12px', padding: '8px 10px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
-                                    {need2 ? <span><strong style={{ color: '#2ECC71' }}>Fills {selPos} {need2.urgency}.</strong> </span> : <span style={{ opacity: 0.5 }}>Depth add at {selPos}. </span>}
-	                                    {selPeakYrs >= 4 ? 'Long dynasty window.' : selPeakYrs >= 1 ? 'In production window.' : selValueYrs >= 1 ? 'Veteran value window.' : 'Past value window — short-term only.'}
-                                </div>;
-                            })()}
-                            <button onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(faSelectedPid); }} style={{ width: '100%', padding: '8px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Rajdhani, sans-serif', fontSize: '0.9rem', cursor: 'pointer' }}>FULL PLAYER CARD</button>
-                        </div>}
-                    </div>
-
-                    {/* ── RECOMMENDED MOVES — drop-for-add pairs ── */}
-                    {(() => {
-                        const drops = (myRoster?.players || [])
-                            .filter(pid => !(myRoster.starters || []).includes(pid))
-                            .map(pid => ({ pid, p: playersData[pid], dhq: window.App?.LI?.playerScores?.[pid] || 0, pos: normPos(playersData[pid]?.position) }))
-                            .filter(d => d.p && d.dhq < 2000)
-                            .sort((a, b) => a.dhq - b.dhq).slice(0, 5);
-                        const pairs = [];
-                        drops.forEach(drop => {
-                            const upgrade = availablePlayers.find(a => a.pos === drop.pos && a.dhq > drop.dhq + 500 && !pairs.some(p => p.add.pid === a.pid));
-                            if (upgrade) {
-                                const addFaab = faabSuggest(upgrade.dhq, upgrade.pos);
-                                pairs.push({ drop, add: upgrade, faab: addFaab, gain: upgrade.dhq - drop.dhq });
-                            }
-                        });
-                        if (!pairs.length) return null;
-                        return React.createElement('div', { style: { marginTop: '20px' } },
-                            React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: '#2ECC71', letterSpacing: '0.06em', marginBottom: '4px' } }, 'RECOMMENDED MOVES'),
-                            React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Drop + add pairs that upgrade your roster'),
-                            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px' } },
-                                ...pairs.slice(0, 4).map((pair, i) =>
-                                    React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', background: 'rgba(46,204,113,0.04)', border: '1px solid rgba(46,204,113,0.15)', borderRadius: '8px' } },
-                                        React.createElement('div', { style: { flex: 1 } },
-                                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' } },
-                                                React.createElement('span', { style: { fontSize: '0.78rem', color: '#E74C3C', fontWeight: 700 } }, '\u2212 ' + (pair.drop.p.full_name || 'Unknown')),
-                                                React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, pair.drop.pos + ' \u00B7 ' + pair.drop.dhq.toLocaleString() + ' DHQ')
-                                            ),
-                                            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
-                                                React.createElement('span', { style: { fontSize: '0.78rem', color: '#2ECC71', fontWeight: 700 } }, '+ ' + (pair.add.p.full_name || 'Unknown')),
-                                                React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, pair.add.pos + ' \u00B7 ' + pair.add.dhq.toLocaleString() + ' DHQ')
-                                            )
-                                        ),
-                                        React.createElement('div', { style: { textAlign: 'right', flexShrink: 0 } },
-                                            React.createElement('div', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Inter, sans-serif', color: '#2ECC71' } }, '+' + pair.gain.toLocaleString()),
-                                            pair.faab && React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--gold)' } }, '$' + pair.faab.lo + '-' + pair.faab.hi)
-                                        )
-                                    )
-                                )
-                            )
-                        );
-                    })()}
-
-                    {/* ── DROP CANDIDATES — lowest-value rostered players ── */}
-                    {myRoster?.players?.length > 0 && (() => {
-                        const dropCandidates = (myRoster.players || [])
-                            .map(pid => {
-                                const p = playersData[pid];
-                                if (!p) return null;
-                                const dhq = window.App?.LI?.playerScores?.[pid] || 0;
-                                const pos = normPos(p.position) || p.position;
-	                                const meta = window.App?.LI?.playerMeta?.[pid];
-	                                const peakYrs = meta?.peakYrsLeft || 0;
-	                                const valueYrs = meta?.age ? Math.max(0, (meta.declineEnd || ageCurveFor(pos).decline[1]) - meta.age) : valueYearsFor(pos, p.age);
-	                                const isStarter = (myRoster.starters || []).includes(pid);
-	                                if (isStarter) return null;
-	                                return { pid, p, dhq, pos, peakYrs, valueYrs, name: p.full_name || 'Unknown', age: p.age || 0 };
-                            })
-                            .filter(Boolean)
-                            .sort((a, b) => a.dhq - b.dhq)
-                            .slice(0, 5);
-                        if (!dropCandidates.length) return null;
-                        return React.createElement('div', { style: { marginTop: '20px' } },
-                            React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: '#E74C3C', letterSpacing: '0.06em', marginBottom: '8px' } }, 'DROP CANDIDATES'),
-                            React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Lowest-value bench players — cut to make room for upgrades'),
-                            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
-                                ...dropCandidates.map(d =>
-                                    React.createElement('div', { key: d.pid, onClick: () => { if (window._wrSelectPlayer) window._wrSelectPlayer(d.pid); }, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(231,76,60,0.04)', border: '1px solid rgba(231,76,60,0.15)', borderRadius: '8px', cursor: 'pointer' } },
-                                        React.createElement('img', { src: 'https://sleepercdn.com/content/nfl/players/' + d.pid + '.jpg', style: { width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }, onError: e => { e.target.style.display = 'none'; } }),
-                                        React.createElement('div', { style: { flex: 1 } },
-                                            React.createElement('div', { style: { fontSize: '0.84rem', fontWeight: 600, color: 'var(--white)' } }, d.name),
-                                            React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, d.pos + ' \u00B7 ' + (d.p.team || 'FA') + ' \u00B7 Age ' + (d.age || '?'))
-                                        ),
-                                        React.createElement('div', { style: { textAlign: 'right' } },
-                                            React.createElement('div', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Inter, sans-serif', color: d.dhq > 0 ? 'var(--silver)' : '#E74C3C' } }, d.dhq > 0 ? d.dhq.toLocaleString() : 'No value'),
-	                                            React.createElement('div', { style: { fontSize: '0.68rem', color: d.valueYrs <= 0 ? '#E74C3C' : 'var(--silver)' } }, d.peakYrs > 0 ? d.peakYrs + 'yr peak' : d.valueYrs > 0 ? d.valueYrs + 'yr value' : 'Past value')
-                                        )
-                                    )
-                                )
-                            )
-                        );
-                    })()}
-
-                    {/* ── LEAGUE FAAB TRACKER ── */}
-                    {hasFAAB && React.createElement('div', { style: { marginTop: '20px' } },
-                        React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' } }, 'LEAGUE FAAB TRACKER'),
-                        React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'See who can outbid you \u2014 and who\u2019s tapped out'),
-                        React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px' } },
-                            ...(currentLeague.rosters || []).map(r => {
-                                const user = (currentLeague.users || []).find(u => u.user_id === r.owner_id);
-                                const name = user?.display_name || user?.username || ('Team ' + r.roster_id);
-                                const rBudget = currentLeague?.settings?.waiver_budget || 0;
-                                const rSpent = r.settings?.waiver_budget_used || 0;
-                                const rRemaining = Math.max(0, rBudget - rSpent);
-                                const pct = rBudget > 0 ? Math.round(rRemaining / rBudget * 100) : 0;
-                                const col = pct > 50 ? '#2ECC71' : pct > 25 ? '#F0A500' : '#E74C3C';
-                                const isMe = r.roster_id === myRoster?.roster_id;
-                                return React.createElement('div', { key: r.roster_id, style: { background: isMe ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)', border: '1px solid ' + (isMe ? 'rgba(212,175,55,0.3)' : 'rgba(255,255,255,0.06)'), borderRadius: '8px', padding: '8px 10px' } },
-                                    React.createElement('div', { style: { fontSize: '0.76rem', fontWeight: isMe ? 700 : 500, color: isMe ? 'var(--gold)' : 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '4px' } }, name + (isMe ? ' (you)' : '')),
-                                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
-                                        React.createElement('div', { style: { flex: 1, height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' } },
-                                            React.createElement('div', { style: { height: '100%', width: pct + '%', background: col, borderRadius: '3px' } })
-                                        ),
-                                        React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, fontFamily: 'Inter, sans-serif', color: col, minWidth: '32px', textAlign: 'right' } }, '$' + rRemaining)
-                                    )
-                                );
-                            }).sort((a, b) => {
-                                const aMe = a.key === myRoster?.roster_id;
-                                return aMe ? -1 : 0;
-                            })
-                        )
-                    )}
-
-                    {/* ── ROSTER CHURN ALERTS ── */}
-                    {(() => {
-                        const recentDrops = [];
-                        const transactions = window.S?.transactions || {};
-                        const curWeek = window.S?.currentWeek || 1;
-                        for (let w = curWeek; w >= Math.max(1, curWeek - 2); w--) {
-                            (transactions['w' + w] || []).forEach(t => {
-                                if (t.type !== 'free_agent' && t.type !== 'waiver') return;
-                                Object.keys(t.drops || {}).forEach(pid => {
-                                    const dhq = window.App?.LI?.playerScores?.[pid] || 0;
-                                    if (dhq >= 1500) {
-                                        const dropper = (currentLeague.users || []).find(u => {
-                                            const r = (currentLeague.rosters || []).find(r2 => t.roster_ids?.includes(r2.roster_id) && r2.owner_id === u.user_id);
-                                            return !!r;
-                                        });
-                                        recentDrops.push({ pid, dhq, name: playersData[pid]?.full_name || 'Unknown', pos: normPos(playersData[pid]?.position), week: w, droppedBy: dropper?.display_name || 'Unknown' });
-                                    }
-                                });
-                            });
-                        }
-                        if (!recentDrops.length) return null;
-                        return React.createElement('div', { style: { marginTop: '20px' } },
-                            React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: '#F0A500', letterSpacing: '0.06em', marginBottom: '4px' } }, 'ROSTER CHURN ALERTS'),
-                            React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Startable players dropped in the last 2 weeks'),
-                            React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
-                                ...recentDrops.slice(0, 6).map(d =>
-                                    React.createElement('div', { key: d.pid, onClick: () => { if (window._wrSelectPlayer) window._wrSelectPlayer(d.pid); }, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', background: 'rgba(240,165,0,0.04)', border: '1px solid rgba(240,165,0,0.15)', borderRadius: '8px', cursor: 'pointer' } },
-                                        React.createElement('div', { style: { flex: 1 } },
-                                            React.createElement('div', { style: { fontSize: '0.84rem', fontWeight: 600, color: 'var(--white)' } }, d.name),
-                                            React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)' } }, d.pos + ' \u00B7 DHQ ' + d.dhq.toLocaleString() + ' \u00B7 Dropped by ' + d.droppedBy + ' \u00B7 Week ' + d.week)
-                                        ),
-                                        React.createElement('span', { style: { fontSize: '0.78rem', fontWeight: 700, color: '#F0A500' } }, 'GRAB')
-                                    )
-                                )
-                            )
-                        );
-                    })()}
-
-                    {/* ── BIDDING STRATEGY ── */}
-                    {hasFAAB && recommendations.length > 0 && React.createElement('div', { style: { marginTop: '20px' } },
-                        React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.125rem', fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' } }, 'BIDDING STRATEGY'),
-                        React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, 'Competitor-aware bid recommendations for your top targets'),
-                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
-                            ...recommendations.slice(0, 4).map(r => {
-                                if (!r.faab) return null;
-                                let topCompetitor = null;
-                                (currentLeague.rosters || []).forEach(ros => {
-                                    if (ros.roster_id === myRoster?.roster_id) return;
-                                    const cnt = (ros.players || []).filter(pid => normPos(playersData[pid]?.position) === r.pos).length;
-                                    const reqCount = (currentLeague.roster_positions || []).filter(s => normPos(s) === r.pos || s === 'FLEX').length;
-                                    if (cnt < reqCount) {
-                                        const rBudget2 = currentLeague?.settings?.waiver_budget || 0;
-                                        const rSpent2 = ros.settings?.waiver_budget_used || 0;
-                                        const rRem = Math.max(0, rBudget2 - rSpent2);
-                                        const user2 = (currentLeague.users || []).find(u => u.user_id === ros.owner_id);
-                                        if (!topCompetitor || rRem > topCompetitor.remaining) {
-                                            topCompetitor = { name: user2?.display_name || 'Unknown', remaining: rRem, rosterId: ros.roster_id };
-                                        }
-                                    }
-                                });
-                                const strategyBid = topCompetitor && topCompetitor.remaining > r.faab.sug ? Math.min(remaining, Math.round(topCompetitor.remaining * 0.6)) : r.faab.sug;
-                                const strategy = topCompetitor
-                                    ? (topCompetitor.remaining > r.faab.hi ? topCompetitor.name + ' has $' + topCompetitor.remaining + ' and needs ' + r.pos + '. Bid $' + strategyBid + ' to beat them.' : 'Low threat \u2014 bid $' + r.faab.sug + ' (standard)')
-                                    : 'No competition \u2014 bid minimum $' + r.faab.lo;
-                                return React.createElement('div', { key: r.pid, style: { padding: '10px 14px', background: 'rgba(212,175,55,0.04)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px' } },
-                                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' } },
-                                        React.createElement('span', { style: { fontSize: '0.84rem', fontWeight: 700, color: 'var(--white)' } }, r.p.full_name || 'Unknown'),
-                                        React.createElement('span', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Inter, sans-serif', color: 'var(--gold)' } }, '$' + strategyBid)
-                                    ),
-                                    React.createElement('div', { style: { fontSize: '0.74rem', color: 'var(--silver)', lineHeight: 1.5 } }, strategy)
-                                );
-                            }).filter(Boolean)
-                        )
-                    )}
-
-                    <div style={{ textAlign: 'center', padding: '12px', fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.4, marginTop: '16px' }}>Switch to Analyst view for full free agent list and filters</div>
+                    {renderActionHQ(true)}
                 </div>
             );
         }
 
         // ── ANALYST VIEW: full market terminal ──
         return (
-            <div style={{ padding: '20px 24px', maxWidth: '1400px', margin: '0 auto' }} className="wr-fade-in">
-                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' }}>FREE AGENCY</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '20px' }}>Full market analysis and player evaluation</div>
-
-                {/* ── TOP: FAAB + Position Needs Grid (Phase 6: shrunk FAAB card) ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: hasFAAB ? '120px 1fr' : '1fr', gap: '12px', marginBottom: '20px' }}>
-                    {/* FAAB gauge — compact */}
-                    {hasFAAB && (() => {
-                        const rosters = currentLeague.rosters || [];
-                        const totalBudget = currentLeague?.settings?.waiver_budget || 0;
-                        const avgUsed = rosters.length > 0 ? rosters.reduce((sum, r) => sum + (r.settings?.waiver_budget_used || 0), 0) / rosters.length : 0;
-                        const leagueAvgRemaining = Math.round(Math.max(0, totalBudget - avgUsed));
-                        const sortedByRemaining = rosters.map(r => ({ rid: r.roster_id, rem: Math.max(0, totalBudget - (r.settings?.waiver_budget_used || 0)) })).sort((a, b) => b.rem - a.rem);
-                        const myRank = sortedByRemaining.findIndex(r => r.rid === myRoster?.roster_id) + 1;
-                        const faabCol = remaining > budget * 0.5 ? '#2ECC71' : remaining > budget * 0.25 ? '#F0A500' : '#E74C3C';
-                        return <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '10px', padding: '10px 8px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.58rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.65, marginBottom: '4px' }}>FAAB</div>
-                            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.4rem', fontWeight: 700, color: faabCol, lineHeight: 1 }}>{'$' + remaining}</div>
-                            <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.7, marginTop: '2px' }}>of ${budget}</div>
-                            <div style={{ fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.55, marginTop: '6px', lineHeight: 1.3 }}>
-                                #{myRank}/{rosters.length} · lg avg ${leagueAvgRemaining}
-                            </div>
-                        </div>;
-                    })()}
-
-                    {/* Position Needs — leads with actual needs, then shows per-pos detail */}
-                    {assess && <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '12px', padding: '14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                            <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.08em' }}>ROSTER NEEDS</div>
-                            {/* Phase 6: Lead with the actual need/surplus summary so this card answers "what do I need?" first */}
-                            {(() => {
-                                const deficits = (assess.needs || []).filter(n => n.urgency === 'deficit').map(n => n.pos);
-                                const thin = (assess.needs || []).filter(n => n.urgency === 'thin').map(n => n.pos);
-                                const surplus = (assess.strengths || []);
-                                const chip = (label, items, col, bg) => items.length ? React.createElement('span', { style: { display: 'inline-flex', gap: '4px', alignItems: 'baseline', padding: '2px 8px', borderRadius: '4px', background: bg, border: '1px solid ' + col + '55', fontSize: '0.68rem', color: col, fontWeight: 700, letterSpacing: '0.04em' } }, label, React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', opacity: 0.95 } }, items.join(' '))) : null;
-                                const none = !deficits.length && !thin.length;
-                                return React.createElement(React.Fragment, null,
-                                    chip('DEFICIT', deficits, '#E74C3C', 'rgba(231,76,60,0.08)'),
-                                    chip('THIN', thin, '#F0A500', 'rgba(240,165,0,0.08)'),
-                                    chip('SURPLUS', surplus, '#2ECC71', 'rgba(46,204,113,0.08)'),
-                                    none && !surplus.length ? React.createElement('span', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6 } }, 'No urgent gaps') : null
-                                );
-                            })()}
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                            {['QB','DL','RB','LB','WR','DB','TE','K'].filter(pos => (assess.posAssessment || {})[pos]).map(pos => { const data = assess.posAssessment[pos];
-                                const status = data.status || 'ok';
-                                const gradeCol = status === 'surplus' ? '#2ECC71' : status === 'ok' ? 'var(--silver)' : status === 'thin' ? '#F0A500' : '#E74C3C';
-                                const grade = status === 'surplus' ? 'A' : status === 'ok' ? 'B' : status === 'thin' ? 'C' : 'D';
-                                const myRosterPids = myRoster?.players || [];
-                                const playersAtPos = myRosterPids
-                                    .filter(pid => normPos(playersData[pid]?.position) === pos)
-                                    .map(pid => {
-                                        const p = playersData[pid];
-                                        const dhq = window.App?.LI?.playerScores?.[pid] || 0;
-	                                        const peakYrs = peakYearsFor(pos, p?.age);
-	                                        const valueYrs = valueYearsFor(pos, p?.age);
-	                                        const abbr = (p?.first_name?.[0] || '?') + '. ' + (p?.last_name || 'Unknown');
-	                                        return { pid, abbr, dhq, peakYrs, valueYrs };
-	                                    })
-                                    .sort((a, b) => b.dhq - a.dhq);
-                                const dhqColor = (v) => v >= 7000 ? '#2ECC71' : v >= 4000 ? '#3498DB' : v >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)';
-	                                const peakColor = (y, v) => y >= 4 ? '#2ECC71' : y >= 1 ? 'var(--gold)' : v >= 1 ? '#F0A500' : '#E74C3C';
-                                return <div key={pos} style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '10px', marginBottom: '0' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: gradeCol }}>{pos}</span>
-                                        <span title="Grade A = surplus depth. B = adequate. C = thin depth, needs attention. D = critical deficit. The number shows quality starters you have vs. minimum needed." style={{ fontSize: '0.72rem', color: gradeCol, fontWeight: 700, cursor: 'help' }}>{grade} · {data.nflStarters}/{data.minQuality || data.startingReq}</span>
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                        {playersAtPos.slice(0, 3).map(pl =>
-                                            <div key={pl.pid} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem' }}>
-                                                <span style={{ color: 'var(--white)', fontWeight: 500 }}>{pl.abbr}</span>
-                                                <span style={{ display: 'flex', gap: '8px' }}>
-                                                    <span style={{ color: dhqColor(pl.dhq), fontFamily: 'Inter, sans-serif', fontWeight: 700 }}>{pl.dhq > 0 ? pl.dhq.toLocaleString() : '\u2014'}</span>
-	                                                    <span style={{ color: peakColor(pl.peakYrs, pl.valueYrs) }}>{pl.peakYrs > 0 ? pl.peakYrs + 'yr' : pl.valueYrs + 'v'}</span>
-                                                </span>
-                                            </div>
-                                        )}
-                                        {playersAtPos.length > 3 && <div style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.5, fontStyle: 'italic', marginTop: '1px' }}>and {playersAtPos.length - 3} more</div>}
-                                        {playersAtPos.length === 0 && <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.4 }}>No players</div>}
-                                    </div>
-                                </div>;
-                            })}
-                        </div>
-                    </div>}
+            <div className="fa-page wr-fade-in">
+                <div className="fa-page-title">
+                    <h1>FREE AGENCY</h1>
+                    <p>Action-first waiver decisions, FAAB leverage, and full market exploration.</p>
                 </div>
 
-                {/* ── WAIVER PRIORITY BOARD — Alex's top recommendations ── */}
-                {(() => {
-                    const visibleCount = waiverBoardExpanded ? 10 : 5;
-                    const boardPlayers = availablePlayers.slice(0, visibleCount);
-                    return React.createElement('div', { style: { marginBottom: '20px' } },
-                        React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' } }, 'WAIVER RECOMMENDATIONS'),
-                        React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, "Alex's top pickup recommendations"),
-                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: waiverBoardExpanded ? '480px' : 'none', overflowY: waiverBoardExpanded ? 'auto' : 'visible' } },
-                            ...boardPlayers.map((x, i) => {
-	                                const st = statsData[x.pid] || {};
-	                                const ppg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : 0;
-	                                const playerAge = x.p.age || 0;
-	                                const curve2 = ageCurveFor(x.pos);
-	                                const [pLo2, pHi2] = curve2.peak;
-	                                const declineHi2 = curve2.decline[1];
-	                                const peakYrs2 = Math.max(0, pHi2 - (playerAge || 25));
-	                                const valueYrs2 = Math.max(0, declineHi2 - (playerAge || 25));
-	                                const inPeak = playerAge >= pLo2 && playerAge <= pHi2;
-	                                const inValue = !inPeak && playerAge > pHi2 && playerAge <= declineHi2;
-	                                const nearEdge = !inPeak && !inValue && (playerAge >= pLo2 - 1 && playerAge <= declineHi2 + 1);
-	                                const peakDotColor = inPeak ? '#2ECC71' : inValue || nearEdge ? '#F0A500' : '#E74C3C';
-	                                const peakDotTitle = inPeak ? 'In peak window' : inValue ? valueYrs2 + ' value years left' : nearEdge ? 'Near value edge' : 'Past value window';
-                                const myNeed = assess?.needs?.find(n => n.pos === x.pos);
-                                const faab2 = faabSuggest(x.dhq, x.pos);
-                                const dhqCol2 = x.dhq >= 7000 ? '#2ECC71' : x.dhq >= 4000 ? '#3498DB' : x.dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)';
-                                return React.createElement('div', { key: x.pid, onClick: () => { if (window._wrSelectPlayer) window._wrSelectPlayer(x.pid); },
-                                    style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: myNeed ? 'rgba(46,204,113,0.04)' : 'rgba(255,255,255,0.02)', border: '1px solid ' + (myNeed ? 'rgba(46,204,113,0.15)' : 'rgba(212,175,55,0.12)'), borderRadius: '10px', cursor: 'pointer', transition: 'background 0.12s' },
-                                    onMouseEnter: e => { e.currentTarget.style.background = 'rgba(212,175,55,0.06)'; },
-                                    onMouseLeave: e => { e.currentTarget.style.background = myNeed ? 'rgba(46,204,113,0.04)' : 'rgba(255,255,255,0.02)'; }
-                                },
-                                    React.createElement('span', { style: { fontFamily: 'Inter, sans-serif', fontSize: '0.78rem', fontWeight: 700, color: i < 3 ? 'var(--gold)' : 'var(--silver)', minWidth: '18px' } }, i + 1),
-                                    React.createElement('img', { src: 'https://sleepercdn.com/content/nfl/players/' + x.pid + '.jpg', style: { width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.1)' }, onError: e => { e.target.style.display = 'none'; } }),
-                                    React.createElement('div', { style: { flex: 1, overflow: 'hidden' } },
-                                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
-                                            React.createElement('span', { style: { fontSize: '0.82rem', fontWeight: 600, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, x.p.full_name || 'Unknown'),
-                                            React.createElement('span', { style: { fontSize: '0.74rem', fontWeight: 700, color: posColors[x.pos] || 'var(--silver)' } }, x.pos)
-                                        ),
-                                        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: 'var(--silver)', marginTop: '2px' } },
-                                            React.createElement('span', null, x.p.team || 'FA'),
-                                            playerAge > 0 && React.createElement('span', null, '\u00B7 Age ' + playerAge),
-                                            React.createElement('span', { title: peakDotTitle, style: { display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: peakDotColor, flexShrink: 0 } }),
-                                            myNeed && React.createElement('span', { style: { color: '#2ECC71', fontWeight: 600 } }, '\u00B7 fills ' + myNeed.urgency)
-                                        )
-                                    ),
-                                    React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: '2px' } },
-                                        React.createElement('span', { style: { fontWeight: 700, fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', color: dhqCol2 } }, x.dhq > 0 ? x.dhq.toLocaleString() : '\u2014'),
-                                        React.createElement('div', { style: { display: 'flex', gap: '6px', fontSize: '0.7rem' } },
-                                            ppg > 0 && React.createElement('span', { style: { color: 'var(--silver)' } }, ppg + ' PPG'),
-                                            faab2 ? React.createElement('span', { style: { fontWeight: 700, color: 'var(--gold)' } }, '$' + faab2.lo + '-' + faab2.hi) : null
-                                        )
-                                    )
-                                );
-                            })
-                        ),
-                        !waiverBoardExpanded && availablePlayers.length > 5 && React.createElement('button', {
-                            onClick: () => setWaiverBoardExpanded(true),
-                            style: { width: '100%', padding: '8px', marginTop: '8px', background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', color: 'var(--gold)', fontSize: '0.78rem', fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.04em', cursor: 'pointer' }
-                        }, 'SHOW MORE'),
-                        waiverBoardExpanded && React.createElement('button', {
-                            onClick: () => setWaiverBoardExpanded(false),
-                            style: { width: '100%', padding: '8px', marginTop: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', color: 'var(--silver)', fontSize: '0.78rem', fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.04em', cursor: 'pointer' }
-                        }, 'SHOW LESS')
-                    );
-                })()}
+                {renderActionHQ(false)}
 
-                {/* ── POSITION FILTER + FULL LIST ── */}
-                <React.Fragment>
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', color: 'var(--gold)', letterSpacing: '0.06em', marginRight: '8px' }}>ALL FREE AGENTS</span>
+                <section className="fa-market-shell">
+                <div className="fa-market-head">
+                    <div>
+                        <span>Market Explorer</span>
+                        <p>{sortedPlayers.length} shown from {availablePlayers.length} available players. Saved views and custom columns still apply.</p>
+                    </div>
+                    <div className="fa-market-search">
+                        <input value={faSearch} onChange={e => setFaSearch(e.target.value)} placeholder="Search player, team, college..." />
+                    </div>
+                </div>
+
+                <div className="fa-market-toolbar">
+                    <span>POS:</span>
                     {['', 'QB', 'RB', 'WR', 'TE', 'K', 'DL', 'LB', 'DB'].map(pos =>
                         <button key={pos} onClick={() => setFaFilter(pos)} style={{ padding: '5px 12px', fontSize: '0.76rem', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', background: faFilter === pos ? 'var(--gold)' : 'rgba(255,255,255,0.04)', color: faFilter === pos ? 'var(--black)' : 'var(--silver)', border: '1px solid ' + (faFilter === pos ? 'var(--gold)' : 'rgba(255,255,255,0.08)'), borderRadius: '4px', cursor: 'pointer' }}>{pos || 'All'}</button>
                     )}
                 </div>
 
                 {/* Phase 6 deferred: presets + column picker + SavedViewBar */}
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65, fontFamily: 'Inter, sans-serif' }}>VIEW:</span>
+                <div className="fa-market-toolbar">
+                    <span>VIEW:</span>
                     {Object.entries(FA_COLUMN_PRESETS).map(([key, cols]) => (
                         <button key={key} onClick={() => { setVisibleFaCols(cols); setFaColPreset(key); }}
                             style={{
@@ -821,11 +683,12 @@
                             {React.createElement(window.WR.SavedViews.SavedViewBar, {
                                 surface: 'free_agency',
                                 leagueId: currentLeague?.id || currentLeague?.league_id,
-                                currentState: { columns: visibleFaCols, sort: faSort, filters: { faFilter } },
+                                currentState: { columns: visibleFaCols, sort: faSort, filters: { faFilter, faSearch } },
                                 onApply: (v) => {
                                     if (Array.isArray(v.columns) && v.columns.length) { setVisibleFaCols(v.columns); setFaColPreset('custom'); }
                                     if (v.sort && v.sort.key) setFaSort({ key: v.sort.key, dir: v.sort.dir || 1 });
                                     if (v.filters && typeof v.filters.faFilter === 'string') setFaFilter(v.filters.faFilter);
+                                    if (v.filters && typeof v.filters.faSearch === 'string') setFaSearch(v.filters.faSearch);
                                 },
                             })}
                         </div>
@@ -917,10 +780,11 @@
                                 }
 	                                const dhqCol = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#3498DB' : dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.25)';
 	                                const faab = faabSuggest(dhq, pos);
-	                                const peakYrs = peakYearsFor(pos, p.age);
-	                                const valueYrs = valueYearsFor(pos, p.age);
-	                                const peakLabel = peakYrs >= 4 ? 'Rising' : peakYrs >= 1 ? 'Prime' : valueYrs >= 1 ? 'Vet' : 'Post';
-	                                const peakCol = peakYrs >= 4 ? '#2ECC71' : peakYrs >= 1 ? 'var(--gold)' : valueYrs >= 1 ? '#F0A500' : '#E74C3C';
+		                                const peakYrs = peakYearsFor(pos, p.age);
+		                                const valueYrs = valueYearsFor(pos, p.age);
+		                                const peakLabel = peakYrs >= 4 ? 'Rising' : peakYrs >= 1 ? 'Prime' : valueYrs >= 1 ? 'Vet' : 'Post';
+		                                const peakCol = peakYrs >= 4 ? '#2ECC71' : peakYrs >= 1 ? 'var(--gold)' : valueYrs >= 1 ? '#F0A500' : '#E74C3C';
+                                const fit = fitRead(pos);
                                 const renderCell = (k) => {
                                     switch (k) {
                                         case 'pos':        return <span style={{ fontSize: '0.76rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' }}>{pos}</span>;
@@ -936,12 +800,12 @@
                                         case 'depthChart': return <span style={{ fontSize: '0.72rem', color: p.depth_chart_order != null ? 'var(--silver)' : 'rgba(255,255,255,0.3)' }}>{p.depth_chart_order != null ? pos + (p.depth_chart_order + 1) : '\u2014'}</span>;
                                         case 'injury':     return <span style={{ fontSize: '0.72rem', fontWeight: 600, color: p.injury_status ? '#E74C3C' : 'rgba(255,255,255,0.3)' }}>{p.injury_status || '—'}</span>;
                                         case 'faab':       return <span style={{ fontSize: '0.74rem', color: 'var(--gold)', fontWeight: 700 }}>{faab ? '$' + faab.lo + '-' + faab.hi : '\u2014'}</span>;
+                                        case 'fit':        return <span style={{ fontSize: '0.72rem', color: fit.color, fontWeight: 700 }}>{fit.short}</span>;
                                         default:           return <span>—</span>;
                                     }
                                 };
                                 return <div key={pid} onClick={() => {
-                                    if (window.WR && typeof window.WR.openPlayerCard === 'function') { window.WR.openPlayerCard(pid, { scoringSettings: currentLeague?.scoring_settings }); }
-                                    else { setFaSelectedPid(pid); }
+                                    openFaPlayer(pid);
                                 }} style={{ display: 'grid', gridTemplateColumns: gridTemplate, background: faSelectedPid === pid ? 'rgba(212,175,55,0.08)' : 'transparent', gap: '4px', padding: '7px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', alignItems: 'center', transition: 'background 0.1s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(212,175,55,0.05)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                                     <div className={'wr-ring wr-ring-' + pos} style={{ width: '26px', height: '26px', borderRadius: '50%', overflow: 'hidden', background: 'rgba(212,175,55,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                         <img src={'https://sleepercdn.com/content/nfl/players/' + pid + '.jpg'} alt="" style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} onError={e => { e.target.style.display='none'; const s=document.createElement('span'); s.style.cssText='font-size:10px;font-weight:700;color:var(--gold)'; s.textContent=((p.first_name||'?')[0]+(p.last_name||'?')[0]).toUpperCase(); e.target.after(s); }} />
@@ -956,7 +820,7 @@
                         </div>
                     </div>;
                 })()}
-                </React.Fragment>
+                </section>
 
                 {/* ── RIGHT: PLAYER DETAIL PANEL ── */}
                 {faSelectedPid && selPlayer && <div style={{ position: 'fixed', right: 0, top: 0, bottom: 0, width: '380px', background: 'linear-gradient(135deg, var(--off-black), var(--charcoal))', borderLeft: '2px solid var(--gold)', zIndex: 200, overflowY: 'auto', padding: '20px', boxShadow: '-8px 0 32px rgba(0,0,0,0.5)' }}>
@@ -1037,7 +901,7 @@
                     </div>}
 
                     {/* Action */}
-                    <button onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(faSelectedPid); }} style={{ width: '100%', padding: '10px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', letterSpacing: '0.06em', cursor: 'pointer' }}>FULL PLAYER CARD</button>
+                    <button onClick={() => openFaPlayer(faSelectedPid)} style={{ width: '100%', padding: '10px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '8px', fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', letterSpacing: '0.06em', cursor: 'pointer' }}>FULL PLAYER CARD</button>
                 </div>}
             </div>
         );

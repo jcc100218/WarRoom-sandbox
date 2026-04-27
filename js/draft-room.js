@@ -326,12 +326,80 @@
         // Helper: get player display name
         const pName = (p) => p.full_name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'Unknown';
 
+        const leagueSize = currentLeague?.rosters?.length || currentLeague?.settings?.num_teams || window.S?.rosters?.length || 12;
+
+        const openDraftPlayer = useCallback((pid) => {
+            if (!pid) return;
+            if (window.WR?.openPlayerCard) window.WR.openPlayerCard(pid);
+            else if (window._wrSelectPlayer) window._wrSelectPlayer(pid);
+        }, []);
+
+        const slotMap = useMemo(() => {
+            const rosters = currentLeague?.rosters || window.S?.rosters || [];
+            const sorted = [...rosters].sort((a, b) => {
+                const aW = a.settings?.wins || 0;
+                const bW = b.settings?.wins || 0;
+                if (aW !== bW) return aW - bW;
+                const aP = (a.settings?.fpts || 0) + (a.settings?.fpts_decimal || 0) / 100;
+                const bP = (b.settings?.fpts || 0) + (b.settings?.fpts_decimal || 0) / 100;
+                return aP - bP;
+            });
+            const m = {};
+            sorted.forEach((r, i) => { m[String(r.roster_id)] = i + 1; });
+            return m;
+        }, [currentLeague?.rosters, timeRecomputeTs]);
+
+        const slotFor = useCallback((pk) => {
+            if (!pk) return null;
+            const src = pk.own ? myRoster?.roster_id : pk.from;
+            return src != null ? slotMap[String(src)] : null;
+        }, [slotMap, myRoster?.roster_id]);
+
+        const fmtPick = useCallback((pk) => {
+            if (!pk) return '--';
+            const slot = slotFor(pk);
+            return pk.year + ' ' + pk.round + '.' + (slot ? String(slot).padStart(2, '0') : '??');
+        }, [slotFor]);
+
+        const pickYears = useMemo(() => [leagueSeason, leagueSeason + 1, leagueSeason + 2], [leagueSeason]);
+
         // Next pick info
-        const nextPick = myPicks.find(pk => pk.year === leagueSeason);
+        const nextPick = useMemo(() => {
+            return myPicks
+                .filter(pk => pk.year === leagueSeason)
+                .slice()
+                .sort((a, b) => {
+                    if (a.round !== b.round) return a.round - b.round;
+                    return (slotFor(a) || 99) - (slotFor(b) || 99);
+                })[0] || null;
+        }, [myPicks, leagueSeason, slotFor]);
+
+        const nextSlot = nextPick ? slotFor(nextPick) : null;
+        const nextPickOverall = nextPick ? ((nextPick.round - 1) * leagueSize) + (nextSlot || Math.ceil(leagueSize / 2)) : null;
+        const picksBeforeNext = nextPickOverall ? Math.max(0, nextPickOverall - 1) : 0;
+
+        const draftCountdown = useMemo(() => {
+            if (!draftInfo?.start_time) {
+                return { title: 'No draft scheduled', detail: 'Use Mock Draft Center to rehearse from any slot.' };
+            }
+            if (draftInfo.status === 'drafting') {
+                return { title: 'Draft is live', detail: 'Follow Live Draft can mirror Sleeper when you are ready.' };
+            }
+            const diff = draftInfo.start_time - countdownNow;
+            if (diff <= 0) return { title: 'Draft window open', detail: 'Sleeper draft time has arrived.' };
+            const days = Math.floor(diff / 86400000);
+            const hours = Math.floor((diff % 86400000) / 3600000);
+            const mins = Math.floor((diff % 3600000) / 60000);
+            const clock = (days > 0 ? days + 'd ' : '') + hours + 'h ' + mins + 'm';
+            return {
+                title: clock,
+                detail: new Date(draftInfo.start_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }),
+            };
+        }, [draftInfo, countdownNow]);
 
         // Top prospects with fit
         const topProspects = useMemo(() => {
-            return rookies.slice(0, 20).map(r => ({ ...r, fit: computeFitScore(r) }));
+            return rookies.slice(0, 160).map(r => ({ ...r, fit: computeFitScore(r) }));
         }, [rookies, computeFitScore]);
 
         // Strategy recommendation — must be declared before recommendations (which depends on it)
@@ -347,28 +415,85 @@
         // Best recommendations for next pick
         const recommendations = useMemo(() => {
             const targetPos = (strategyRec?.type === 'target' && strategyRec?.label) ? strategyRec.label.replace('Target ', '') : null;
-            const totalTeams = currentLeague?.rosters?.length || 16;
-
-            // Estimate pick position: for your first pick, how many picks come before you?
-            const firstPick = myPicks.find(pk => pk.year === leagueSeason);
-            // In a linear draft, your position is roughly your roster_id. Estimate picks before yours.
-            // Use standings or roster order as a proxy for draft order
-            const myDraftPos = myRoster?.roster_id || Math.ceil(totalTeams / 2);
-            const picksBeforeMe = firstPick ? ((firstPick.round - 1) * totalTeams) + myDraftPos - 1 : 0;
-
-            // Rookies ranked by pure DHQ — estimate top N will be drafted before your pick
-            const byDhq = [...topProspects].sort((a, b) => b.dhq - a.dhq);
-            const likelyGone = new Set(byDhq.slice(0, Math.max(0, picksBeforeMe)).map(r => r.pid));
 
             return topProspects
-                .filter(r => !draftedPids.has(r.pid) && !likelyGone.has(r.pid))
-                .sort((a, b) => {
-                    const aComposite = a.dhq * 0.6 + a.fit.score * 80 + (targetPos && a.pos === targetPos ? 2000 : 0);
-                    const bComposite = b.dhq * 0.6 + b.fit.score * 80 + (targetPos && b.pos === targetPos ? 2000 : 0);
-                    return bComposite - aComposite;
+                .map((r, i) => ({ ...r, expectedRank: i + 1 }))
+                .filter(r => !draftedPids.has(r.pid) && (!nextPickOverall || r.expectedRank > picksBeforeNext))
+                .map(r => {
+                    const pos = normPos(r.p.position) || r.p.position;
+                    const needEntry = assess?.needs?.find(n => n.pos === pos);
+                    const nearPickBonus = nextPickOverall ? Math.max(0, 22 - Math.abs(r.expectedRank - nextPickOverall)) * 18 : 0;
+                    const needBonus = needEntry?.urgency === 'deficit' ? 1700 : needEntry ? 850 : 0;
+                    const targetBonus = targetPos && pos === targetPos ? 1200 : 0;
+                    const score = r.dhq * 0.58 + r.fit.score * 55 + nearPickBonus + needBonus + targetBonus;
+                    const availability = !nextPickOverall ? 72
+                        : r.expectedRank <= nextPickOverall + 2 ? 54
+                        : r.expectedRank <= nextPickOverall + leagueSize ? 73
+                        : 88;
+                    const draftCapital = r.csv?.draftRound
+                        ? 'NFL R' + r.csv.draftRound + (r.csv.draftPick ? ' P' + r.csv.draftPick : '')
+                        : (r.csv?.isUDFA ? 'UDFA' : 'Capital TBD');
+                    const reason = needEntry
+                        ? (needEntry.urgency === 'deficit' ? 'Closes a critical ' + pos + ' room while staying near board value.' : 'Adds useful ' + pos + ' depth without reaching past the tier.')
+                        : 'Best-player-available candidate with enough value to override lesser needs.';
+                    const riskLabel = r.csv?.risk || (r.csv?.draftRound && r.csv.draftRound <= 2 ? 'Lower risk' : r.csv?.isUDFA ? 'Long shot' : 'Market risk');
+                    return { ...r, pos, needEntry, score, availability, draftCapital, reason, riskLabel };
                 })
-                .slice(0, 5);
-        }, [topProspects, draftedPids, strategyRec, myPicks, myRoster]);
+                .sort((a, b) => {
+                    return b.score - a.score;
+                })
+                .slice(0, 8);
+        }, [topProspects, draftedPids, strategyRec, nextPickOverall, picksBeforeNext, assess, leagueSize]);
+
+        const likelyGoneBeforePick = useMemo(() => {
+            if (!nextPickOverall) return [];
+            return topProspects
+                .filter(r => !draftedPids.has(r.pid))
+                .slice(0, Math.max(0, picksBeforeNext));
+        }, [topProspects, draftedPids, nextPickOverall, picksBeforeNext]);
+
+        const positionRunRows = useMemo(() => {
+            const map = {};
+            likelyGoneBeforePick.forEach(r => {
+                const pos = normPos(r.p.position) || r.p.position || 'UNK';
+                if (!map[pos]) map[pos] = { pos, count: 0, names: [] };
+                map[pos].count += 1;
+                if (map[pos].names.length < 2) map[pos].names.push(pName(r.p));
+            });
+            return Object.values(map).sort((a, b) => b.count - a.count).slice(0, 6);
+        }, [likelyGoneBeforePick]);
+
+        const classDepthRows = useMemo(() => {
+            const map = {};
+            topProspects.slice(0, 60).forEach(r => {
+                const pos = normPos(r.p.position) || r.p.position || 'UNK';
+                if (!map[pos]) map[pos] = { pos, count: 0, top: pName(r.p) };
+                map[pos].count += 1;
+            });
+            return Object.values(map).sort((a, b) => b.count - a.count).slice(0, 6);
+        }, [topProspects]);
+
+        const needLabels = useMemo(() => {
+            return (assess?.needs || []).slice(0, 5).map(n => typeof n === 'string' ? { pos: n, urgency: 'thin' } : n);
+        }, [assess]);
+
+        const requestFullDraftReport = useCallback(() => {
+            if (typeof setReconPanelOpen !== 'function' || typeof sendReconMessage !== 'function') return;
+            setReconPanelOpen(true);
+            const needs = needLabels.map(n => n.pos + (n.urgency === 'deficit' ? ' critical' : '')).join(', ') || 'balanced';
+            const picks = myPicks.filter(p => p.year === leagueSeason).map(fmtPick).join(', ') || 'unknown';
+            sendReconMessage(
+                `SEARCH THE WEB for current ${leagueSeason} NFL draft prospect rankings. Generate a full dynasty rookie draft plan.\n\n` +
+                `League size: ${leagueSize}\nMy needs: ${needs}\nMy picks: ${picks}\n\n` +
+                `Cover: position tiers, best fits at my slots, players worth moving up for, trade-down pockets, and avoid zones. Use specific prospect names.`
+            );
+        }, [setReconPanelOpen, sendReconMessage, needLabels, myPicks, leagueSeason, leagueSize, fmtPick]);
+
+        const requestClassOverview = useCallback(() => {
+            if (typeof setReconPanelOpen !== 'function' || typeof sendReconMessage !== 'function') return;
+            setReconPanelOpen(true);
+            sendReconMessage('Give me a concise ' + leagueSeason + ' rookie class overview by position, including class strengths, cliff points, and where my current picks should attack.');
+        }, [setReconPanelOpen, sendReconMessage, leagueSeason]);
 
         // Fit color helper
         const fitColor = (score) => score >= 80 ? '#2ECC71' : score >= 60 ? '#D4AF37' : score >= 40 ? '#3498DB' : 'var(--silver)';
@@ -400,171 +525,163 @@
 
                 {/* ═══════════════════ VIEW 1: FLASH BRIEF ═══════════════════ */}
                 {activeView === 'command' && (
-                    <div>
-                        {/* Draft Countdown + Class Preview side by side */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px' }}>
+                    <div className="draft-hq-shell">
+                        <div className="draft-hq-hero">
+                            <section className="draft-hq-main-card">
+                                <div className="draft-hq-title-row">
+                                    <div>
+                                        <div className="draft-hq-kicker">Draft HQ</div>
+                                        <h2>{nextPick ? fmtPick(nextPick) : 'No current picks'}</h2>
+                                    </div>
+                                    <em>{draftInfo?.type || 'rookie'} - {draftRounds} rounds - {leagueSize} teams</em>
+                                </div>
+                                <p>
+                                    Your next pick, likely board pocket, roster needs, pick inventory, and class leverage are on one screen. Use Big Board for full scouting depth and Mock Draft Center for rehearsal.
+                                </p>
+                                <div className="draft-hq-kpis">
+                                    <div><span>Next pick</span><strong>{nextPick ? fmtPick(nextPick) : '--'}</strong><em>{nextPick && !nextPick.own ? 'acquired pick' : 'native slot'}</em></div>
+                                    <div><span>Before you</span><strong>{nextPickOverall ? picksBeforeNext : '--'}</strong><em>{nextPickOverall ? 'expected selections' : 'no current pick'}</em></div>
+                                    <div><span>Clock</span><strong>{draftCountdown.title}</strong><em>{draftCountdown.detail}</em></div>
+                                    <div><span>Total capital</span><strong>{myPicks.length} picks</strong><em>{myPicks.filter(p => p.year === leagueSeason).length} this year</em></div>
+                                </div>
+                            </section>
 
-                        {/* Draft Countdown Clock */}
-                        {draftInfo?.start_time && draftInfo.status === 'pre_draft' ? (() => {
-                            const now = countdownNow;
-                            const start = draftInfo.start_time;
-                            const diff = start - now;
-                            if (diff <= 0) return <div style={{ background: 'rgba(46,204,113,0.1)', border: '1px solid rgba(46,204,113,0.3)', borderRadius: '8px', padding: 'var(--card-pad, 14px 16px)', textAlign: 'center', fontFamily: 'Rajdhani, sans-serif', fontSize: '1.6rem', color: '#2ECC71', letterSpacing: '0.04em' }}>DRAFT IS LIVE</div>;
-                            const days = Math.floor(diff / 86400000);
-                            const hours = Math.floor((diff % 86400000) / 3600000);
-                            const mins = Math.floor((diff % 3600000) / 60000);
-                            return <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: 'var(--card-pad, 14px 16px)', textAlign: 'center' }}>
-                                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Draft Countdown</div>
-                                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', color: 'var(--white)', letterSpacing: '0.04em' }}>
-                                    {days > 0 ? days + 'd ' : ''}{hours}h {mins}m
+                            <aside className="draft-hq-actions">
+                                <div className="draft-hq-action-card">
+                                    <strong>Scouting Report</strong>
+                                    <p>Generate a slot-aware draft plan using your current picks, roster needs, and class shape.</p>
+                                    <button type="button" onClick={requestFullDraftReport}>Generate Report</button>
                                 </div>
-                                <div style={{ fontSize: '0.76rem', color: 'var(--silver)', marginTop: '4px' }}>
-                                    {new Date(start).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at {new Date(start).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                                <div className="draft-hq-action-card">
+                                    <strong>Class Overview</strong>
+                                    <p>Get the class cliff points and position strengths before you start moving picks.</p>
+                                    <button type="button" onClick={requestClassOverview}>Class Read</button>
                                 </div>
-                                <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.5, marginTop: '4px' }}>
-                                    {draftInfo.type === 'linear' ? 'Linear' : draftInfo.type === 'snake' ? 'Snake' : draftInfo.type} · {draftInfo.settings?.rounds || 5} rounds · {draftInfo.settings?.teams || 16} teams
+                                <div className="draft-hq-action-card">
+                                    <strong>Current Strategy</strong>
+                                    <p>{strategyRec.reason}</p>
+                                    <button type="button" onClick={() => setDraftView('mock')}>Run Mock</button>
                                 </div>
-                            </div>;
-                        })() : <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: 'var(--card-pad, 14px 16px)', textAlign: 'center' }}>
-                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>Draft Status</div>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>No draft scheduled yet</div>
-                        </div>}
-
-                        {/* Draft Class Scouting Report */}
-                        <div style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '12px 16px' }}>
-                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Scouting Report</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '8px' }}>
-                                Full {leagueSeason} rookie class analysis — positions to target, specific prospects, pick strategy, and traps to avoid.
-                            </div>
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                <button onClick={() => {
-                                    if (typeof setReconPanelOpen !== 'function') return;
-                                    setReconPanelOpen(true);
-                                    const needs = assess?.needs?.slice(0, 4).map(n => (typeof n === 'string' ? n : n.pos) + (n.urgency === 'deficit' ? ' (CRITICAL)' : '')).join(', ') || 'balanced';
-                                    const picks = myPicks.filter(p => p.year === leagueSeason).map(p => 'R' + p.round + '.' + (p.pick || '??')).join(', ') || 'unknown';
-                                    sendReconMessage(
-                                        `SEARCH THE WEB for current ${leagueSeason} NFL draft prospect rankings. Generate a FULL scouting report for my ${currentLeague?.rosters?.length || 12}-team dynasty league.\n\n` +
-                                        `MY NEEDS: ${needs}\nMY PICKS: ${picks}\n\n` +
-                                        `Format as:\n1. TOP 3 POSITIONS TO TARGET — why each, citing roster gaps and class depth\n` +
-                                        `2. DRAFT BOARD — 6 specific rookies with name, pos, NFL team, which of MY picks, and why\n` +
-                                        `3. PICK STRATEGY — trade up/down advice based on value\n` +
-                                        `4. AVOID — positions or rounds with poor returns\n\nBe specific with real prospect names.`
-                                    );
-                                }} style={{ padding: '6px 14px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', color: 'var(--gold)', cursor: 'pointer', fontWeight: 600 }}>
-                                    Generate Full Report
-                                </button>
-                                <button onClick={() => { if (typeof setReconPanelOpen === 'function') { setReconPanelOpen(true); sendReconMessage('What are the strongest position groups in the ' + leagueSeason + ' rookie draft class? Who are the top 3 prospects at each position?'); } }}
-                                    style={{ padding: '6px 14px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: 'var(--silver)', cursor: 'pointer' }}>
-                                    Class Overview
-                                </button>
-                            </div>
+                            </aside>
                         </div>
 
-                        </div>{/* end countdown + class preview grid */}
-
-                        {/* Phase 7: Consolidated Picks + On the Clock header with 2.01 slot format */}
-                        {(() => {
-                            // Compute slot (1..N) for a roster by ascending wins → worst team picks first
-                            const _slotMap = (() => {
-                                const rosters = currentLeague?.rosters || [];
-                                const sorted = [...rosters].sort((a, b) => {
-                                    const aW = a.settings?.wins || 0, bW = b.settings?.wins || 0;
-                                    if (aW !== bW) return aW - bW;
-                                    const aP = (a.settings?.fpts || 0) + (a.settings?.fpts_decimal || 0) / 100;
-                                    const bP = (b.settings?.fpts || 0) + (b.settings?.fpts_decimal || 0) / 100;
-                                    return aP - bP;
-                                });
-                                const m = {}; sorted.forEach((r, i) => { m[String(r.roster_id)] = i + 1; });
-                                return m;
-                            })();
-                            const slotFor = (pk) => {
-                                const src = pk.own ? myRoster?.roster_id : pk.from;
-                                return src != null ? _slotMap[String(src)] : null;
-                            };
-                            const fmtPick = (pk) => {
-                                const s = slotFor(pk);
-                                return pk.year + ' ' + pk.round + '.' + (s ? String(s).padStart(2, '0') : '??');
-                            };
-                            const nextSlot = nextPick ? slotFor(nextPick) : null;
-                            return <div style={{ background: 'var(--black)', border: '2px solid rgba(212,175,55,0.3)', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>
-                                {/* Hero: current slot + "on the clock" indicator */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '14px' }}>
-                                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#2ECC71', animation: 'pulse 2s infinite', flexShrink: 0 }} />
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: '0.62rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.8 }}>On The Clock — Your Next Pick</div>
-                                        {nextPick ? (
-                                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginTop: '2px' }}>
-                                                <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2.2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.04em' }}>{fmtPick(nextPick)}</span>
-                                                {!nextPick.own && <span style={{ fontSize: '0.7rem', color: '#9b8afb', background: 'rgba(124,107,248,0.12)', padding: '2px 8px', borderRadius: '3px', fontWeight: 700, letterSpacing: '0.04em' }}>ACQUIRED</span>}
-                                            </div>
-                                        ) : (
-                                            <div style={{ fontSize: '0.88rem', color: 'var(--silver)', marginTop: '4px' }}>No picks available for {leagueSeason}</div>
-                                        )}
-                                    </div>
-                                    <div style={{ fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>
-                                        <div>Total picks</div>
-                                        <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.6rem', color: 'var(--gold)', fontWeight: 700, marginTop: '2px' }}>{myPicks.length}</div>
-                                    </div>
+                        <div className="draft-hq-grid">
+                            <section className="draft-hq-panel">
+                                <div className="draft-hq-panel-head">
+                                    <span>Pick Path</span>
+                                    <em>{pickYears[0]}-{pickYears[2]}</em>
                                 </div>
-
-                                {/* All picks by year — compact chip grid */}
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
-                                    {[leagueSeason, leagueSeason + 1, leagueSeason + 2].flatMap(yr => {
-                                        const yearPicks = myPicks.filter(pk => pk.year === yr);
-                                        if (!yearPicks.length) return [];
-                                        return yearPicks.map((pk, i) => {
-                                            const isNext = pk === nextPick;
-                                            return <span key={yr + '-' + pk.round + '-' + i} style={{
-                                                padding: '3px 9px', borderRadius: '4px',
-                                                background: isNext ? 'rgba(212,175,55,0.2)' : (pk.own ? 'rgba(212,175,55,0.05)' : 'rgba(124,107,248,0.08)'),
-                                                border: '1px solid ' + (isNext ? 'var(--gold)' : pk.own ? 'rgba(212,175,55,0.2)' : 'rgba(124,107,248,0.2)'),
-                                                fontSize: '0.74rem', fontFamily: 'JetBrains Mono, monospace',
-                                                color: isNext ? 'var(--gold)' : pk.own ? 'var(--silver)' : '#9b8afb',
-                                                fontWeight: isNext ? 700 : 500,
-                                            }} title={pk.own ? 'Your pick' : ('Acquired from roster ' + pk.from)}>
-                                                {fmtPick(pk)}
-                                            </span>;
+                                <div className="draft-pick-group">
+                                    {pickYears.map(yr => {
+                                        const yearPicks = myPicks.filter(pk => pk.year === yr).sort((a, b) => {
+                                            if (a.round !== b.round) return a.round - b.round;
+                                            return (slotFor(a) || 99) - (slotFor(b) || 99);
                                         });
+                                        return (
+                                            <div key={yr}>
+                                                <div className="draft-pick-year">{yr}</div>
+                                                {yearPicks.length ? (
+                                                    <div className="draft-pick-chipline">
+                                                        {yearPicks.map((pk, i) => {
+                                                            const cls = (pk === nextPick ? 'is-next ' : '') + (!pk.own ? 'is-acquired' : '');
+                                                            return <span key={yr + '-' + pk.round + '-' + i} className={cls.trim()} title={pk.own ? 'Your native pick' : ('Acquired from roster ' + pk.from)}>{fmtPick(pk)}</span>;
+                                                        })}
+                                                    </div>
+                                                ) : <div className="draft-empty">No picks in this year.</div>}
+                                            </div>
+                                        );
                                     })}
                                 </div>
 
-                                {/* Likely-available recommendations for current pick */}
-                                {nextPick && recommendations.length > 0 && (
-                                    <div>
-                                        <div style={{ fontSize: '0.64rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', opacity: 0.7 }}>Likely Available at Your Pick</div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                            {recommendations.slice(0, 5).map((r, i) => {
-                                                const pos = normPos(r.p.position) || r.p.position;
-                                                const composite = Math.round(r.dhq * 0.7 + r.fit.score * 30);
-                                                const confidence = Math.min(99, Math.round((composite / (rookies[0]?.dhq * 0.7 + 99 * 30 || 1)) * 100));
-                                                const needMatch = assess?.needs?.find(n => n.pos === pos);
-                                                const reason = needMatch ? (needMatch.urgency === 'deficit' ? 'Fills critical ' + pos + ' need' : 'Addresses ' + pos + ' depth') : 'BPA at ' + pos;
-                                                return (
-                                                    <div key={r.pid} onClick={() => { if (window.WR?.openPlayerCard) window.WR.openPlayerCard(r.pid); else if (window._wrSelectPlayer) window._wrSelectPlayer(r.pid); }}
-                                                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', borderRadius: '6px', background: i === 0 ? 'rgba(212,175,55,0.08)' : 'transparent', border: '1px solid ' + (i === 0 ? 'rgba(212,175,55,0.2)' : 'transparent'), cursor: 'pointer' }}>
-                                                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.76rem', color: 'var(--gold)', width: '16px' }}>{i + 1}</span>
-                                                        <img src={'https://sleepercdn.com/content/nfl/players/thumb/' + r.pid + '.jpg'} alt="" onError={e => e.target.style.display='none'} style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover' }} />
-                                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                                            <div style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pName(r.p)}</div>
-                                                            <div style={{ fontSize: '0.64rem', color: 'rgba(255,255,255,0.5)' }}>{reason}</div>
-                                                        </div>
-                                                        <span style={{ fontSize: '0.66rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)', padding: '1px 5px', background: 'rgba(0,0,0,0.3)', borderRadius: '3px' }}>{pos}</span>
-                                                        <span style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '0.76rem', color: fitColor(r.fit.score), minWidth: '32px', textAlign: 'right' }}>{confidence}%</span>
-                                                    </div>
-                                                );
-                                            })}
+                                <div className="draft-hq-subhead">Roster Targeting</div>
+                                <div className="draft-run-list">
+                                    {needLabels.length ? needLabels.map(n => (
+                                        <div key={n.pos}>
+                                            <strong style={{ color: posColors[n.pos] || 'var(--gold)' }}>{n.pos}</strong>
+                                            <span>{n.urgency === 'deficit' ? 'Critical room' : 'Depth target'}</span>
+                                            <em>{n.count ? n.count + ' players' : strategyRec.type === 'target' && strategyRec.label.includes(n.pos) ? 'priority' : 'watch'}</em>
                                         </div>
+                                    )) : <div className="draft-empty">No urgent roster gaps detected. Bias to value and tiers.</div>}
+                                </div>
+                            </section>
+
+                            <section className="draft-hq-panel">
+                                <div className="draft-hq-panel-head">
+                                    <span>Best Targets</span>
+                                    <em>{nextPick ? 'likely around ' + fmtPick(nextPick) : 'board value'}</em>
+                                </div>
+                                <div className="draft-rec-list">
+                                    {recommendations.length ? recommendations.map((r, i) => (
+                                        <div
+                                            key={r.pid}
+                                            className={'draft-rec-card' + (i === 0 ? ' is-primary' : '')}
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => openDraftPlayer(r.pid)}
+                                            onKeyDown={e => { if (e.key === 'Enter') openDraftPlayer(r.pid); }}
+                                        >
+                                            <span className="draft-rec-rank">{i + 1}</span>
+                                            <img className="draft-rec-photo" src={'https://sleepercdn.com/content/nfl/players/thumb/' + r.pid + '.jpg'} alt="" onError={e => e.currentTarget.style.visibility = 'hidden'} />
+                                            <span className="draft-rec-main">
+                                                <strong>{pName(r.p)}</strong>
+                                                <em>{r.pos} - {r.csv?.college || r.p.college || r.p.metadata?.college || 'School TBD'} - {r.draftCapital}</em>
+                                            </span>
+                                            <span className="draft-rec-score">
+                                                <strong style={{ color: fitColor(r.fit.score) }}>{r.fit.score}%</strong>
+                                                <span>fit</span>
+                                            </span>
+                                            <span className="draft-rec-reason">{r.reason} Availability: {r.availability}%. Risk: {r.riskLabel}.</span>
+                                            <span className="draft-rec-actions">
+                                                <button type="button" onClick={e => { e.stopPropagation(); openDraftPlayer(r.pid); }}>Scout</button>
+                                                <button type="button" onClick={e => { e.stopPropagation(); setBoardTags(prev => ({ ...prev, [r.pid]: 'target' })); }}>Tag Target</button>
+                                                <button type="button" onClick={e => { e.stopPropagation(); setDraftView('mock'); }}>Mock It</button>
+                                            </span>
+                                        </div>
+                                    )) : <div className="draft-empty">No likely targets yet. Open Big Board after prospects finish loading.</div>}
+                                </div>
+                            </section>
+
+                            <section className="draft-hq-panel">
+                                <div className="draft-hq-panel-head">
+                                    <span>Board Pressure</span>
+                                    <em>{nextPickOverall ? 'through pick ' + picksBeforeNext : 'pre-draft'}</em>
+                                </div>
+                                <div className="draft-run-list">
+                                    {positionRunRows.length ? positionRunRows.map(row => (
+                                        <div key={row.pos}>
+                                            <strong style={{ color: posColors[row.pos] || 'var(--gold)' }}>{row.pos}</strong>
+                                            <span>{row.count} likely gone</span>
+                                            <em>{row.names.join(', ')}</em>
+                                        </div>
+                                    )) : <div className="draft-empty">No pick-pressure read yet.</div>}
+                                </div>
+
+                                <div className="draft-hq-subhead">Trade Read</div>
+                                <div className="draft-trade-read">
+                                    <div>
+                                        <strong>{nextPickOverall && nextPickOverall <= leagueSize ? 'Up' : 'Down'}</strong>
+                                        <span>{nextPickOverall && nextPickOverall <= leagueSize ? 'Premium pick pocket' : 'Tier-chasing pocket'}</span>
+                                        <em>{nextPickOverall && nextPickOverall <= leagueSize ? 'move only for elite target' : 'shop back if tier is flat'}</em>
                                     </div>
-                                )}
-                            </div>;
-                        })()}
+                                    <div>
+                                        <strong>{recommendations[0]?.pos || '--'}</strong>
+                                        <span>{recommendations[0] ? 'Best swing room' : 'No target yet'}</span>
+                                        <em>{recommendations[0]?.availability ? recommendations[0].availability + '% avail' : 'wait'}</em>
+                                    </div>
+                                </div>
 
-                        {/* Phase 7: Alex Ingram card removed per user feedback (2026-04-18).
-                            Strategy advice now lives in the persistent GM Mode badge + GM Strategy tab.
-                            Draft-strategy notes are still persistable via the Alex chat panel.
-                            The in-draft AI stream (AlexStream in CommandCenter) is unaffected. */}
-
-                        {/* Phase 7: Tier 1 Prospects card removed per user feedback (2026-04-18) */}
+                                <div className="draft-hq-subhead">Class Depth</div>
+                                <div className="draft-run-list">
+                                    {classDepthRows.map(row => (
+                                        <div key={row.pos}>
+                                            <strong style={{ color: posColors[row.pos] || 'var(--gold)' }}>{row.pos}</strong>
+                                            <span>{row.count} top-60 prospects</span>
+                                            <em>{row.top}</em>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </div>
                     </div>
                 )}
 
