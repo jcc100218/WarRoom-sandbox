@@ -21,7 +21,7 @@ deploy — no War Room deploy needed.
 
 | File | Purpose | Key exports |
 |------|---------|-------------|
-| `constants.js` | Core constants — must load first | `App.POS_COLORS`, `App.peakWindows`, `App.decayRates`, `App.BASE_PICK_VALUES`, `App.tradeValueTier`, `App.posMap`, `App.posClass`, `App.NFL_TEAMS` |
+| `constants.js` | Core constants — must load first | `App.POS_COLORS`, `App.ageCurveWindows`, `App.peakWindows`, `App.decayRates`, `App.BASE_PICK_VALUES`, `App.tradeValueTier`, `App.posMap`, `App.posClass`, `App.NFL_TEAMS` |
 | `utils.js` | Utility functions | `App.normPos`, `App.posColor` (delegates to `POS_COLORS`), `App.calcRawPts`, `App.isElitePlayer`, `App.dhqLog` |
 | `pick-value-model.js` | Dynamic dynasty pick valuation (3-phase exponential decay, KTC-calibrated) | `App.LI.dhqPickValueFn` |
 | `dhq-engine.js` | League Intel engine — scores every player using real league data | `App.LI`, `App.loadLeagueIntel()`, `App.calcOptimalPPG()` |
@@ -57,17 +57,27 @@ deploy — no War Room deploy needed.
 `posColor(pos)` in `utils.js` delegates to this object. Do not define
 position colors anywhere else.
 
-### Peak windows — `App.peakWindows`
+### Age curves — `App.ageCurveWindows`
 ```js
-{ QB:[23,39], RB:[21,31], WR:[21,33], TE:[21,34], DL:[26,33], LB:[26,32], DB:[21,34] }
+{
+  QB:{build:[23,27],peak:[28,34],decline:[35,38]},
+  RB:{build:[21,22],peak:[23,25],decline:[26,28]},
+  WR:{build:[22,24],peak:[25,28],decline:[29,31]},
+  TE:{build:[23,25],peak:[26,29],decline:[30,32]},
+  DL:{build:[22,24],peak:[25,29],decline:[30,32]},
+  LB:{build:[22,23],peak:[24,28],decline:[29,31]},
+  DB:{build:[21,23],peak:[24,27],decline:[28,30]},
+  K:{build:[23,27],peak:[28,35],decline:[36,40]}
+}
 ```
-Research-backed 90%+ production windows (EPA/PPG study).
+
+`App.peakWindows` is derived from the elite peak portion of these curves.
 
 ### Decay rates — `App.decayRates`
 ```js
-{ QB:0.06, RB:0.25, WR:0.14, TE:0.12, DL:0.15, LB:0.15, DB:0.14 }
+{ QB:0.12, RB:0.22, WR:0.18, TE:0.16, K:0.08, DL:0.15, EDGE:0.15, LB:0.16, DB:0.18 }
 ```
-Annual value decline rate post-peak. Higher = steeper cliff.
+Annual value decline rate after the valuable decline band. Higher = steeper cliff.
 
 ### Player value tiers — `App.tradeValueTier(val)`
 ```
@@ -92,8 +102,9 @@ degrades gracefully if the CDN is unavailable:
 
 ```js
 // Good — CDN wins if present, fallback if not
+window.App.ageCurveWindows = window.App.ageCurveWindows || AGE_CURVE_WINDOWS_DEFAULT;
 window.App.peakWindows   = window.App.peakWindows   || PEAK_WINDOWS_DEFAULT;
-window.App.decayRates    = window.App.decayRates    || { QB:0.06, ... };
+window.App.decayRates    = window.App.decayRates    || { QB:0.12, ... };
 window.App.tradeValueTier = window.App.tradeValueTier || function(val) { ... };
 ```
 

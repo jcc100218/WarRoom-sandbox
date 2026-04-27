@@ -10,7 +10,6 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     const normPos = window.App?.normPos || (p => p);
     const scores = window.App?.LI?.playerScores || {};
     const posColors = window.App?.POS_COLORS || {};
-    const peaks = window.App?.peakWindows || {};
 
     // ══════════════════════════════════════════════════════════════
     // GLOBAL FILTER STATE — drives everything
@@ -92,8 +91,10 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
                 const pos = normPos(p.position) || '?';
                 const age = p.age || null;
                 const dhq = scores[pid] || 0;
-                const peakRange = peaks[pos] || [24, 29];
-                const bucket = !age ? 'prime' : age < peakRange[0] ? 'rookie' : age <= peakRange[1] ? 'prime' : 'aging';
+                const curve = typeof window.App?.getAgeCurve === 'function'
+                    ? window.App.getAgeCurve(pos)
+                    : { build: [22, 24], peak: (window.App?.peakWindows || {})[pos] || [24, 29], decline: [30, 32] };
+                const bucket = !age ? 'prime' : age < curve.peak[0] ? 'rookie' : age <= curve.decline[1] ? 'prime' : 'aging';
                 ageBuckets[bucket]++;
                 if (!positionTotals[pos]) positionTotals[pos] = { count: 0, dhq: 0 };
                 positionTotals[pos].count++;
@@ -141,7 +142,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
         });
         // Age risk
         const totalAgePlayers = ageBuckets.rookie + ageBuckets.prime + ageBuckets.aging;
-        if (totalAgePlayers > 0 && ageBuckets.aging / totalAgePlayers > 0.35) insights.push({ type: 'risk', text: `${Math.round(ageBuckets.aging / totalAgePlayers * 100)}% of assets are post-peak — aging portfolio`, filter: { ageBucket: 'aging' } });
+        if (totalAgePlayers > 0 && ageBuckets.aging / totalAgePlayers > 0.35) insights.push({ type: 'risk', text: `${Math.round(ageBuckets.aging / totalAgePlayers * 100)}% of assets are past value window — aging portfolio`, filter: { ageBucket: 'aging' } });
         if (totalAgePlayers > 0 && ageBuckets.rookie / totalAgePlayers > 0.4) insights.push({ type: 'info', text: `${Math.round(ageBuckets.rookie / totalAgePlayers * 100)}% pre-peak — high rookie volatility`, filter: { ageBucket: 'rookie' } });
         // Strategy conflicts
         const contenders = provinces.filter(p => p.status === 'contender');
@@ -326,8 +327,8 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
 
                     {/* Age */}
                     {filterPill('ageBucket', 'rookie', 'Pre-Peak', '#3498DB')}
-                    {filterPill('ageBucket', 'prime', 'Prime', '#2ECC71')}
-                    {filterPill('ageBucket', 'aging', 'Post-Peak', '#E74C3C')}
+                    {filterPill('ageBucket', 'prime', 'Value Window', '#2ECC71')}
+                    {filterPill('ageBucket', 'aging', 'Post-Window', '#E74C3C')}
 
                     <span style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.08)', margin: '0 4px' }} />
 

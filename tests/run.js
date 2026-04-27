@@ -325,21 +325,21 @@ test('baseAge = 0 → returns baseDhq unchanged',
 
 test('pre-peak player grows in value (WR age 19)',
   () => {
-    // WR peak: 21-33. Age 19 is pre-peak — should appreciate.
+	    // WR peak: 25-28. Age 19 is pre-peak and should appreciate.
     const future = projectPlayerValue('p1', 4000, 19, 'WR', 1);
     ok(future > 4000, `pre-peak WR (${future}) should grow above 4000`);
   });
 
 test('post-peak player declines in value (RB age 35)',
   () => {
-    // RB peak: 21-31. Age 35 is well past peak.
+	    // RB peak: 23-25, value band through 28. Age 35 is well past peak.
     const future = projectPlayerValue('p1', 4000, 35, 'RB', 1);
     ok(future < 4000, `post-peak RB (${future}) should decline below 4000`);
   });
 
 test('RB decays faster than QB (same base, same post-peak age)',
   () => {
-    // RB decay = 0.30, QB decay = 0.08
+	    // RB post-window decay is steeper than QB post-window decay.
     const rbFuture = projectPlayerValue('p1', 5000, 35, 'RB', 1);
     const qbFuture = projectPlayerValue('p1', 5000, 35, 'QB', 1);
     ok(rbFuture < qbFuture,
@@ -348,7 +348,7 @@ test('RB decays faster than QB (same base, same post-peak age)',
 
 test('WR decays faster than QB (same base, same post-peak age)',
   () => {
-    // WR decay = 0.18, QB decay = 0.08
+	    // WR post-window decay is steeper than QB post-window decay.
     const wrFuture = projectPlayerValue('p1', 5000, 35, 'WR', 1);
     const qbFuture = projectPlayerValue('p1', 5000, 35, 'QB', 1);
     ok(wrFuture < qbFuture,

@@ -143,7 +143,18 @@
 
         // Compute roster needs for recommendations
         const assess = useMemo(() => typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null, [myRoster]);
-        const peaks = window.App.peakWindows;
+        const peaks = window.App.peakWindows || {};
+        const ageCurveFor = pos => typeof window.App?.getAgeCurve === 'function'
+            ? window.App.getAgeCurve(pos)
+            : { build: [22, 24], peak: peaks[pos] || [24, 29], decline: [30, 32] };
+        const peakYearsFor = (pos, age) => {
+            const curve = ageCurveFor(pos);
+            return Math.max(0, curve.peak[1] - (age || 25));
+        };
+        const valueYearsFor = (pos, age) => {
+            const curve = ageCurveFor(pos);
+            return Math.max(0, curve.decline[1] - (age || 25));
+        };
         const budget = currentLeague?.settings?.waiver_budget || myRoster?.settings?.waiver_budget || 0;
         const spent = myRoster?.settings?.waiver_budget_used || 0;
         const remaining = Math.max(0, budget - spent);
@@ -244,10 +255,10 @@
                     // PPG quality check: skip if PPG < 5 with enough games
                     if (ppg > 0 && ppg < 5.0 && (st.gp || 0) >= 6) return null;
                     const need = assess.needs.find(n => n.pos === x.pos);
-                    const [, pHi] = peaks[x.pos] || [24, 29];
-                    const peakYrs = Math.max(0, pHi - (x.p.age || 25));
-                    const faab = faabSuggest(x.dhq, x.pos, x.p.age);
-                    return { ...x, ppg, need, peakYrs, faab };
+	                    const peakYrs = peakYearsFor(x.pos, x.p.age);
+	                    const valueYrs = valueYearsFor(x.pos, x.p.age);
+	                    const faab = faabSuggest(x.dhq, x.pos, x.p.age);
+	                    return { ...x, ppg, need, peakYrs, valueYrs, faab };
                 })
                 .filter(Boolean);
         }, [availablePlayers, assess, statsData]);
@@ -260,8 +271,8 @@
         const selMeta = faSelectedPid ? (window.App?.LI?.playerMeta?.[faSelectedPid] || {}) : {};
         const selPpg = selStats.gp > 0 ? +(calcRawPts(selStats) / selStats.gp).toFixed(1) : (selPrevStats.gp > 0 ? +(calcRawPts(selPrevStats) / selPrevStats.gp).toFixed(1) : 0);
         const selPos = selPlayer ? normPos(selPlayer.position) : '';
-        const selPeaks = peaks[selPos] || [24,29];
-        const selPeakYrs = selPlayer ? Math.max(0, selPeaks[1] - (selPlayer.age || 25)) : 0;
+	        const selPeakYrs = selPlayer ? peakYearsFor(selPos, selPlayer.age) : 0;
+	        const selValueYrs = selPlayer ? valueYearsFor(selPos, selPlayer.age) : 0;
         const selFaab = faSelectedPid ? faabSuggest(selDhq, selPos, selPlayer?.age) : null;
         const selInitials = selPlayer ? ((selPlayer.first_name||'?')[0] + (selPlayer.last_name||'?')[0]).toUpperCase() : '';
 
@@ -318,7 +329,7 @@
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontSize: '0.76rem' }}>
                         {r.ppg > 0 && <span style={{ color: 'var(--silver)' }}>{r.ppg} PPG</span>}
-                        <span style={{ color: '#2ECC71' }}>{r.peakYrs}yr peak</span>
+	                        <span style={{ color: r.peakYrs > 0 ? '#2ECC71' : r.valueYrs > 0 ? '#F0A500' : '#E74C3C' }}>{r.peakYrs > 0 ? r.peakYrs + 'yr peak' : r.valueYrs + 'yr value'}</span>
                         {r.need && <span style={{ color: '#E74C3C', fontWeight: 700 }}>fills {r.need.pos} {r.need.urgency}</span>}
                         {r.faab && <span style={{ fontWeight: 700, color: 'var(--gold)', background: 'rgba(212,175,55,0.1)', padding: '1px 6px', borderRadius: '3px' }}>{'$' + r.faab.lo + '-' + r.faab.hi}</span>}
                         {r.faab && <span style={{ color: r.faab.confCol, fontSize: '0.72rem' }}>{r.faab.conf}</span>}
@@ -391,7 +402,7 @@
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '14px' }}>
                                 {[{ val: selDhq > 0 ? selDhq.toLocaleString() : '\u2014', label: 'DHQ', col: selDhq >= 4000 ? '#2ECC71' : 'var(--gold)' },
                                   { val: selPpg || '\u2014', label: 'PPG', col: selPpg >= 10 ? '#2ECC71' : 'var(--silver)' },
-                                  { val: selPeakYrs + 'yr', label: 'PEAK', col: selPeakYrs >= 4 ? '#2ECC71' : selPeakYrs >= 1 ? 'var(--gold)' : '#E74C3C' }
+	                        { val: selPeakYrs > 0 ? selPeakYrs + 'yr' : selValueYrs + 'yr', label: selPeakYrs > 0 ? 'PEAK' : 'VALUE', col: selPeakYrs >= 4 ? '#2ECC71' : selPeakYrs >= 1 ? 'var(--gold)' : selValueYrs >= 1 ? '#F0A500' : '#E74C3C' }
                                 ].map((s, i) => <div key={i} style={{ textAlign: 'center', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
                                     <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.2rem', fontWeight: 600, color: s.col }}>{s.val}</div>
                                     <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>{s.label}</div>
@@ -410,7 +421,7 @@
                                 const need2 = assess.needs?.find(n => n.pos === selPos);
                                 return <div style={{ fontSize: '0.82rem', color: 'var(--silver)', lineHeight: 1.6, marginBottom: '12px', padding: '8px 10px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
                                     {need2 ? <span><strong style={{ color: '#2ECC71' }}>Fills {selPos} {need2.urgency}.</strong> </span> : <span style={{ opacity: 0.5 }}>Depth add at {selPos}. </span>}
-                                    {selPeakYrs >= 4 ? 'Long dynasty window.' : selPeakYrs >= 1 ? 'In production window.' : 'Past peak — short-term only.'}
+	                                    {selPeakYrs >= 4 ? 'Long dynasty window.' : selPeakYrs >= 1 ? 'In production window.' : selValueYrs >= 1 ? 'Veteran value window.' : 'Past value window — short-term only.'}
                                 </div>;
                             })()}
                             <button onClick={() => { if (window._wrSelectPlayer) window._wrSelectPlayer(faSelectedPid); }} style={{ width: '100%', padding: '8px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Rajdhani, sans-serif', fontSize: '0.9rem', cursor: 'pointer' }}>FULL PLAYER CARD</button>
@@ -467,11 +478,12 @@
                                 if (!p) return null;
                                 const dhq = window.App?.LI?.playerScores?.[pid] || 0;
                                 const pos = normPos(p.position) || p.position;
-                                const meta = window.App?.LI?.playerMeta?.[pid];
-                                const peakYrs = meta?.peakYrsLeft || 0;
-                                const isStarter = (myRoster.starters || []).includes(pid);
-                                if (isStarter) return null;
-                                return { pid, p, dhq, pos, peakYrs, name: p.full_name || 'Unknown', age: p.age || 0 };
+	                                const meta = window.App?.LI?.playerMeta?.[pid];
+	                                const peakYrs = meta?.peakYrsLeft || 0;
+	                                const valueYrs = meta?.age ? Math.max(0, (meta.declineEnd || ageCurveFor(pos).decline[1]) - meta.age) : valueYearsFor(pos, p.age);
+	                                const isStarter = (myRoster.starters || []).includes(pid);
+	                                if (isStarter) return null;
+	                                return { pid, p, dhq, pos, peakYrs, valueYrs, name: p.full_name || 'Unknown', age: p.age || 0 };
                             })
                             .filter(Boolean)
                             .sort((a, b) => a.dhq - b.dhq)
@@ -490,7 +502,7 @@
                                         ),
                                         React.createElement('div', { style: { textAlign: 'right' } },
                                             React.createElement('div', { style: { fontSize: '0.88rem', fontWeight: 800, fontFamily: 'Inter, sans-serif', color: d.dhq > 0 ? 'var(--silver)' : '#E74C3C' } }, d.dhq > 0 ? d.dhq.toLocaleString() : 'No value'),
-                                            React.createElement('div', { style: { fontSize: '0.68rem', color: d.peakYrs <= 0 ? '#E74C3C' : 'var(--silver)' } }, d.peakYrs > 0 ? d.peakYrs + 'yr peak' : 'Past peak')
+	                                            React.createElement('div', { style: { fontSize: '0.68rem', color: d.valueYrs <= 0 ? '#E74C3C' : 'var(--silver)' } }, d.peakYrs > 0 ? d.peakYrs + 'yr peak' : d.valueYrs > 0 ? d.valueYrs + 'yr value' : 'Past value')
                                         )
                                     )
                                 )
@@ -665,14 +677,14 @@
                                     .map(pid => {
                                         const p = playersData[pid];
                                         const dhq = window.App?.LI?.playerScores?.[pid] || 0;
-                                        const [, pHi] = peaks[pos] || [24, 29];
-                                        const peakYrs = Math.max(0, pHi - (p?.age || 25));
-                                        const abbr = (p?.first_name?.[0] || '?') + '. ' + (p?.last_name || 'Unknown');
-                                        return { pid, abbr, dhq, peakYrs };
-                                    })
+	                                        const peakYrs = peakYearsFor(pos, p?.age);
+	                                        const valueYrs = valueYearsFor(pos, p?.age);
+	                                        const abbr = (p?.first_name?.[0] || '?') + '. ' + (p?.last_name || 'Unknown');
+	                                        return { pid, abbr, dhq, peakYrs, valueYrs };
+	                                    })
                                     .sort((a, b) => b.dhq - a.dhq);
                                 const dhqColor = (v) => v >= 7000 ? '#2ECC71' : v >= 4000 ? '#3498DB' : v >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)';
-                                const peakColor = (y) => y >= 4 ? '#2ECC71' : y >= 1 ? 'var(--gold)' : '#E74C3C';
+	                                const peakColor = (y, v) => y >= 4 ? '#2ECC71' : y >= 1 ? 'var(--gold)' : v >= 1 ? '#F0A500' : '#E74C3C';
                                 return <div key={pos} style={{ background: 'var(--black)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '8px', padding: '10px', marginBottom: '0' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                                         <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: gradeCol }}>{pos}</span>
@@ -684,7 +696,7 @@
                                                 <span style={{ color: 'var(--white)', fontWeight: 500 }}>{pl.abbr}</span>
                                                 <span style={{ display: 'flex', gap: '8px' }}>
                                                     <span style={{ color: dhqColor(pl.dhq), fontFamily: 'Inter, sans-serif', fontWeight: 700 }}>{pl.dhq > 0 ? pl.dhq.toLocaleString() : '\u2014'}</span>
-                                                    <span style={{ color: peakColor(pl.peakYrs) }}>{pl.peakYrs}yr</span>
+	                                                    <span style={{ color: peakColor(pl.peakYrs, pl.valueYrs) }}>{pl.peakYrs > 0 ? pl.peakYrs + 'yr' : pl.valueYrs + 'v'}</span>
                                                 </span>
                                             </div>
                                         )}
@@ -706,15 +718,19 @@
                         React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px' } }, "Alex's top pickup recommendations"),
                         React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: waiverBoardExpanded ? '480px' : 'none', overflowY: waiverBoardExpanded ? 'auto' : 'visible' } },
                             ...boardPlayers.map((x, i) => {
-                                const st = statsData[x.pid] || {};
-                                const ppg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : 0;
-                                const playerAge = x.p.age || 0;
-                                const [pLo2, pHi2] = peaks[x.pos] || [24, 29];
-                                const peakYrs2 = Math.max(0, pHi2 - (playerAge || 25));
-                                const inPeak = playerAge >= pLo2 && playerAge <= pHi2;
-                                const nearEdge = !inPeak && (playerAge >= pLo2 - 1 && playerAge <= pHi2 + 1);
-                                const peakDotColor = inPeak ? '#2ECC71' : nearEdge ? '#F0A500' : '#E74C3C';
-                                const peakDotTitle = inPeak ? 'In peak window' : nearEdge ? 'Near peak edge' : 'Past peak';
+	                                const st = statsData[x.pid] || {};
+	                                const ppg = st.gp > 0 ? +(calcRawPts(st) / st.gp).toFixed(1) : 0;
+	                                const playerAge = x.p.age || 0;
+	                                const curve2 = ageCurveFor(x.pos);
+	                                const [pLo2, pHi2] = curve2.peak;
+	                                const declineHi2 = curve2.decline[1];
+	                                const peakYrs2 = Math.max(0, pHi2 - (playerAge || 25));
+	                                const valueYrs2 = Math.max(0, declineHi2 - (playerAge || 25));
+	                                const inPeak = playerAge >= pLo2 && playerAge <= pHi2;
+	                                const inValue = !inPeak && playerAge > pHi2 && playerAge <= declineHi2;
+	                                const nearEdge = !inPeak && !inValue && (playerAge >= pLo2 - 1 && playerAge <= declineHi2 + 1);
+	                                const peakDotColor = inPeak ? '#2ECC71' : inValue || nearEdge ? '#F0A500' : '#E74C3C';
+	                                const peakDotTitle = inPeak ? 'In peak window' : inValue ? valueYrs2 + ' value years left' : nearEdge ? 'Near value edge' : 'Past value window';
                                 const myNeed = assess?.needs?.find(n => n.pos === x.pos);
                                 const faab2 = faabSuggest(x.dhq, x.pos);
                                 const dhqCol2 = x.dhq >= 7000 ? '#2ECC71' : x.dhq >= 4000 ? '#3498DB' : x.dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.3)';
@@ -899,12 +915,12 @@
                                     if (rolling > 0) { ppg = rolling; ppgMarker = ' · L' + n; }
                                     else { ppgMarker = ' · Szn'; }
                                 }
-                                const dhqCol = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#3498DB' : dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.25)';
-                                const faab = faabSuggest(dhq, pos);
-                                const [, pHi] = peaks[pos] || [24, 29];
-                                const peakYrs = Math.max(0, pHi - (p.age || 25));
-                                const peakLabel = peakYrs >= 4 ? 'Rising' : peakYrs >= 1 ? 'Prime' : 'Post';
-                                const peakCol = peakYrs >= 4 ? '#2ECC71' : peakYrs >= 1 ? 'var(--gold)' : '#E74C3C';
+	                                const dhqCol = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#3498DB' : dhq >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.25)';
+	                                const faab = faabSuggest(dhq, pos);
+	                                const peakYrs = peakYearsFor(pos, p.age);
+	                                const valueYrs = valueYearsFor(pos, p.age);
+	                                const peakLabel = peakYrs >= 4 ? 'Rising' : peakYrs >= 1 ? 'Prime' : valueYrs >= 1 ? 'Vet' : 'Post';
+	                                const peakCol = peakYrs >= 4 ? '#2ECC71' : peakYrs >= 1 ? 'var(--gold)' : valueYrs >= 1 ? '#F0A500' : '#E74C3C';
                                 const renderCell = (k) => {
                                     switch (k) {
                                         case 'pos':        return <span style={{ fontSize: '0.76rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' }}>{pos}</span>;
@@ -963,7 +979,7 @@
                         {[
                             { val: selDhq > 0 ? selDhq.toLocaleString() : '\u2014', label: 'DHQ VALUE', col: selDhq >= 7000 ? '#2ECC71' : selDhq >= 4000 ? '#3498DB' : selDhq >= 2000 ? 'var(--silver)' : 'var(--silver)' },
                             { val: selPpg || '\u2014', label: 'PPG', col: selPpg >= 10 ? '#2ECC71' : selPpg >= 5 ? 'var(--silver)' : 'var(--silver)' },
-                            { val: selPeakYrs + 'yr', label: 'PEAK LEFT', col: selPeakYrs >= 4 ? '#2ECC71' : selPeakYrs >= 1 ? 'var(--gold)' : '#E74C3C' },
+	                            { val: selPeakYrs > 0 ? selPeakYrs + 'yr' : selValueYrs + 'yr', label: selPeakYrs > 0 ? 'PEAK LEFT' : 'VALUE LEFT', col: selPeakYrs >= 4 ? '#2ECC71' : selPeakYrs >= 1 ? 'var(--gold)' : selValueYrs >= 1 ? '#F0A500' : '#E74C3C' },
                         ].map((s, i) => <div key={i} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '10px 6px', border: '1px solid rgba(255,255,255,0.06)' }}>
                             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.3rem', fontWeight: 600, color: s.col }}>{s.val}</div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
@@ -992,7 +1008,7 @@
                             {strength && <div style={{ fontSize: '0.82rem', color: 'var(--silver)', opacity: 0.7, marginBottom: '4px' }}>You already have {selPos} surplus — stash only</div>}
                             {!need && !strength && <div style={{ fontSize: '0.82rem', color: 'var(--silver)', marginBottom: '4px' }}>Depth add at {selPos}</div>}
                             <div style={{ fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.6 }}>
-                                {selPeakYrs >= 4 ? 'Long dynasty window — buy low candidate' : selPeakYrs >= 1 ? 'In production window — immediate contributor' : 'Past peak — short-term rental only'}
+	                                {selPeakYrs >= 4 ? 'Long dynasty window — buy low candidate' : selPeakYrs >= 1 ? 'In production window — immediate contributor' : selValueYrs >= 1 ? 'Veteran value window — short-term contributor' : 'Past value window — short-term rental only'}
                             </div>
                         </div>;
                     })()}

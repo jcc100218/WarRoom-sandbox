@@ -537,7 +537,7 @@ function AnalyticsPanel({
                     const LI2 = window.App?.LI || {};
                     const ps2 = LI2.playerScores || {};
                     const pm2 = LI2.playerMeta || {};
-                    const pw2 = window.App.peakWindows;
+                    const pw2 = window.App?.peakWindows || {};
                     const myRid2 = S2?.myRosterId;
                     const myRos2 = (S2?.rosters || []).find(r => r.roster_id === myRid2);
                     const myPl2 = myRos2?.players || [];
@@ -548,8 +548,10 @@ function AnalyticsPanel({
                         const mt = pm2[pid] || {};
                         tDHQ2 += dq;
                         if (!mt.age || !mt.pos) return;
-                        const pe = (pw2[mt.pos] || [23, 29])[1];
-                        if (mt.age + 2 > pe && dq >= 2000) {
+	                        const valueEnd = typeof window.App?.getValueWindowEnd === 'function'
+	                            ? window.App.getValueWindowEnd(mt.pos)
+	                            : ((window.App.peakWindows || {})[mt.pos] || [23, 29])[1];
+	                        if (mt.age + 2 > valueEnd && dq >= 2000) {
                             arDHQ2 += dq;
                             arPlayers2.push({ name: playersData[pid]?.full_name || S2?.players?.[pid]?.full_name || mt.name || ('Player ' + pid), age: mt.age, dhq: dq });
                         }
@@ -560,11 +562,11 @@ function AnalyticsPanel({
                     return (
                         <div style={{ ...aCardStyle, marginTop: '12px' }}>
                             <div style={aHeaderStyle}><span>AGING CLIFF ALERT</span></div>
-                            <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>Players within 2 years of their position's peak-end age with 2000+ DHQ value. These are your highest-risk assets for dynasty value decline.</div>
+	                            <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>Players within 2 years of their position's value-window end with 2000+ DHQ value. These are your highest-risk assets for dynasty value decline.</div>
                             <div style={{ display: 'flex', gap: '24px', marginBottom: '12px' }}>
                                 <div style={{ textAlign: 'center' }}>
                                     <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.6rem', color: arPct2 > 30 ? badColor : arPct2 > 15 ? warnColor : goodColor }}>{arPct2}%</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>Your DHQ past peak by {(parseInt(S2?.season) || 2026) + 2}</div>
+	                                    <div style={{ fontSize: '0.75rem', color: 'var(--silver)' }}>Your DHQ near value cliff by {(parseInt(S2?.season) || 2026) + 2}</div>
                                 </div>
                                 <div style={{ textAlign: 'center' }}>
                                     {(() => {

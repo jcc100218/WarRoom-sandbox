@@ -162,11 +162,15 @@
         const dhq = window.App?.LI?.playerScores?.[pid] || 0;
         const meta = window.App?.LI?.playerMeta?.[pid] || {};
         const st = statsData?.[pid] || {};
-        const peaks = window.App?.peakWindows || {};
-        const [pLo, pHi] = peaks[nPos] || [24, 29];
+        const curve = typeof window.App?.getAgeCurve === 'function'
+            ? window.App.getAgeCurve(nPos)
+            : { build: [22, 24], peak: (window.App?.peakWindows || {})[nPos] || [24, 29], decline: [30, 32] };
+        const [pLo, pHi] = curve.peak;
+        const declineHi = curve.decline[1];
         const peakYrs = Math.max(0, pHi - age);
-        const peakLabel = age < pLo ? 'Rising' : age <= pHi ? 'Prime' : 'Post-Peak';
-        const peakCol = age < pLo ? '#2ECC71' : age <= pHi ? '#D4AF37' : '#E74C3C';
+        const valueYrs = Math.max(0, declineHi - age);
+        const peakLabel = age < pLo ? 'Rising' : age <= pHi ? 'Prime' : age <= declineHi ? 'Veteran' : 'Post-Window';
+        const peakCol = age < pLo ? '#2ECC71' : age <= pHi ? '#D4AF37' : age <= declineHi ? '#F0A500' : '#E74C3C';
         const dhqCol = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#3498DB' : dhq >= 2000 ? '#D0D0D0' : '#7d8291';
         const sc = scoringSettings || window.S?.leagues?.[0]?.scoring_settings || {};
         const ppgRaw = typeof window.App?.calcPPG === 'function' ? window.App.calcPPG(st, sc) : 0;
@@ -174,7 +178,7 @@
         const trend = meta.trend || 0;
         const pa = typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
         const rec = pa ? pa.label.toUpperCase() :
-            (peakYrs <= 0 && trend <= -10 ? 'SELL NOW' : peakYrs <= 0 ? 'SELL' : peakYrs <= 2 ? 'SELL' : dhq >= 7000 && peakYrs >= 3 ? 'HOLD CORE' : 'HOLD');
+            (valueYrs <= 0 && trend <= -10 ? 'SELL NOW' : valueYrs <= 0 ? 'SELL' : peakYrs <= 1 ? 'SELL' : dhq >= 7000 && peakYrs >= 3 ? 'HOLD CORE' : 'HOLD');
         const recCol = rec.includes('SELL') ? '#E74C3C' : rec.includes('BUY') ? '#2ECC71' : '#D4AF37';
         const tier = tierFromDhq(dhq);
         const depthChart = typeof p.depth_chart_order === 'number'
@@ -251,7 +255,7 @@
                     [
                         { v: dhq > 0 ? dhq.toLocaleString() : '—', l: 'DHQ', c: dhqCol },
                         { v: ppg || '—', l: 'PPG (curr)', c: ppg >= 10 ? '#2ECC71' : '#D0D0D0' },
-                        { v: peakYrs + 'yr', l: 'Peak Left', c: peakCol },
+                        { v: peakYrs > 0 ? peakYrs + 'yr' : valueYrs + 'yr', l: peakYrs > 0 ? 'Peak Left' : 'Value Left', c: peakCol },
                         { v: tier.label, l: 'Tier', c: tier.color },
                         { v: rec, l: 'Action', c: recCol },
                     ].map((s, i) => React.createElement('div', { key: i, style: { textAlign: 'center' } },
@@ -273,10 +277,10 @@
                 }, dhqContext),
                 // Age curve
                 React.createElement('div', { style: { padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' } },
-                    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
-                        React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 } }, 'Age Curve'),
-                        React.createElement('div', { style: { fontSize: '0.74rem', color: peakCol } },
-                            peakLabel + ' · ' + (peakYrs > 0 ? peakYrs + 'yr left' : 'Past peak'))
+	                    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
+	                        React.createElement('div', { style: { fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 } }, 'Age Curve'),
+	                        React.createElement('div', { style: { fontSize: '0.74rem', color: peakCol } },
+	                            peakLabel + ' · ' + (peakYrs > 0 ? peakYrs + 'yr peak left' : valueYrs > 0 ? valueYrs + 'yr value left' : 'Past value window'))
                     ),
                     React.createElement('div', { style: { display: 'flex', height: '18px', borderRadius: '4px', overflow: 'hidden', gap: '1px' } },
                         Array.from({ length: 17 }, (_, i) => {
@@ -284,7 +288,7 @@
                             const col = a < pLo - 3 ? 'rgba(96,165,250,0.3)' :
                                 a < pLo ? 'rgba(46,204,113,0.45)' :
                                 (a >= pLo && a <= pHi) ? 'rgba(46,204,113,0.75)' :
-                                a <= pHi + 2 ? 'rgba(212,175,55,0.45)' : 'rgba(231,76,60,0.35)';
+	                                a <= declineHi ? 'rgba(212,175,55,0.45)' : 'rgba(231,76,60,0.35)';
                             return React.createElement('div', {
                                 key: a,
                                 style: {
@@ -361,11 +365,12 @@
                     React.createElement('div', { style: { fontSize: '0.84rem', color: '#D0D0D0', lineHeight: 1.5 } },
                         (() => {
                             let insight;
-                            if (isOnMyTeam && peakYrs <= 1 && dhq >= 3000) insight = 'Sell window closing — move before value drops.';
+	                            if (isOnMyTeam && valueYrs <= 1 && dhq >= 3000) insight = 'Sell window closing — move before value drops.';
                             else if (!isOnMyTeam && peakYrs >= 5 && dhq < 4000) insight = 'Buy-low candidate — young with room to grow.';
                             else if (peakYrs >= 4) insight = 'Long dynasty window — cornerstone asset.';
                             else if (peakYrs >= 1) insight = 'In production window.';
-                            else insight = 'Past peak — value declining.';
+	                            else if (valueYrs >= 1) insight = 'Veteran value window.';
+	                            else insight = 'Past value window — value declining.';
                             if (trend >= 20) insight += ' Trending up ' + trend + '%.';
                             else if (trend <= -15) insight += ' Production down ' + Math.abs(trend) + '%.';
                             return insight;

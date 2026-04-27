@@ -48,13 +48,17 @@
         const dhq = window.App?.LI?.playerScores?.[pid] || 0;
         const meta = window.App?.LI?.playerMeta?.[pid] || {};
         const st = statsData?.[pid] || {};
-        const peaks = window.App.peakWindows;
         const nPos = ['DE','DT','NT'].includes(pos)?'DL':['CB','S','SS','FS'].includes(pos)?'DB':['OLB','ILB','MLB'].includes(pos)?'LB':pos;
-        const [pLo, pHi] = peaks[nPos] || [24,29];
+        const curve = typeof window.App?.getAgeCurve === 'function'
+            ? window.App.getAgeCurve(nPos)
+            : { build: [22, 24], peak: (window.App.peakWindows || {})[nPos] || [24, 29], decline: [30, 32] };
+        const [pLo, pHi] = curve.peak;
+        const declineHi = curve.decline[1];
         const age = p.age || 0;
         const peakYrs = Math.max(0, pHi - age);
-        const peakLabel = age < pLo ? 'Rising' : age <= pHi ? 'Prime' : 'Post-Peak';
-        const peakCol = age < pLo ? '#2ECC71' : age <= pHi ? '#D4AF37' : '#E74C3C';
+        const valueYrs = Math.max(0, declineHi - age);
+        const peakLabel = age < pLo ? 'Rising' : age <= pHi ? 'Prime' : age <= declineHi ? 'Veteran' : 'Post-Window';
+        const peakCol = age < pLo ? '#2ECC71' : age <= pHi ? '#D4AF37' : age <= declineHi ? '#F0A500' : '#E74C3C';
         const dhqCol = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#3498DB' : dhq >= 2000 ? '#D0D0D0' : 'rgba(255,255,255,0.3)';
         // Use league scoring_settings for PPG (matches roster table calculation)
         const scoring = window.S?.leagues?.[0]?.scoring_settings;
@@ -95,7 +99,7 @@
                 ...[
                     { val:dhq>0?dhq.toLocaleString():'\u2014', lbl:'DHQ', col:dhqCol, gauge:true },
                     { val:ppg||'\u2014', lbl:'PPG', col:ppg>=10?'#2ECC71':'#D0D0D0' },
-                    { val:peakYrs+'yr', lbl:'PEAK', col:peakCol },
+                    { val:peakYrs>0?peakYrs+'yr':valueYrs+'yr', lbl:peakYrs>0?'PEAK':'VALUE', col:peakCol },
                     { val:rec, lbl:'ACTION', col:recCol }
                 ].map(function(s,i){ var dhqFilled=s.gauge?Math.round(Math.min(10,dhq/1000)):0; var gCol=dhq>=7000?'filled-green':dhq>=4000?'filled':'filled-red'; return React.createElement('div', { key:i, style:{textAlign:'center'} },
                     React.createElement('div', { style:{ fontFamily:'JetBrains Mono, monospace', fontSize:'1rem', fontWeight:600, color:s.col } }, s.val),
@@ -107,10 +111,10 @@
             React.createElement('div', { style:{ padding:'8px 16px' } },
                 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px' } },
                     React.createElement('div', { style:{ fontSize:'0.68rem', color:'#7d8291', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700 } }, 'Age Curve'),
-                    React.createElement('div', { style:{ fontSize:'0.72rem', color:peakCol } }, peakLabel+' \u00B7 '+(peakYrs > 0 ? peakYrs+'yr left' : 'Past peak'))
+                    React.createElement('div', { style:{ fontSize:'0.72rem', color:peakCol } }, peakLabel+' \u00B7 '+(peakYrs > 0 ? peakYrs+'yr peak left' : valueYrs > 0 ? valueYrs+'yr value left' : 'Past value window'))
                 ),
                 React.createElement('div', { style:{ display:'flex', height:'16px', borderRadius:'4px', overflow:'hidden', gap:'1px' } },
-                    ...Array.from({length:17}, function(_,i){ var a=i+20; var col=a<pLo-3?'rgba(96,165,250,0.3)':a<pLo?'rgba(46,204,113,0.45)':(a>=pLo&&a<=pHi)?'rgba(46,204,113,0.75)':a<=pHi+2?'rgba(212,175,55,0.45)':'rgba(231,76,60,0.35)'; return React.createElement('div', { key:a, style:{ flex:1, background:col, opacity:a===age?1:0.55, outline:a===age?'2px solid #D4AF37':'none', outlineOffset:'-1px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.6rem', fontWeight:700, color:a===age?'#f0f0f3':'transparent' } }, a===age?String(age):''); })
+                    ...Array.from({length:17}, function(_,i){ var a=i+20; var col=a<pLo-3?'rgba(96,165,250,0.3)':a<pLo?'rgba(46,204,113,0.45)':(a>=pLo&&a<=pHi)?'rgba(46,204,113,0.75)':a<=declineHi?'rgba(212,175,55,0.45)':'rgba(231,76,60,0.35)'; return React.createElement('div', { key:a, style:{ flex:1, background:col, opacity:a===age?1:0.55, outline:a===age?'2px solid #D4AF37':'none', outlineOffset:'-1px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.6rem', fontWeight:700, color:a===age?'#f0f0f3':'transparent' } }, a===age?String(age):''); })
                 ),
                 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', fontSize:'0.64rem', color:'#7d8291', marginTop:'2px' } },
                     React.createElement('span', null, '20'),
@@ -136,11 +140,11 @@
                         // Base insight
                         let insight = '';
                         if (isOnMyTeam && needCount >= 3) insight = needCount + ' teams need ' + nPos + ' \u2014 strong trade leverage.';
-                        else if (isOnMyTeam && peakYrs <= 1 && dhq >= 3000) insight = 'Sell window closing. Move before value drops.';
+	                        else if (isOnMyTeam && valueYrs <= 1 && dhq >= 3000) insight = 'Sell window closing. Move before value drops.';
                         else if (!isOnMyTeam && peakYrs >= 5 && dhq < 4000) insight = 'Buy-low candidate \u2014 young with room to grow.';
                         else if (peakYrs >= 4) insight = 'Long dynasty window \u2014 cornerstone asset.';
                         else if (peakYrs >= 1) insight = 'In production window.';
-                        else insight = 'Past peak \u2014 value declining.';
+	                        else insight = 'Past value window \u2014 value declining.';
 
                         // Persona flavor
                         const flavors = {
@@ -369,17 +373,21 @@
         if (!meta || !dhq) return null;
         const age = meta.age || 0;
         const pos = meta.pos || '';
-        const peaks = window.App.peakWindows;
-        const [pLo, pHi] = peaks[pos] || [24,29];
+        const curve = typeof window.App?.getAgeCurve === 'function'
+            ? window.App.getAgeCurve(pos)
+            : { build: [22, 24], peak: (window.App.peakWindows || {})[pos] || [24, 29], decline: [30, 32] };
+        const [pLo, pHi] = curve.peak;
+        const declineHi = curve.decline[1];
         const peakYrsLeft = meta.peakYrsLeft || Math.max(0, pHi - age);
+        const valueYrsLeft = Math.max(0, declineHi - age);
         const trend = meta.trend || 0;
 
-        if (age > pHi + 2 && dhq >= 2000) return { text: 'Sell high \u2014 ' + (age-pHi) + 'yr past peak', color: '#E74C3C', rec: 'SELL' };
-        if (age > pHi && dhq >= 3000 && trend <= -10) return { text: 'Declining \u2014 move before value drops', color: '#E74C3C', rec: 'SELL' };
+        if (age > declineHi && dhq >= 2000) return { text: 'Sell high \u2014 past value window', color: '#E74C3C', rec: 'SELL' };
+        if (age > pHi && age <= declineHi && dhq >= 3000 && trend <= -10) return { text: 'Veteran decline band \u2014 monitor closely', color: '#F0A500', rec: 'HOLD' };
         if (peakYrsLeft >= 5 && dhq >= 3000) return { text: peakYrsLeft + ' peak yrs ahead \u2014 cornerstone', color: '#2ECC71', rec: 'HOLD' };
         if (peakYrsLeft >= 3 && trend >= 15) return { text: 'Breakout trajectory +' + trend + '%', color: '#2ECC71', rec: 'HOLD' };
         if (age >= pLo && age <= pHi && dhq >= 5000) return { text: 'Prime window \u2014 maximize now', color: 'var(--gold)', rec: 'HOLD' };
-        if (peakYrsLeft <= 1 && dhq >= 2000) return { text: 'Window closing \u2014 sell or ride', color: '#F0A500', rec: 'HOLD' };
+        if (valueYrsLeft <= 1 && dhq >= 2000) return { text: 'Window closing \u2014 sell or ride', color: '#F0A500', rec: 'HOLD' };
         return null;
     }
 
@@ -570,14 +578,14 @@
             const givePeakTotal = tradeObj.give.reduce((s, p) => {
                 const age = playersData[p.pid]?.age || 25;
                 const pos = playersData[p.pid]?.position || '';
-                const pk = window.App.peakWindows[pos] || [24, 29];
-                return s + Math.max(0, pk[1] - age);
+                const end = typeof window.App?.getValueWindowEnd === 'function' ? window.App.getValueWindowEnd(pos) : ((window.App.peakWindows || {})[pos] || [24, 29])[1];
+                return s + Math.max(0, end - age);
             }, 0);
             const getPeakTotal = tradeObj.receive.reduce((s, p) => {
                 const age = playersData[p.pid]?.age || 25;
                 const pos = playersData[p.pid]?.position || '';
-                const pk = window.App.peakWindows[pos] || [24, 29];
-                return s + Math.max(0, pk[1] - age);
+                const end = typeof window.App?.getValueWindowEnd === 'function' ? window.App.getValueWindowEnd(pos) : ((window.App.peakWindows || {})[pos] || [24, 29])[1];
+                return s + Math.max(0, end - age);
             }, 0);
             const peakDelta = getPeakTotal - givePeakTotal;
             if (peakDelta >= 3) return { label: 'Extends window', icon: '\u2191', col: '#2ECC71' };

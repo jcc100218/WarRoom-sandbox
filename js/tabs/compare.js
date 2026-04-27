@@ -195,9 +195,12 @@ function CompareTab({
                 {/* Per-position comparison */}
                 <div style={{ marginTop: '16px' }}>
                     <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Full Roster by Position</div>
-                    {['QB','RB','WR','TE','K','DL','LB','DB'].map(pos => {
-                        const peaks = window.App?.peakWindows || {};
-                        const [pLo, pHi] = peaks[pos] || [24, 29];
+	                    {['QB','RB','WR','TE','K','DL','LB','DB'].map(pos => {
+	                        const curve = typeof window.App?.getAgeCurve === 'function'
+	                            ? window.App.getAgeCurve(pos)
+	                            : { build: [22, 24], peak: (window.App?.peakWindows || {})[pos] || [24, 29], decline: [30, 32] };
+	                        const [, pHi] = curve.peak;
+	                        const declineHi = curve.decline[1];
                         const statsRef = window.S?.playerStats || statsData || {};
                         const stats2025Ref = stats2025Data || {};
                         const scoring = currentLeague?.scoring_settings;
@@ -211,8 +214,9 @@ function CompareTab({
                             const prevPPG = (prev.gp > 0 && typeof window.App?.calcPPG === 'function') ? +window.App.calcPPG(prev, scoring).toFixed(1) : 0;
                             const effectivePPG = curPPG > 0 ? curPPG : prevPPG;
                             const age = p.age || null;
-                            const peakYrs = age ? Math.max(0, pHi - age) : 0;
-                            return { pid, p, dhq, age, team: p.team || 'FA', yrsExp: p.years_exp || 0, peakYrs, ppg: effectivePPG };
+	                            const peakYrs = age ? Math.max(0, pHi - age) : 0;
+	                            const valueYrs = age ? Math.max(0, declineHi - age) : 0;
+	                            return { pid, p, dhq, age, team: p.team || 'FA', yrsExp: p.years_exp || 0, peakYrs, valueYrs, ppg: effectivePPG };
                         };
                         const myAtPos = myPlayers.map(enrich).filter(r => r && normPos(r.p?.position) === pos).sort((a,b) => b.dhq - a.dhq);
                         const theirAtPos = theirPlayers.map(enrich).filter(r => r && normPos(r.p?.position) === pos).sort((a,b) => b.dhq - a.dhq);
@@ -274,7 +278,7 @@ function CompareTab({
                                                         {r.age != null ? <span>· {r.age}yo</span> : null}
                                                         {r.ppg > 0 ? <span>· {r.ppg} PPG</span> : null}
                                                         <span>· {r.yrsExp}y</span>
-                                                        <span>· {r.peakYrs}yr peak</span>
+	                                                        <span>· {r.peakYrs > 0 ? r.peakYrs + 'yr peak' : r.valueYrs + 'yr value'}</span>
                                                     </div>
                                                 </div>
                                                 <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: '0.76rem', color: dhqCol, flexShrink: 0 }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span>

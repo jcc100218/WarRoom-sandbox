@@ -207,19 +207,23 @@ function MyTeamTab({
     const isTaxi = taxi.has(pid);
     const section = isStarter ? 'starter' : isIR ? 'ir' : isTaxi ? 'taxi' : 'bench';
 
-    const peaks = window.App.peakWindows;
-    const [pLo, pHi] = peaks[pos] || [24,29];
-    const peakRangeHi = Math.max(pHi + 4, age ? age + 1 : pHi + 4);
+    const curve = typeof window.App?.getAgeCurve === 'function'
+      ? window.App.getAgeCurve(pos)
+      : { build: [22, 24], peak: (window.App.peakWindows || {})[pos] || [24, 29], decline: [30, 32] };
+    const [pLo, pHi] = curve.peak;
+    const declineHi = curve.decline[1];
+    const peakRangeHi = Math.max(declineHi + 2, age ? age + 1 : declineHi + 2);
     const peakPct = age ? Math.max(0, Math.min(100, ((age - (pLo-4)) / (peakRangeHi - (pLo-4))) * 100)) : 50;
-    const peakPhase = !age ? '\u2014' : age < pLo ? 'PRE' : age <= pHi ? 'PRIME' : 'POST';
+    const peakPhase = !age ? '\u2014' : age < pLo ? 'PRE' : age <= pHi ? 'PRIME' : age <= declineHi ? 'VET' : 'POST';
     const peakYrsLeft = age ? Math.max(0, pHi - age) : 0;
+    const valueYrsLeft = age ? Math.max(0, declineHi - age) : 0;
 
     const _pidElite = typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(pid) : dhq >= 7000;
     // Recommendation for MY roster — shared getPlayerAction() with simplified fallback
     const pa = typeof window.getPlayerAction === 'function' ? window.getPlayerAction(pid) : null;
-    const rec = pa ? pa.label : (peakYrsLeft <= 0 ? 'Sell' : _pidElite && peakYrsLeft >= 3 ? 'Hold Core' : peakYrsLeft >= 4 && dhq < 4000 ? 'Stash' : 'Hold');
+    const rec = pa ? pa.label : (valueYrsLeft <= 0 ? 'Sell' : _pidElite && peakYrsLeft >= 3 ? 'Hold Core' : peakYrsLeft >= 4 && dhq < 4000 ? 'Stash' : 'Hold');
 
-    return { pid, p, pos, dhq, age, curPPG, prevPPG, effectivePPG, effectiveGP, prevGP, durabilityGP, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, rec, curGP, meta, injury: p.injury_status };
+    return { pid, p, pos, dhq, age, curPPG, prevPPG, effectivePPG, effectiveGP, prevGP, durabilityGP, trend, isStarter, isIR, isTaxi, section, peakPhase, peakPct, peakYrsLeft, valueYrsLeft, rec, curGP, meta, injury: p.injury_status };
   }).filter(Boolean);
 
   // Position-level PPG percentiles for color coding
@@ -238,8 +242,15 @@ function MyTeamTab({
   // Cell background helpers (FM-style colored cells)
   const dhqBg = v => v >= 7000 ? 'rgba(46,204,113,0.15)' : v >= 4000 ? 'rgba(52,152,219,0.12)' : v >= 2000 ? 'rgba(255,255,255,0.04)' : 'transparent';
   const dhqCol = v => v >= 7000 ? '#2ECC71' : v >= 4000 ? '#3498DB' : v >= 2000 ? 'var(--silver)' : 'rgba(255,255,255,0.25)';
-  const ageBg = a => !a ? 'transparent' : a <= 24 ? 'rgba(46,204,113,0.12)' : a <= 28 ? 'transparent' : a <= 31 ? 'rgba(240,165,0,0.1)' : 'rgba(231,76,60,0.1)';
-  const ageCol = a => !a ? 'var(--silver)' : a <= 24 ? '#2ECC71' : a <= 28 ? 'var(--white)' : a <= 31 ? '#F0A500' : '#E74C3C';
+  const agePhase = (a, pos) => {
+    if (!a) return 'unknown';
+    const curve = typeof window.App?.getAgeCurve === 'function'
+      ? window.App.getAgeCurve(pos)
+      : { build: [22, 24], peak: (window.App.peakWindows || {})[pos] || [24, 29], decline: [30, 32] };
+    return a < curve.peak[0] ? 'young' : a <= curve.peak[1] ? 'prime' : a <= curve.decline[1] ? 'veteran' : 'post';
+  };
+  const ageBg = (a, pos) => ({ young: 'rgba(46,204,113,0.12)', prime: 'transparent', veteran: 'rgba(240,165,0,0.1)', post: 'rgba(231,76,60,0.1)' }[agePhase(a, pos)] || 'transparent');
+  const ageCol = (a, pos) => ({ young: '#2ECC71', prime: 'var(--white)', veteran: '#F0A500', post: '#E74C3C' }[agePhase(a, pos)] || 'var(--silver)');
   const ppgBg = (v, pos) => v >= (posP75[pos]||10) ? 'rgba(46,204,113,0.12)' : v <= (posP25[pos]||3) ? 'rgba(231,76,60,0.08)' : 'transparent';
   const trendBg = t => t >= 15 ? 'rgba(46,204,113,0.12)' : t <= -15 ? 'rgba(231,76,60,0.1)' : 'transparent';
   const statusCol = s => s === 'starter' ? 'var(--gold)' : s === 'ir' ? '#E74C3C' : s === 'taxi' ? '#3498DB' : 'transparent';
@@ -300,7 +311,7 @@ function MyTeamTab({
 
     switch(colKey) {
       case 'pos': return <div key={colKey} style={{...base}}><span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '1px 4px', borderRadius: '2px', background: (posColors[r.pos]||'#666')+'22', color: posColors[r.pos]||'var(--silver)' }}>{r.pos}</span></div>;
-      case 'age': return <div key={colKey} style={{...base, background: ageBg(r.age)}}><span style={{ color: ageCol(r.age), fontWeight: 600 }}>{r.age||'\u2014'}</span></div>;
+      case 'age': return <div key={colKey} style={{...base, background: ageBg(r.age, r.pos)}}><span style={{ color: ageCol(r.age, r.pos), fontWeight: 600 }}>{r.age||'\u2014'}</span></div>;
       case 'dhq': return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}}><span style={{ color: dhqCol(r.dhq), fontWeight: 700, fontFamily: 'Inter, sans-serif', fontSize: '0.82rem' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span></div>;
       case 'ppg': {
         // Rolling PPG override — swap in last-N-games PPG when user toggled the window.
@@ -332,8 +343,8 @@ function MyTeamTab({
           {trendBars}
         </div>;
       }
-      case 'peak': return <div key={colKey} style={{...base, flexDirection: 'column', gap: '1px'}}>
-        <span style={{ fontSize: '0.76rem', fontWeight: 700, color: r.peakPhase==='PRIME'?'#2ECC71':r.peakPhase==='PRE'?'#3498DB':'#E74C3C' }}>{r.peakPhase}</span>
+	      case 'peak': return <div key={colKey} style={{...base, flexDirection: 'column', gap: '1px'}}>
+	        <span style={{ fontSize: '0.76rem', fontWeight: 700, color: r.peakPhase==='PRIME'?'#2ECC71':r.peakPhase==='PRE'?'#3498DB':r.peakPhase==='VET'?'#F0A500':'#E74C3C' }}>{r.peakPhase}</span>
         <div style={{ width: '30px', height: '3px', borderRadius: '1px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden', position: 'relative' }}>
           <div style={{ position:'absolute',left:0,top:0,height:'100%',width:'30%',background:'rgba(52,152,219,0.4)' }}></div>
           <div style={{ position:'absolute',left:'30%',top:0,height:'100%',width:'40%',background:'rgba(46,204,113,0.4)' }}></div>
@@ -648,13 +659,11 @@ function MyTeamTab({
         </div>
 
         {/* Player rows + inline expand */}
-        {filtered.map((r, idx) => {
-          const isExpanded = expandedPid === r.pid;
-          const contract = window.NFL_CONTRACTS?.[r.pid];
-          const peaks = window.App.peakWindows;
-          const [pLo, pHi] = peaks[r.pos] || [24,29];
+	        {filtered.map((r, idx) => {
+	          const isExpanded = expandedPid === r.pid;
+	          const contract = window.NFL_CONTRACTS?.[r.pid];
 
-          const _recLower = (r.rec || '').toLowerCase();
+	          const _recLower = (r.rec || '').toLowerCase();
           const actionClass = _recLower === 'sell now' || _recLower === 'sell' ? 'wr-row-sell' :
             _recLower === 'sell high' ? 'wr-row-sell-high' :
             _recLower === 'hold core' || _recLower === 'build around' ? 'wr-row-core' : '';
@@ -709,11 +718,12 @@ function MyTeamTab({
                       {r.injury && <div style={{ fontSize: '0.74rem', color: '#E74C3C', fontWeight: 600, marginTop: '3px' }}>{r.injury}</div>}
                       {/* Dynasty profile — inline */}
                       <div style={{ fontSize: '0.72rem', fontStyle: 'italic', color: 'var(--silver)', opacity: 0.8, marginTop: '2px' }}>
-                        {r.peakPhase === 'PRE' && r.dhq >= 4000 ? 'Rising asset with ' + r.peakYrsLeft + ' peak years ahead. Buy window closing.' :
-                         r.peakPhase === 'PRIME' && r.dhq >= 7000 ? 'Elite producer in prime. Cornerstone dynasty asset.' :
-                         r.peakPhase === 'PRIME' && r.dhq >= 4000 ? 'Solid starter in peak window. ' + r.peakYrsLeft + ' productive years left.' :
-                         r.peakPhase === 'POST' ? 'Past peak \u2014 dynasty value declining. ' + (r.dhq >= 3000 ? 'Sell before the cliff.' : 'Move for any return.') :
-                         r.dhq < 2000 ? 'Depth piece. Low dynasty value.' :
+	                        {r.peakPhase === 'PRE' && r.dhq >= 4000 ? 'Rising asset with ' + r.peakYrsLeft + ' peak years ahead. Buy window closing.' :
+	                         r.peakPhase === 'PRIME' && r.dhq >= 7000 ? 'Elite producer in prime. Cornerstone dynasty asset.' :
+	                         r.peakPhase === 'PRIME' && r.dhq >= 4000 ? 'Solid starter in peak window. ' + r.peakYrsLeft + ' productive years left.' :
+	                         r.peakPhase === 'VET' ? 'Past elite peak but still in the valuable veteran band. ' + (r.valueYrsLeft ? r.valueYrsLeft + ' value years left.' : 'Final value year.') :
+	                         r.peakPhase === 'POST' ? 'Past value window \u2014 dynasty value declining. ' + (r.dhq >= 3000 ? 'Sell before the cliff.' : 'Move for any return.') :
+	                         r.dhq < 2000 ? 'Depth piece. Low dynasty value.' :
                          'Moderate dynasty asset. Watch trajectory.'}
                         {r.trend >= 20 ? ' Trending up ' + r.trend + '%.' : r.trend <= -20 ? ' Production down ' + Math.abs(r.trend) + '%.' : ''}
                       </div>
@@ -768,26 +778,29 @@ function MyTeamTab({
                     </div>
                   </div>
 
-                  {/* Age Curve visualization */}
-                  {(() => {
-                    const pw = window.App.peakWindows;
-                    const nP = r.pos === 'DE' || r.pos === 'DT' ? 'DL' : r.pos === 'CB' || r.pos === 'S' ? 'DB' : r.pos;
-                    const [pLo, pHi] = pw[nP] || [24, 29];
-                    const ages = Array.from({length: 17}, (_, i) => i + 20);
+	                  {/* Age Curve visualization */}
+	                  {(() => {
+	                    const nP = r.pos === 'DE' || r.pos === 'DT' ? 'DL' : r.pos === 'CB' || r.pos === 'S' ? 'DB' : r.pos;
+	                    const curve = typeof window.App?.getAgeCurve === 'function'
+	                      ? window.App.getAgeCurve(nP)
+	                      : { build: [22, 24], peak: (window.App.peakWindows || {})[nP] || [24, 29], decline: [30, 32] };
+	                    const [pLo, pHi] = curve.peak;
+	                    const declineHi = curve.decline[1];
+	                    const ages = Array.from({length: 17}, (_, i) => i + 20);
                     return <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                         <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Age Curve</div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{'Currently age ' + (r.age || '?') + ' \u00B7 ' + r.peakPhase + ' \u00B7 ' + (r.peakYrsLeft > 0 ? '~' + r.peakYrsLeft + 'yr left' : 'Past peak')}</div>
+	                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{'Currently age ' + (r.age || '?') + ' \u00B7 ' + r.peakPhase + ' \u00B7 ' + (r.peakYrsLeft > 0 ? '~' + r.peakYrsLeft + ' peak yr left' : r.valueYrsLeft > 0 ? '~' + r.valueYrsLeft + ' value yr left' : 'Past value window')}</div>
                       </div>
                       <div style={{ display: 'flex', height: '22px', borderRadius: '5px', overflow: 'hidden', gap: '1px' }}>
                         {ages.map(a => {
-                          const col = a < pLo - 3 ? 'rgba(96,165,250,0.3)' : a < pLo ? 'rgba(46,204,113,0.45)' : (a >= pLo && a <= pHi) ? 'rgba(46,204,113,0.75)' : a <= pHi + 2 ? 'rgba(212,175,55,0.45)' : 'rgba(231,76,60,0.35)';
+	                          const col = a < pLo - 3 ? 'rgba(96,165,250,0.3)' : a < pLo ? 'rgba(46,204,113,0.45)' : (a >= pLo && a <= pHi) ? 'rgba(46,204,113,0.75)' : a <= declineHi ? 'rgba(212,175,55,0.45)' : 'rgba(231,76,60,0.35)';
                           const isMe = a === (r.age || 0);
                           return <div key={a} style={{ flex: 1, background: col, opacity: isMe ? 1 : 0.55, outline: isMe ? '2px solid #D4AF37' : 'none', outlineOffset: '-1px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 700, color: isMe ? '#f0f0f3' : 'transparent' }}>{isMe ? a : ''}</div>;
                         })}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.64rem', color: 'var(--silver)', marginTop: '3px' }}>
-                        <span>20</span><span>{'Peak ' + pLo + '\u2013' + pHi}</span><span>36</span>
+	                        <span>20</span><span>{'Peak ' + pLo + '\u2013' + pHi + ' / Value thru ' + declineHi}</span><span>36</span>
                       </div>
                     </div>;
                   })()}

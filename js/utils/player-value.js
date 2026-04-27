@@ -101,9 +101,23 @@ window.App.PlayerValue = (function () {
     // Max achievable DHQ per position (caps projection ceiling)
     const POS_CEILINGS = { QB:12000, RB:9000, WR:10500, TE:8500, DL:7000, LB:7000, DB:7000 };
 
-    // Decay rates are owned by reconai/shared/constants.js (CDN source of truth).
-    // Provide a fallback with CDN-matching values in case constants.js hasn't loaded.
-    window.App.decayRates = window.App.decayRates || { QB:0.06, RB:0.25, WR:0.14, TE:0.12, DL:0.15, LB:0.15, DB:0.14 };
+    // Age curves and decay rates are owned by reconai/shared/constants.js.
+    // Provide fallbacks with CDN-matching values in case constants.js hasn't loaded.
+    window.App.ageCurveWindows = window.App.ageCurveWindows || {
+        QB:{build:[23,27],peak:[28,34],decline:[35,38]},
+        RB:{build:[21,22],peak:[23,25],decline:[26,28]},
+        WR:{build:[22,24],peak:[25,28],decline:[29,31]},
+        TE:{build:[23,25],peak:[26,29],decline:[30,32]},
+        DL:{build:[22,24],peak:[25,29],decline:[30,32]},
+        EDGE:{build:[22,24],peak:[25,29],decline:[30,32]},
+        LB:{build:[22,23],peak:[24,28],decline:[29,31]},
+        DB:{build:[21,23],peak:[24,27],decline:[28,30]},
+        K:{build:[23,27],peak:[28,35],decline:[36,40]},
+    };
+    window.App.peakWindows = window.App.peakWindows || Object.fromEntries(
+        Object.entries(window.App.ageCurveWindows).map(([pos, curve]) => [pos, curve.peak])
+    );
+    window.App.decayRates = window.App.decayRates || { QB:0.12, RB:0.22, WR:0.18, TE:0.16, K:0.08, DL:0.15, EDGE:0.15, LB:0.16, DB:0.18 };
 
     // ── getPickValue ─────────────────────────────────────────────────
     // Returns DHQ-equivalent value for a draft pick. Delegates to DHQ engine when available.
@@ -190,13 +204,16 @@ window.App.PlayerValue = (function () {
     //   WR/TE declining target share (meta.trend <-10%) → year-1 value penalty
     function projectPlayerValue(pid, baseDhq, baseAge, pos, delta, meta) {
         if (!baseDhq || baseDhq <= 0 || delta === 0) return baseDhq;
+        const ageCurveWindows = window.App.ageCurveWindows;
         const peakWindows = window.App.peakWindows;
         const decayRates  = window.App.decayRates;
         const nPos = pos === 'DE' || pos === 'DT'   ? 'DL'
                    : pos === 'CB' || pos === 'S'    ? 'DB'
                    : pos === 'OLB' || pos === 'ILB' ? 'LB'
                    : pos;
-        const [pLo, pHi] = peakWindows[nPos] || [24, 29];
+        const curve = ageCurveWindows[nPos] || { build:[22,24], peak:peakWindows[nPos] || [24,29], decline:[30,32] };
+        const [pLo, pHi] = curve.peak;
+        const declineHi = curve.decline[1];
         const decay = decayRates[nPos] || 0.12;
         const ceiling = POS_CEILINGS[nPos] || 10000;
 
@@ -241,9 +258,15 @@ window.App.PlayerValue = (function () {
                 } else if (ageAtYr <= pHi) {
                     // Late-peak: holding or starting to decline
                     val *= isElite ? 1.0 : isProven ? (1 - effectiveDecay * 0.1) : (1 - effectiveDecay * 0.25);
+                } else if (ageAtYr <= declineHi) {
+                    // Valuable decline band: reduce gradually, not like a cliff.
+                    const declineFloor = { QB:0.78, RB:0.62, WR:0.68, TE:0.70, K:0.82, DL:0.70, LB:0.68, DB:0.66 }[nPos] || 0.68;
+                    const progress = (ageAtYr - pHi) / Math.max(1, declineHi - pHi);
+                    const target = declineFloor + (1 - declineFloor) * (1 - Math.max(0, Math.min(1, progress)));
+                    val *= target;
                 } else {
-                    // Post-peak: steeper decline, 0.25 acceleration per year past peak
-                    const yearsPast = ageAtYr - pHi;
+                    // Post-decline: steeper decline, 0.25 acceleration per year beyond the valuable band.
+                    const yearsPast = ageAtYr - declineHi;
                     const accel = 1 + yearsPast * 0.25;
                     val *= (1 - effectiveDecay * accel);
                 }
@@ -277,7 +300,7 @@ window.App.PlayerValue = (function () {
                 } else if (ageAtYr <= pHi) {
                     val *= (1 + effectiveDecay * 0.1); // in window, similar value
                 } else {
-                    val *= (1 + effectiveDecay * 0.5); // worth more when younger past peak
+                    val *= (1 + effectiveDecay * 0.5); // worth more when younger past value window
                 }
             }
         }

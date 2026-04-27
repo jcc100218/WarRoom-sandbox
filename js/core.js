@@ -318,13 +318,37 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         LB: ['LB','OLB','ILB','MLB'],
     };
 
-    // Peak windows default — fallback only; shared/constants.js is the primary source
+    // Age curves default - fallback only; shared/constants.js is the primary source.
+    window.App.AGE_CURVE_WINDOWS_DEFAULT = window.App.AGE_CURVE_WINDOWS_DEFAULT || {
+        QB:{build:[23,27],peak:[28,34],decline:[35,38]},
+        RB:{build:[21,22],peak:[23,25],decline:[26,28]},
+        WR:{build:[22,24],peak:[25,28],decline:[29,31]},
+        TE:{build:[23,25],peak:[26,29],decline:[30,32]},
+        DL:{build:[22,24],peak:[25,29],decline:[30,32]},
+        EDGE:{build:[22,24],peak:[25,29],decline:[30,32]},
+        LB:{build:[22,23],peak:[24,28],decline:[29,31]},
+        DB:{build:[21,23],peak:[24,27],decline:[28,30]},
+        K:{build:[23,27],peak:[28,35],decline:[36,40]},
+    };
+    window.App.ageCurveWindows = window.App.ageCurveWindows || window.App.AGE_CURVE_WINDOWS_DEFAULT;
+
+    // Peak windows default - elite portion of the curve.
     window.App.PEAK_WINDOWS_DEFAULT = window.App.PEAK_WINDOWS_DEFAULT || {
-        QB:[23,39], RB:[21,31], WR:[21,33], TE:[21,34],
-        DL:[26,33], LB:[26,32], DB:[21,34]
+        QB:[28,34], RB:[23,25], WR:[25,28], TE:[26,29],
+        DL:[25,29], EDGE:[25,29], LB:[24,28], DB:[24,27], K:[28,35]
     };
     // Set only if ReconAI CDN hasn't provided them
     window.App.peakWindows = window.App.peakWindows || window.App.PEAK_WINDOWS_DEFAULT;
+    window.App.getAgeCurve = window.App.getAgeCurve || function getAgeCurve(pos) {
+        const p = pos === 'DE' || pos === 'DT' || pos === 'NT' || pos === 'EDGE' ? 'DL'
+            : pos === 'CB' || pos === 'S' || pos === 'SS' || pos === 'FS' ? 'DB'
+            : pos === 'OLB' || pos === 'ILB' || pos === 'MLB' ? 'LB'
+            : pos;
+        return window.App.ageCurveWindows?.[p] || { build: [22, 24], peak: window.App.peakWindows?.[p] || [24, 29], decline: [30, 32] };
+    };
+    window.App.getValueWindowEnd = window.App.getValueWindowEnd || function getValueWindowEnd(pos) {
+        return window.App.getAgeCurve(pos).decline[1];
+    };
 
     // tradeValueTier — player value bracket label/color (owned by reconai/shared/constants.js)
     // Fallback with CDN-matching thresholds in case constants.js hasn't loaded yet.
@@ -490,4 +514,3 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
     // Provides: season, playerStats, tradedPicks, rosters, myRosterId, lastUpdated, selectPlayer
     // write-through: window.S remains intact for ReconAI CDN bridge compatibility.
     window.App.SeasonContext = React.createContext(null);
-
