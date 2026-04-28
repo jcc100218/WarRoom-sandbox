@@ -72,7 +72,7 @@
                     borderRadius: '5px',
                     cursor: 'pointer',
                     fontSize: '0.58rem',
-                    fontFamily: 'Inter, sans-serif',
+                    fontFamily: 'var(--font-body)',
                     fontWeight: 700,
                     whiteSpace: 'nowrap',
                 }
@@ -144,7 +144,7 @@
                         }
                     },
                         React.createElement('div', { style: { width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '6px solid ' + myCol } }),
-                        React.createElement('div', { style: { fontSize: '0.6rem', fontWeight: 700, color: myCol, marginTop: '1px', whiteSpace: 'nowrap', fontFamily: 'Inter, sans-serif' } }, '★ YOU'),
+                        React.createElement('div', { style: { fontSize: '0.6rem', fontWeight: 700, color: myCol, marginTop: '1px', whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' } }, '★ YOU'),
                     ),
                 ),
                 React.createElement('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', fontSize: '0.62rem', marginTop: '20px' } },
@@ -198,7 +198,7 @@
                                     color: isMe ? col : 'var(--white)',
                                     fontWeight: isMe ? 700 : 500,
                                     border: isMe ? '1px solid ' + col + '88' : '1px solid transparent',
-                                    fontFamily: 'Inter, sans-serif',
+                                    fontFamily: 'var(--font-body)',
                                 }
                             },
                                 showLogos && av
@@ -252,7 +252,7 @@
                 av
                     ? React.createElement('img', { src: av, style: { width: 16, height: 16, borderRadius: '50%' }, alt: '' })
                     : React.createElement('div', { style: { width: 16, height: 16, borderRadius: '50%', background: tierC + '33' } }),
-                React.createElement('span', { style: { flex: 1, fontSize: '0.66rem', fontWeight: 600, color: 'var(--white)', fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, team.ownerName || ''),
+                React.createElement('span', { style: { flex: 1, fontSize: '0.66rem', fontWeight: 600, color: 'var(--white)', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, team.ownerName || ''),
                 React.createElement('span', { style: { fontSize: '0.54rem', padding: '1px 5px', borderRadius: 3, background: tierC + '22', color: tierC, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' } }, (team.tier || '—').slice(0, 4)),
                 React.createElement('span', { style: { fontSize: '0.62rem', fontWeight: 700, color: 'var(--white)', fontFamily: 'JetBrains Mono, monospace', minWidth: 22, textAlign: 'right' } }, team.healthScore || 0),
                 React.createElement('span', { style: { fontSize: '0.56rem', fontWeight: 700, color: deltaCol, fontFamily: 'JetBrains Mono, monospace', minWidth: 28, textAlign: 'right' } }, delta > 0 ? '+' + delta : delta),
@@ -320,12 +320,12 @@
                     if (!c.above.length && !c.below.length) return null;
                     return React.createElement('div', { style: { padding: '8px 10px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } },
                         React.createElement('div', { style: { fontSize: '0.6rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' } }, 'Closest Competitors · vs You'),
-                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '1px', fontFamily: 'Inter, sans-serif', overflow: 'auto' } },
+                        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '1px', fontFamily: 'var(--font-body)', overflow: 'auto' } },
                             ...c.above.map((t, i) => renderCompetitorRow(t, 'a' + i, { myHealth: c.myHealth })),
                             // YOU row
                             mine && React.createElement('div', { key: 'me', style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', background: 'rgba(212,175,55,0.08)', borderRadius: '4px', border: '1px solid rgba(212,175,55,0.3)' } },
                                 React.createElement('span', { style: { fontSize: '0.6rem', color: 'var(--gold)', fontWeight: 700, width: 18, textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' } }, '#' + c.myRank),
-                                React.createElement('span', { style: { fontSize: '0.66rem', fontWeight: 700, color: 'var(--gold)', flex: 1, fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, '★ YOU · ' + (mine.ownerName || '')),
+                                React.createElement('span', { style: { fontSize: '0.66rem', fontWeight: 700, color: 'var(--gold)', flex: 1, fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, '★ YOU · ' + (mine.ownerName || '')),
                                 React.createElement('span', { style: { fontSize: '0.54rem', padding: '1px 5px', borderRadius: 3, background: TIER_COLORS[mine.tier] + '22', color: TIER_COLORS[mine.tier], fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' } }, (mine.tier || '—').slice(0, 4)),
                                 React.createElement('span', { style: { fontSize: '0.62rem', fontWeight: 700, color: 'var(--white)', fontFamily: 'JetBrains Mono, monospace', minWidth: 22, textAlign: 'right' } }, c.myHealth),
                                 React.createElement('span', { style: { fontSize: '0.56rem', color: 'var(--silver)', fontFamily: 'JetBrains Mono, monospace', minWidth: 28, textAlign: 'right' } }, '—'),
@@ -404,7 +404,7 @@
                                 ...closest.above.map((t, i) => renderCompetitorRow(t, 'a' + i, { myHealth: closest.myHealth })),
                                 mine && React.createElement('div', { key: 'me', style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 6px', background: 'rgba(212,175,55,0.08)', borderRadius: '4px', border: '1px solid rgba(212,175,55,0.3)' } },
                                     React.createElement('span', { style: { fontSize: '0.6rem', color: 'var(--gold)', fontWeight: 700, width: 18, textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' } }, '#' + closest.myRank),
-                                    React.createElement('span', { style: { fontSize: '0.66rem', fontWeight: 700, color: 'var(--gold)', flex: 1, fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, '★ YOU · ' + (mine.ownerName || '')),
+                                    React.createElement('span', { style: { fontSize: '0.66rem', fontWeight: 700, color: 'var(--gold)', flex: 1, fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, '★ YOU · ' + (mine.ownerName || '')),
                                     React.createElement('span', { style: { fontSize: '0.54rem', padding: '1px 5px', borderRadius: 3, background: TIER_COLORS[mine.tier] + '22', color: TIER_COLORS[mine.tier], fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' } }, (mine.tier || '—').slice(0, 4)),
                                     React.createElement('span', { style: { fontSize: '0.62rem', fontWeight: 700, color: 'var(--white)', fontFamily: 'JetBrains Mono, monospace', minWidth: 22, textAlign: 'right' } }, closest.myHealth),
                                     React.createElement('span', { style: { fontSize: '0.56rem', color: 'var(--silver)', fontFamily: 'JetBrains Mono, monospace', minWidth: 28, textAlign: 'right' } }, '—'),
@@ -419,7 +419,7 @@
                             React.createElement('div', { style: { fontSize: '0.6rem', fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'Position Strength · by Tier'),
                             ...matrix.map((m, i) => {
                                 return React.createElement('div', { key: i, style: { marginBottom: '4px' } },
-                                    React.createElement('div', { style: { fontSize: '0.6rem', fontWeight: 700, color: 'var(--white)', marginBottom: '2px', fontFamily: 'Inter, sans-serif' } }, m.pos),
+                                    React.createElement('div', { style: { fontSize: '0.6rem', fontWeight: 700, color: 'var(--white)', marginBottom: '2px', fontFamily: 'var(--font-body)' } }, m.pos),
                                     React.createElement('div', { style: { display: 'flex', height: 8, borderRadius: 2, overflow: 'hidden' } },
                                         ...TIER_ORDER.map(t => {
                                             const v = m.totals[t];

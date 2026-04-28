@@ -89,10 +89,10 @@
                     React.createElement('img', { src:'https://sleepercdn.com/content/nfl/players/'+pid+'.jpg', style:{width:'48px',height:'48px',objectFit:'cover'}, onError:function(e){ e.target.style.display='none'; const s=document.createElement('span'); s.style.cssText='font-size:16px;font-weight:700;color:#D4AF37'; s.textContent=initials; e.target.after(s);; } })
                 ),
                 React.createElement('div', { style:{flex:1} },
-                    React.createElement('div', { style:{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.2rem', color:'#f0f0f3', letterSpacing:'0.02em' } }, name),
+                    React.createElement('div', { style:{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.2rem', color: 'var(--text-primary)', letterSpacing:'0.02em' } }, name),
                     React.createElement('div', { style:{ fontSize:'0.78rem', color:'#D0D0D0' } }, nPos+' \u00B7 '+(p.team||'FA')+' \u00B7 Age '+(age||'?')+(p.college ? ' \u00B7 '+p.college : ''))
                 ),
-                React.createElement('button', { onClick:onClose, style:{ background:'none', border:'none', color:'#7d8291', cursor:'pointer', fontSize:'1.1rem', padding:'2px' } }, '\u2715')
+                React.createElement('button', { onClick:onClose, style:{ background:'none', border:'none', color: 'var(--text-muted)', cursor:'pointer', fontSize:'1.1rem', padding:'2px' } }, '\u2715')
             ),
             // Stats row
             React.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'4px', padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.06)' } },
@@ -104,19 +104,19 @@
                 ].map(function(s,i){ var dhqFilled=s.gauge?Math.round(Math.min(10,dhq/1000)):0; var gCol=dhq>=7000?'filled-green':dhq>=4000?'filled':'filled-red'; return React.createElement('div', { key:i, style:{textAlign:'center'} },
                     React.createElement('div', { style:{ fontFamily:'JetBrains Mono, monospace', fontSize:'1rem', fontWeight:600, color:s.col } }, s.val),
                     s.gauge ? React.createElement('div', { className:'wr-gauge', style:{marginTop:'2px'} }, Array.from({length:10}, function(_,gi){ return React.createElement('div', { key:gi, className:'wr-gauge-seg'+(gi<dhqFilled?' '+gCol:'') }); })) : null,
-                    React.createElement('div', { style:{ fontSize:'0.68rem', color:'#7d8291', textTransform:'uppercase', letterSpacing:'0.06em' } }, s.lbl)
+                    React.createElement('div', { style:{ fontSize:'0.68rem', color: 'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em' } }, s.lbl)
                 ); })
             ),
             // Age curve visualization
             React.createElement('div', { style:{ padding:'8px 16px' } },
                 React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px' } },
-                    React.createElement('div', { style:{ fontSize:'0.68rem', color:'#7d8291', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700 } }, 'Age Curve'),
+                    React.createElement('div', { style:{ fontSize:'0.68rem', color: 'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700 } }, 'Age Curve'),
                     React.createElement('div', { style:{ fontSize:'0.72rem', color:peakCol } }, peakLabel+' \u00B7 '+(peakYrs > 0 ? peakYrs+'yr peak left' : valueYrs > 0 ? valueYrs+'yr value left' : 'Past value window'))
                 ),
                 React.createElement('div', { style:{ display:'flex', height:'16px', borderRadius:'4px', overflow:'hidden', gap:'1px' } },
-                    ...Array.from({length:17}, function(_,i){ var a=i+20; var col=a<pLo-3?'rgba(96,165,250,0.3)':a<pLo?'rgba(46,204,113,0.45)':(a>=pLo&&a<=pHi)?'rgba(46,204,113,0.75)':a<=declineHi?'rgba(212,175,55,0.45)':'rgba(231,76,60,0.35)'; return React.createElement('div', { key:a, style:{ flex:1, background:col, opacity:a===age?1:0.55, outline:a===age?'2px solid #D4AF37':'none', outlineOffset:'-1px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.6rem', fontWeight:700, color:a===age?'#f0f0f3':'transparent' } }, a===age?String(age):''); })
+                    ...Array.from({length:17}, function(_,i){ var a=i+20; var col=a<pLo-3?'rgba(96,165,250,0.3)':a<pLo?'rgba(46,204,113,0.45)':(a>=pLo&&a<=pHi)?'rgba(46,204,113,0.75)':a<=declineHi?'rgba(212,175,55,0.45)':'rgba(231,76,60,0.35)'; return React.createElement('div', { key:a, style:{ flex:1, background:col, opacity:a===age?1:0.55, outline:a===age?'2px solid #D4AF37':'none', outlineOffset:'-1px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.6rem', fontWeight:700, color:a===age?'var(--text-primary)':'transparent' } }, a===age?String(age):''); })
                 ),
-                React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', fontSize:'0.64rem', color:'#7d8291', marginTop:'2px' } },
+                React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', fontSize:'0.64rem', color: 'var(--text-muted)', marginTop:'2px' } },
                     React.createElement('span', null, '20'),
                     React.createElement('span', null, 'Peak '+pLo+'\u2013'+pHi),
                     React.createElement('span', null, '36')
@@ -258,7 +258,7 @@
                     React.createElement('span', { style: { fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.35 } }, now)
                 )
             ),
-            title && React.createElement('div', { style: { fontFamily: 'Inter, sans-serif', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' } }, title),
+            title && React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: '0.78rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' } }, title),
             React.createElement('div', { style: { fontSize: '0.82rem', color: '#D0D0D0', lineHeight: 1.4 } }, children)
         );
     }
@@ -312,7 +312,7 @@
         // College stats section
         if (collegeHtml) {
             sections.push(React.createElement('div', { key: 'college', style: { marginBottom: html ? '14px' : 0 } },
-                React.createElement('div', { style: { fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' } },
+                React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' } },
                     'College Stats',
                     collegeData && React.createElement('span', { style: { fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.5, textTransform: 'none', fontFamily: 'inherit', letterSpacing: 0 } }, collegeData.school + ' \u00B7 ' + collegeData.conf + ' \u00B7 ' + collegeData.years)
                 ),
@@ -324,7 +324,7 @@
         const isRookie = (player?.years_exp || 0) === 0;
         if (html && !isRookie) {
             sections.push(React.createElement('div', { key: 'nfl' },
-                React.createElement('div', { style: { fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'NFL Stats'),
+                React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'NFL Stats'),
                 React.createElement('div', { dangerouslySetInnerHTML: { __html: html }, style: { fontSize: '13px' } })
             ));
         } else if (loading && !isRookie) {
@@ -333,7 +333,7 @@
 
         if (!sections.length) {
             sections.push(React.createElement('div', { key: 'empty' },
-                React.createElement('div', { style: { fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'Career Stats'),
+                React.createElement('div', { style: { fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' } }, 'Career Stats'),
                 React.createElement('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.5 } }, 'No stats available')
             ));
         }
@@ -455,11 +455,11 @@
                         'War Room encountered an error. This usually fixes itself on reload.'),
                     React.createElement('button', {
                         onClick: () => { this.setState({ hasError: false, error: null }); },
-                        style: { padding: '10px 24px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'Inter, sans-serif', fontSize: '1rem', cursor: 'pointer', marginRight: '8px' }
+                        style: { padding: '10px 24px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '6px', fontFamily: 'var(--font-body)', fontSize: '1rem', cursor: 'pointer', marginRight: '8px' }
                     }, 'Try Again'),
                     React.createElement('button', {
                         onClick: () => window.location.reload(),
-                        style: { padding: '10px 24px', background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', fontFamily: 'Inter, sans-serif', fontSize: '1rem', cursor: 'pointer' }
+                        style: { padding: '10px 24px', background: 'transparent', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '6px', fontFamily: 'var(--font-body)', fontSize: '1rem', cursor: 'pointer' }
                     }, 'Reload Page'),
                     React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.5, marginTop: '12px' } },
                         String(this.state.error?.message || '').substring(0, 100))
@@ -600,13 +600,13 @@
             ) : null,
             React.createElement('div', {style:{fontSize:'0.78rem',color:'var(--silver)',opacity:0.65,marginBottom:'0.75rem',lineHeight:1.5}}, 'Select any player to generate trade proposals. Shows offers within 20% value variance ranked by acceptance likelihood. ', React.createElement(Tip, null, 'Builds 1-for-1, 2-for-1, and player+pick combos. Acceptance % uses DNA type, psychological taxes, and trade posture.')),
             React.createElement('div', {style:{display:'flex',gap:'0.5rem',marginBottom:'1rem'}},
-                React.createElement('button', {onClick:()=>{setFinderMode('my');setFinderAsset(null);setFinderResults(null);},style:{padding:'7px 16px',fontSize:'0.78rem',fontFamily:'Inter, sans-serif',textTransform:'uppercase',background:finderMode==='my'?'var(--gold)':'rgba(255,255,255,0.04)',color:finderMode==='my'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='my'?'var(--gold)':'rgba(255,255,255,0.08)'),borderRadius:'4px',cursor:'pointer'}}, 'Trade My Player'),
-                React.createElement('button', {onClick:()=>{setFinderMode('acquire');setFinderAsset(null);setFinderResults(null);},style:{padding:'7px 16px',fontSize:'0.78rem',fontFamily:'Inter, sans-serif',textTransform:'uppercase',background:finderMode==='acquire'?'var(--gold)':'rgba(255,255,255,0.04)',color:finderMode==='acquire'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='acquire'?'var(--gold)':'rgba(255,255,255,0.08)'),borderRadius:'4px',cursor:'pointer'}}, 'Acquire a Player')
+                React.createElement('button', {onClick:()=>{setFinderMode('my');setFinderAsset(null);setFinderResults(null);},style:{padding:'7px 16px',fontSize:'0.78rem',fontFamily: 'var(--font-body)',textTransform:'uppercase',background:finderMode==='my'?'var(--gold)':'rgba(255,255,255,0.04)',color:finderMode==='my'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='my'?'var(--gold)':'rgba(255,255,255,0.08)'),borderRadius:'4px',cursor:'pointer'}}, 'Trade My Player'),
+                React.createElement('button', {onClick:()=>{setFinderMode('acquire');setFinderAsset(null);setFinderResults(null);},style:{padding:'7px 16px',fontSize:'0.78rem',fontFamily: 'var(--font-body)',textTransform:'uppercase',background:finderMode==='acquire'?'var(--gold)':'rgba(255,255,255,0.04)',color:finderMode==='acquire'?'var(--black)':'var(--silver)',border:'1px solid '+(finderMode==='acquire'?'var(--gold)':'rgba(255,255,255,0.08)'),borderRadius:'4px',cursor:'pointer'}}, 'Acquire a Player')
             ),
             React.createElement('div', {style:{fontSize:'0.74rem',color:'var(--gold)',textTransform:'uppercase',marginBottom:'0.3rem',fontWeight:700}}, finderMode==='my'?'Select your player to shop':'Select a player to acquire'),
             React.createElement('div', {style:{display:'flex',flexWrap:'wrap',gap:'0.35rem',maxHeight:'200px',overflowY:'auto',marginBottom:'1rem',padding:'10px',background:'rgba(255,255,255,0.02)',borderRadius:'8px',border:'1px solid rgba(212,175,55,0.12)'}},
                 ...(finderMode==='my'?myPlayers:allLeaguePlayers).slice(0,60).map(p=>
-                    React.createElement('button', {key:p.pid, onClick:()=>{setFinderAsset(p.pid);setFinderResults(null);generateTrades(p.pid,finderMode);}, style:{padding:'5px 12px',fontSize:'0.74rem',fontFamily:'Inter, sans-serif',borderRadius:'4px',cursor:'pointer',background:finderAsset===p.pid?'var(--gold)':'rgba(255,255,255,0.04)',color:finderAsset===p.pid?'var(--black)':'var(--silver)',border:'1px solid '+(finderAsset===p.pid?'var(--gold)':'rgba(255,255,255,0.06)')}}, p.name+' '+p.val.toLocaleString())
+                    React.createElement('button', {key:p.pid, onClick:()=>{setFinderAsset(p.pid);setFinderResults(null);generateTrades(p.pid,finderMode);}, style:{padding:'5px 12px',fontSize:'0.74rem',fontFamily: 'var(--font-body)',borderRadius:'4px',cursor:'pointer',background:finderAsset===p.pid?'var(--gold)':'rgba(255,255,255,0.04)',color:finderAsset===p.pid?'var(--black)':'var(--silver)',border:'1px solid '+(finderAsset===p.pid?'var(--gold)':'rgba(255,255,255,0.06)')}}, p.name+' '+p.val.toLocaleString())
                 )
             ),
             finderResults && !finderResults.length ? React.createElement('div', {style:{color:'var(--silver)',fontSize:'0.82rem',textAlign:'center',padding:'2rem'}}, 'No viable trades found within 20% value variance.') : null,

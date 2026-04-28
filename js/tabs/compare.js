@@ -453,7 +453,7 @@ function CompareTab({
     const selectStyle = {
         padding: '9px 14px',
         fontSize: '0.82rem',
-        fontFamily: 'Inter, sans-serif',
+        fontFamily: 'var(--font-body)',
         background: 'rgba(255,255,255,0.04)',
         border: '1px solid rgba(212,175,55,0.32)',
         borderRadius: '6px',
@@ -513,16 +513,15 @@ function CompareTab({
         cursor: 'pointer',
     });
     const renderScopeControls = () => (
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+        <div className="wr-module-nav">
             {[
                 ['duel', 'Duel', '1 opponent'],
                 ['group', 'Group', '2+ teams'],
                 ['division', 'Division', 'league divisions'],
                 ['league', 'League', 'all teams'],
             ].map(([key, label, sub]) => (
-                <button key={key} onClick={() => setScope(key)} style={scopeButtonStyle(compareScope === key)}>
-                    <span>{label}</span>
-                    <span style={{ marginLeft: '7px', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.62rem', opacity: 0.62 }}>{sub}</span>
+                <button key={key} className={compareScope === key ? 'is-active' : ''} onClick={() => setScope(key)}>
+                    {label}<span>{sub}</span>
                 </button>
             ))}
         </div>
@@ -716,7 +715,7 @@ function CompareTab({
                 <div style={{ marginBottom: '14px' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}>
                         <div>
-                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Full Breakdown</div>
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Full Breakdown</div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.62, marginTop: '2px' }}>Player-level rooms across {profiles.length} teams. Click any player to open the card.</div>
                         </div>
                         <div style={{ ...mono, color: 'var(--silver)', fontSize: '0.72rem' }}>{profiles.length} teams</div>
@@ -756,7 +755,7 @@ function CompareTab({
                             <div key={'field-breakdown-' + summary.pos} style={{ ...panelStyle, overflow: 'hidden', marginBottom: '12px' }}>
                                 <div style={{ padding: '10px', background: (posColors[summary.pos] || '#666') + '14', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                     <div style={{ display: 'grid', gridTemplateColumns: '72px repeat(' + summary.columns.length + ', minmax(0, 1fr))', gap: '8px', alignItems: 'end' }}>
-                                        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.78rem', fontWeight: 900, color: posColors[summary.pos] || 'var(--silver)' }}>{summary.pos}</div>
+                                        <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.78rem', fontWeight: 900, color: posColors[summary.pos] || 'var(--silver)' }}>{summary.pos}</div>
                                         {summary.columns.map(column => {
                                             const isLeader = summary.leaderId === column.profile.rosterId;
                                             return (
@@ -946,16 +945,16 @@ function CompareTab({
 
     return (
       <div style={pageStyle}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <div>
-            <h1 style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.72rem', fontWeight: 700, margin: 0, letterSpacing: 0 }}>Compare</h1>
-            <div style={{ fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.65, marginTop: '2px' }}>
-              Team-vs-team edges, owner history, and tradeable pressure points.
-            </div>
+        <div className="wr-module-strip">
+          <div className="wr-module-context">
+            <span>Compare</span>
+            <strong>{compareScope === 'duel' ? 'Head to Head' : compareScope === 'group' ? 'Custom Group' : compareScope === 'division' ? 'Division View' : 'League Field'}</strong>
+            <em>Team edges, owner history, roster pressure, picks, and FAAB.</em>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div className="wr-module-actions">
+            {renderScopeControls()}
             {compareScope === 'duel' ? (
-                <select value={compareTeamId || ''} onChange={e => setCompareTeamId(e.target.value || null)} style={selectStyle}>
+                <select className="wr-module-select" value={compareTeamId || ''} onChange={e => setCompareTeamId(e.target.value || null)} style={selectStyle}>
                   <option value="">Select team to compare...</option>
                   {opponentOptions.map(t => (
                     <option key={t.rosterId} value={String(t.rosterId)}>{t.name} ({t.wins || 0}-{t.losses || 0})</option>
@@ -970,8 +969,6 @@ function CompareTab({
             )}
           </div>
         </div>
-
-        {renderScopeControls()}
 
         {compareScope === 'duel' ? (
         <React.Fragment>
@@ -1376,7 +1373,7 @@ function CompareTab({
 
                 <div style={{ marginTop: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', marginBottom: '10px' }}>
-                        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Full Roster by Position</div>
+                        <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.72rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Full Roster by Position</div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.62 }}>Click any player to open the player card.</div>
                     </div>
                     {positionSummaries.map(summary => {
@@ -1387,7 +1384,7 @@ function CompareTab({
                             <div key={summary.pos} style={{ marginBottom: '12px', ...panelStyle, overflow: 'hidden' }}>
                                 <div style={{ padding: '9px 10px 10px', background: (posColors[summary.pos] || '#666') + '14', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', gap: '10px' }}>
-                                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.75rem', fontWeight: 900, color: posColors[summary.pos] || 'var(--silver)' }}>{summary.pos}</span>
+                                        <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.75rem', fontWeight: 900, color: posColors[summary.pos] || 'var(--silver)' }}>{summary.pos}</span>
                                         <div style={{ display: 'flex', gap: '12px', fontSize: '0.72rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                             <span style={{ color: summary.myPosDHQ >= summary.theirPosDHQ ? '#2ECC71' : 'var(--silver)' }}>You: {summary.myPosDHQ.toLocaleString()}</span>
                                             <span style={{ color: summary.theirPosDHQ >= summary.myPosDHQ ? '#2ECC71' : 'var(--silver)' }}>Them: {summary.theirPosDHQ.toLocaleString()}</span>

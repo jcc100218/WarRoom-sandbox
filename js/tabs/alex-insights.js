@@ -315,7 +315,7 @@
                 ctaLabel: 'See aging assets',
             });
         }
-        // Elite concentration — uses the canonical "top-5 at position" rule
+        // Elite concentration — uses the canonical "7000+ DHQ or top-5 at position" rule
         // exposed by ReconAI via window.App.countElitePlayers, falling back to
         // a 7000+ DHQ threshold only when that helper isn't loaded.
         const eliteCount = typeof window.App?.countElitePlayers === 'function'
@@ -325,7 +325,7 @@
             out.push({
                 focus: 'gmStyle', severity: 'warning', confidence: 85,
                 title: 'Your roster has zero elite-tier players',
-                body: 'Championship cores are built around 2\u20134 elites (top-5 at their position). Without one, you\u2019re capped at \u201Cgood\u201D \u2014 accumulate picks and flip mid-tier depth for a cornerstone.',
+                body: 'Championship cores are built around 2\u20134 elites (7000+ DHQ or top-5 at their position). Without one, you\u2019re capped at \u201Cgood\u201D \u2014 accumulate picks and flip mid-tier depth for a cornerstone.',
                 ctaLabel: 'Find a cornerstone target',
             });
         } else if (eliteCount >= 4) {
@@ -523,47 +523,30 @@
 
     // ── Hero ──────────────────────────────────────────────────────
     function Hero({ active }) {
-        return h('div', { style: { display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' } },
-            h('div', {
-                style: {
-                    width: '48px', height: '48px', borderRadius: '12px',
-                    background: 'linear-gradient(135deg, rgba(212,175,55,0.18), rgba(212,175,55,0.06))',
-                    border: '1px solid rgba(212,175,55,0.4)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.35rem',
-                }
-            }, '\uD83E\uDDE0'),
-            h('div', null,
-                h('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.7rem', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.01em' } }, 'Film Room'),
-                h('div', { style: { fontSize: '0.76rem', color: 'var(--silver)', opacity: 0.7, marginTop: '4px', fontFamily: 'JetBrains Mono, monospace' } }, 'Set your strategy. See what Alex sees.')
+        return h('div', { className: 'wr-module-strip' },
+            h('div', { className: 'wr-module-context' },
+                h('span', null, 'Film'),
+                h('strong', null, 'Alex Intel'),
+                h('em', null, 'Strategy, alerts, weekly reads, and recommendation history.')
             ),
             h('div', {
-                style: {
-                    marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px',
-                    padding: '6px 12px', borderRadius: '999px',
-                    background: active ? 'rgba(46,204,113,0.08)' : 'rgba(208,208,208,0.06)',
-                    border: active ? '1px solid rgba(46,204,113,0.35)' : '1px solid rgba(255,255,255,0.1)',
-                    fontSize: '0.68rem', color: active ? '#2ECC71' : 'var(--silver)',
-                    letterSpacing: '0.08em', fontWeight: 700, fontFamily: 'JetBrains Mono, monospace',
-                }
+                className: 'wr-module-actions'
             },
-                h('span', { style: { width: '8px', height: '8px', borderRadius: '50%', background: active ? '#2ECC71' : '#7d8291', boxShadow: active ? '0 0 8px rgba(46,204,113,0.7)' : 'none' } }),
-                active ? 'ALEX ACTIVE' : 'ALEX IDLE'
+                h('span', {
+                    className: 'wr-module-pill',
+                    style: active ? { color: 'var(--good)', borderColor: 'rgba(46,204,113,0.35)', background: 'rgba(46,204,113,0.08)' } : null
+                }, active ? 'Alex Active' : 'Alex Idle')
             )
         );
     }
 
     // ── Sub-tab row ───────────────────────────────────────────────
     function SubTabs({ value, onChange, tabs }) {
-        return h('div', { style: { display: 'flex', gap: '28px', margin: '0 0 18px', borderBottom: '1px solid rgba(255,255,255,0.08)' } },
-            tabs.map(t => h('div', {
+        return h('div', { className: 'wr-module-nav', style: { margin: '0 0 16px' } },
+            tabs.map(t => h('button', {
                 key: t.k,
+                className: value === t.k ? 'is-active' : '',
                 onClick: () => onChange(t.k),
-                style: {
-                    padding: '10px 2px', fontSize: '0.86rem', cursor: 'pointer', fontWeight: value === t.k ? 600 : 500,
-                    color: value === t.k ? 'var(--gold)' : 'var(--silver)', opacity: value === t.k ? 1 : 0.65,
-                    borderBottom: '2px solid ' + (value === t.k ? 'var(--gold)' : 'transparent'),
-                    fontFamily: 'DM Sans, sans-serif',
-                }
             }, t.label))
         );
     }
@@ -630,7 +613,7 @@
                 })
             ),
             h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '10px', margin: '0 0 12px', flexWrap: 'wrap' } },
-                h('h2', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.25rem', fontWeight: 700, margin: 0, letterSpacing: '-0.01em' } }, 'Behavioral Analysis'),
+                h('h2', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.25rem', fontWeight: 700, margin: 0, letterSpacing: 0 } }, 'Behavioral Analysis'),
                 h('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'JetBrains Mono, monospace' } },
                     '\u2014 ' + merged.length + ' insight' + (merged.length === 1 ? '' : 's') + (aiInsights.length ? ' (' + aiInsights.length + ' AI)' : '')),
                 // Spacer pushes the AI controls to the right
@@ -778,7 +761,7 @@
         // is there, but here Alex tells you what it *means* for your play.
         const Panel = ({ title, subtitle, interpretation, interpColor, children, empty }) => h(Card, { padding: '18px 20px', style: { marginBottom: '12px' } },
             h('div', { style: { display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: interpretation ? '8px' : '14px' } },
-                h('h3', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', fontWeight: 700, margin: 0, letterSpacing: '-0.005em' } }, title),
+                h('h3', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', fontWeight: 700, margin: 0, letterSpacing: 0 } }, title),
                 subtitle && h('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, fontFamily: 'JetBrains Mono, monospace' } }, '\u2014 ' + subtitle)
             ),
             interpretation && h('div', {

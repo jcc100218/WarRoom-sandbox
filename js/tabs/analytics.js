@@ -93,16 +93,21 @@ function AnalyticsPanel({
         { key: 'trades', label: 'Market Moves' },
         { key: 'playoffs', label: 'Playoffs' },
         { key: 'timeline', label: 'Timeline' },
-        { key: 'players', label: 'All Players' },
-        { key: 'picks', label: 'Draft Picks' },
-        { key: 'reports', label: 'Custom Reports' },
+        { key: 'players', label: 'All Players', navLabel: 'Players' },
+        { key: 'picks', label: 'Draft Picks', navLabel: 'Picks' },
+        { key: 'reports', label: 'Custom Reports', navLabel: 'Reports' },
     ];
-    const subTabBtnStyle = (active) => ({
-        padding: '8px 18px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'Rajdhani, sans-serif', fontSize: '1rem', letterSpacing: '0.06em', transition: 'all 0.2s',
-        border: active ? '2px solid var(--gold)' : '2px solid rgba(212,175,55,0.3)',
-        background: active ? 'var(--gold)' : 'transparent',
-        color: active ? 'var(--black)' : 'var(--gold)',
-    });
+    const activeSubTab = subTabs.find(t => t.key === analyticsTab) || subTabs[0];
+    const analyticsContext = {
+        roster: 'Winner-template gaps, room coverage, and roster construction evidence.',
+        draft: 'Pick value, hit-rate patterns, and current-pick strategy.',
+        trades: 'Trade efficiency, waiver activity, FAAB, and market pressure.',
+        playoffs: 'Titles, finals paths, roadblocks, and postseason records.',
+        timeline: 'League eras, filtered events, champions, and major shifts.',
+        players: 'Full player universe with analytics-grade filters and saved views.',
+        picks: 'Pick capital, ownership status, and traded/acquired paths.',
+        reports: 'Custom report templates, saved views, and live preview.'
+    };
     const tableRowStyle = (i) => ({ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '8px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', ...(i === 0 ? { fontWeight: 700, color: 'var(--gold)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em' } : { color: 'var(--silver)' }) });
     const d = analyticsData;
     const sameId = (a, b) => a != null && b != null && String(a) === String(b);
@@ -126,30 +131,6 @@ function AnalyticsPanel({
     const completedChampionshipEntries = (championships) => Object.entries(championships || {})
         .filter(([, data]) => data?.champion && data?.runnerUp && isResolvedOwner(data.champion) && isResolvedOwner(data.runnerUp))
         .sort(([a], [b]) => String(b).localeCompare(String(a)));
-    const tabMeta = {
-        roster: { eyebrow: 'Roster Construction', desc: 'Compare your roster build against the teams that actually win this league.' },
-        draft: { eyebrow: 'Draft Intelligence', desc: 'Hit rates, pick behavior, and current capital translated into draft-day strategy.' },
-        trades: { eyebrow: 'Market Moves', desc: 'Trade efficiency, waiver/FAAB leverage, and how active winners create value.' },
-        playoffs: { eyebrow: 'Playoff DNA', desc: 'Titles, finals, roadblocks, and bracket history without incomplete seasons muddying the read.' },
-        timeline: { eyebrow: 'League Timeline', desc: 'Championship eras, major trades, and your team highlights across the league history.' },
-        players: { eyebrow: 'All Players', desc: 'Full-player market explorer with analytics context and custom views.' },
-        picks: { eyebrow: 'Draft Picks', desc: 'Future pick ownership, capital concentration, and your pick path by year.' },
-        reports: { eyebrow: 'Report Lab', desc: 'Build reusable scouting and league reports from the same analytics source.' },
-    };
-    const activeMeta = tabMeta[analyticsTab] || tabMeta.roster;
-    const actionBtnStyle = (primary) => ({
-        padding: '6px 12px',
-        background: primary ? 'var(--gold)' : 'rgba(212,175,55,0.1)',
-        color: primary ? 'var(--black)' : 'var(--gold)',
-        border: '1px solid ' + (primary ? 'var(--gold)' : 'rgba(212,175,55,0.28)'),
-        borderRadius: '6px',
-        fontFamily: 'Inter, sans-serif',
-        fontSize: '0.72rem',
-        fontWeight: 800,
-        letterSpacing: '0.04em',
-        textTransform: 'uppercase',
-        cursor: 'pointer',
-    });
     const AnalyticsReadout = ({ title, children, detail }) => (
         <details className="analytics-readout" open>
             <summary>
@@ -175,30 +156,108 @@ function AnalyticsPanel({
             {children}
         </div>
     );
-
-    return (
-    <div className="analytics-shell" style={{ padding: '16px' }}>
-        <div className="analytics-page-head">
+    const toneFromDelta = (delta, inverse = false) => {
+        const good = inverse ? delta < 0 : delta >= 0;
+        if (Math.abs(delta || 0) < 0.01) return 'warn';
+        return good ? 'good' : 'bad';
+    };
+    const signedNum = (v, suffix = '') => {
+        if (v == null || !Number.isFinite(Number(v))) return '\u2014';
+        const n = Number(v);
+        return (n > 0 ? '+' : '') + n.toLocaleString(undefined, { maximumFractionDigits: 1 }) + suffix;
+    };
+    const AnalyticsCommandPanel = ({ title, thesis, stats = [] }) => (
+        <div className="analytics-command-panel">
             <div>
-                <div className="analytics-kicker">{activeMeta.eyebrow}</div>
-                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em' }}>LEAGUE ANALYTICS</div>
-                <p>{activeMeta.desc}</p>
+                <span>Research Question</span>
+                <h2>{title}</h2>
+                <p>{thesis}</p>
             </div>
-            <div className="analytics-head-meta">
-                <span>Source</span>
-                <strong>{d?.computedAt ? 'Updated' : 'Loading'}</strong>
-                <em>{d?.computedAt ? new Date(d.computedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'League Intelligence'}</em>
-            </div>
+            <aside>
+                {stats.map((s, i) => (
+                    <div key={i}>
+                        <span>{s.label}</span>
+                        <strong style={{ color: s.color || 'var(--white)' }}>{s.value}</strong>
+                        {s.sub && <em>{s.sub}</em>}
+                    </div>
+                ))}
+            </aside>
         </div>
-
-        <div className="analytics-definition">Elite Tier Teams = playoff champions, runner-ups, and semi-finalists when available. If history is missing, Analytics falls back to current top performers by record and points.</div>
-
-        {/* Sub-tab navigation */}
-        <div className="analytics-subtabs" style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-            {subTabs.map(t => (
-                <div key={t.key} style={subTabBtnStyle(analyticsTab === t.key)} onClick={() => setAnalyticsTab(t.key)}>{t.label}</div>
+    );
+    const AnalyticsProofGrid = ({ items }) => (
+        <div className="analytics-proof-grid">
+            {items.map((item, i) => (
+                <div key={i} className={'analytics-proof-card is-' + (item.tone || 'neutral')}>
+                    <span>{item.label}</span>
+                    <strong style={{ color: item.color || undefined }}>{item.value}</strong>
+                    {item.detail && <em>{item.detail}</em>}
+                </div>
             ))}
         </div>
+    );
+    const AnalyticsDeltaRows = ({ rows, youLabel = 'You', benchmarkLabel = 'Elite' }) => {
+        const max = Math.max(1, ...rows.map(r => Math.max(Math.abs(r.yours || 0), Math.abs(r.benchmark || 0))));
+        return (
+            <div className="analytics-delta-list">
+                <div className="analytics-delta-head">
+                    <span>Room</span><span>Share</span><span>{youLabel}</span><span>{benchmarkLabel}</span><span>Gap</span>
+                </div>
+                {rows.map((r, i) => {
+                    const yours = Number(r.yours || 0);
+                    const bench = Number(r.benchmark || 0);
+                    const delta = yours - bench;
+                    const yPct = Math.max(2, Math.min(100, Math.abs(yours) / max * 100));
+                    const bPct = Math.max(0, Math.min(100, Math.abs(bench) / max * 100));
+                    return (
+                        <div key={i} className="analytics-delta-row">
+                            <strong>{r.label}</strong>
+                            <div className="analytics-delta-track">
+                                <div className="analytics-delta-fill" style={{ width: yPct + '%', background: r.color || '#4ECDC4' }} />
+                                <div className="analytics-delta-benchmark" style={{ left: bPct + '%' }} />
+                            </div>
+                            <b>{r.format ? r.format(yours) : yours.toFixed(0)}</b>
+                            <b>{r.format ? r.format(bench) : bench.toFixed(0)}</b>
+                            <em className={delta >= 0 ? 'is-good' : 'is-bad'}>{signedNum(delta, r.suffix || '')}</em>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+    const AnalyticsDataStack = ({ rows }) => (
+        <div className="analytics-data-stack">
+            {rows.map((r, i) => (
+                <div key={i} className="analytics-data-row">
+                    <div>
+                        <span>{r.kicker || r.label}</span>
+                        <strong>{r.label}</strong>
+                    </div>
+                    <em>{r.detail}</em>
+                    <b style={{ color: r.color || undefined }}>{r.value}</b>
+                </div>
+            ))}
+        </div>
+    );
+
+    return (
+    <div className="analytics-shell" style={{ padding: '10px 16px 16px' }}>
+        <div className="wr-module-strip">
+            <div className="wr-module-context">
+                <span>Analytics</span>
+                <strong>{activeSubTab.label}</strong>
+                <em>{analyticsContext[activeSubTab.key]}</em>
+            </div>
+            <div className="wr-module-actions">
+                <div className="wr-module-nav">
+                    {subTabs.map(t => (
+                        <button key={t.key} className={analyticsTab === t.key ? 'is-active' : ''} onClick={() => setAnalyticsTab(t.key)}>{t.navLabel || t.label}</button>
+                    ))}
+                </div>
+                <span className="wr-module-pill">{d?.computedAt ? 'Updated ' + new Date(d.computedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Loading'}</span>
+            </div>
+        </div>
+
+        <div className="analytics-definition">Elite player = 7000+ DHQ or top 5 at position. Elite team benchmarks compare against the league's proven top teams.</div>
 
         {!d ? (
             <div style={{ ...aCardStyle, color: 'var(--silver)', textAlign: 'center', padding: '40px' }}>
@@ -214,7 +273,7 @@ function AnalyticsPanel({
             const w = r.winnerProfile;
             const l = r.leagueProfile;
             const m = r.myProfile;
-            // Elite = top 5 at position
+            // Elite = 7000+ DHQ or top 5 at position
             const playerScores = window.App?.LI?.playerScores || {};
             const SS = _SS;
             const allRosters = SS?.rosters || [];
@@ -289,7 +348,7 @@ function AnalyticsPanel({
                 marginBottom: '2px',
             };
             const kpiLabelStyle = {
-                fontFamily: 'Inter, sans-serif',
+                fontFamily: 'var(--font-body)',
                 fontSize: '0.68rem',
                 color: 'var(--silver)',
                 textTransform: 'uppercase',
@@ -297,7 +356,7 @@ function AnalyticsPanel({
                 opacity: 0.7,
             };
             const kpiDeltaStyle = (positive) => ({
-                fontFamily: 'Inter, sans-serif',
+                fontFamily: 'var(--font-body)',
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 color: positive ? goodColor : badColor,
@@ -409,8 +468,15 @@ function AnalyticsPanel({
                     source: 'champion-template',
                 }));
             const gapsList = [...rosterNeedGaps, ...templateGaps];
-
-            // ── Roster Diagnosis Summary ──
+            const investmentRows = allPos.map(pos => ({
+                label: pos,
+                yours: Math.round((m.posInvestment[pos] || 0) * 100),
+                benchmark: Math.round((w.posInvestment[pos] || 0) * 100),
+                suffix: ' pts',
+                format: v => Math.round(v) + '%',
+                color: needsSet.has(pos) ? badColor : '#4ECDC4',
+            }));
+            // ── Roster command summary ──
             const projMyAge = m.avgAge + (timeDelta || 0);
             const projWAge = w.avgAge; // champion profile is historical, no projection needed
             const ageDiffDiag = projMyAge - projWAge;
@@ -421,98 +487,56 @@ function AnalyticsPanel({
                 : eliteDiffDiag < -1 ? 'buy young elite players to close the talent gap'
                 : dhqGap >= 0 && ageDiffDiag <= 0.5 ? 'hold course — your roster matches the elite tier template'
                 : 'target strategic upgrades at your weakest positions';
+            const rosterProofItems = [
+                { label: 'Champion Value Gap', value: signedNum(dhqGap, ' DHQ'), detail: 'You vs elite tier total roster DHQ template.', tone: toneFromDelta(dhqGap), color: dhqGap >= 0 ? goodColor : badColor },
+                { label: 'Elite Asset Gap', value: signedNum(eliteDiffDiag), detail: 'Elite player count vs champion benchmark.', tone: toneFromDelta(eliteDiffDiag), color: eliteDiffDiag >= 0 ? goodColor : badColor },
+                { label: 'Bench Quality Gap', value: signedNum(Math.round(benchGap)), detail: 'Depth buffer compared with winning rosters.', tone: toneFromDelta(benchGap), color: benchGap >= 0 ? goodColor : badColor },
+                { label: 'Age Window Delta', value: signedNum(Number(ageDiffDiag.toFixed(1)), ' yrs'), detail: 'Negative means younger than the winner template.', tone: Math.abs(ageDiffDiag) <= 1 ? 'good' : ageDiffDiag > 0 ? 'warn' : 'good', color: Math.abs(ageDiffDiag) <= 1 ? goodColor : warnColor },
+            ];
+            const gapRows = (gapsList.length ? gapsList.slice(0, 6) : [{ action: 'No critical construction gap', detail: 'Roster template is not flagging a major room-level deficit.', priority: 'low' }])
+                .map(g => ({
+                    kicker: (g.source === 'roster-assessment' ? 'Current Need' : 'Champion Template'),
+                    label: g.action || g.area || 'Roster signal',
+                    detail: g.detail || 'Use module tabs to inspect the player-level evidence behind this room.',
+                    value: (g.priority || g.severity || 'low').toUpperCase(),
+                    color: sevColor(g.priority || g.severity || 'low'),
+                }));
 
             return (
             <React.Fragment>
-                {/* ── ROSTER DIAGNOSIS — Alex Ingram Slack-style ── */}
-                <AnalyticsReadout title="Roster Diagnosis" detail="What your roster needs next">
-                        {(() => {
-                            const parts = [];
-                            // Tier intro
-                            if (tier === 'ELITE') parts.push('You\'re built to win right now.');
-                            else if (tier === 'CONTENDER') parts.push('You\'re in the mix — a move or two away from a title push.');
-                            else if (tier === 'CROSSROADS') parts.push('You\'re at a crossroads. Not bad enough to blow it up, not good enough to compete for the title.');
-                            else parts.push('Rebuilding mode. The goal right now is accumulating assets, not winning weekly matchups.');
-                            // Age comparison
-                            if (Math.abs(ageDiffDiag) >= 1) {
-                                parts.push(ageDiffDiag > 0 ? 'Your roster skews older than typical elite tier teams — keep an eye on your window.' : 'You\'re younger than most contenders, which gives you a longer runway.');
-                            }
-                            // Needs
-                            if (needs.length >= 2) parts.push('Your biggest gaps are at ' + needs.slice(0, 2).map(n => typeof n === 'string' ? n : n.pos).join(' and ') + '.');
-                            else if (needs.length === 1) parts.push('Your main weakness is ' + (typeof needs[0] === 'string' ? needs[0] : needs[0].pos) + '.');
-                            // Strategy
-                            if (tier === 'ELITE' || tier === 'CONTENDER') parts.push('Protect your core and make surgical upgrades at weak spots.');
-                            else if (tier === 'CROSSROADS') parts.push('Either commit to competing by filling gaps, or pivot to a rebuild and sell aging assets for picks.');
-                            else parts.push('Target young players and draft capital. Sell veterans who won\'t be around for your next competitive window.');
-                            return parts.join(' ');
-                        })()}
-                        {React.createElement('div', { className: 'analytics-action-row' },
-                            React.createElement('button', { onClick: () => setActiveTab('trades'), style: actionBtnStyle(true) }, 'Find Trade Targets'),
-                            React.createElement('button', { onClick: () => setActiveTab('fa'), style: actionBtnStyle(false) }, 'View Free Agents')
-                        )}
-                </AnalyticsReadout>
+                <AnalyticsCommandPanel
+                    title="What exactly separates this roster from the league's winning build?"
+                    thesis={'Analytics is now reading your roster as evidence: winner-template gaps, room-level coverage, age-window risk, and the positions where a move actually changes your title path. Suggested operating thesis: ' + rosterStrategy + '.'}
+                    stats={[
+                        { label: 'Evidence Set', value: allRosters.length + ' teams', sub: 'live league rosters' },
+                        { label: 'Champion Sample', value: (winnerIds.size || 0) + ' teams', sub: 'completed winners' },
+                        { label: 'Current Tier', value: tier || 'UNKNOWN', sub: healthScore + ' health', color: tier === 'REBUILDING' ? badColor : tier === 'CONTENDER' || tier === 'ELITE' ? goodColor : warnColor },
+                        { label: 'Window', value: compYears + ' yr', sub: compWindow.label || 'projection model' },
+                    ]}
+                />
 
-                {/* ── TOP KPI CARDS ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px', marginBottom: '12px' }}>
-                    {/* Total DHQ */}
-                    <div style={kpiCardStyle}>
-                        <div style={kpiLabelStyle}>Total DHQ</div>
-                        <div style={kpiNumberStyle}>{(m.avgTotalDHQ || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}</div>
-                        <div style={kpiDeltaStyle(m.avgTotalDHQ >= w.avgTotalDHQ)}>
-                            {m.avgTotalDHQ >= w.avgTotalDHQ ? '\u25B2' : '\u25BC'} {Math.abs(Math.round((m.avgTotalDHQ - l.avgTotalDHQ) / Math.max(l.avgTotalDHQ, 1) * 100))}% vs lg avg
-                        </div>
-                        <div style={{ marginTop: '8px' }}>
-                            {typeof Sparkline !== 'undefined' && projData.length >= 2 && React.createElement(Sparkline, { data: projData, width: 120, height: 28, color: m.avgTotalDHQ >= w.avgTotalDHQ ? goodColor : badColor })}
-                        </div>
+                <AnalyticsProofGrid items={rosterProofItems} />
+
+                <div className="analytics-lab-grid">
+                    <div className="analytics-lab-card">
+                        <span>Champion Blueprint</span>
+                        <strong>Position Investment Delta</strong>
+                        <p>Bars show your DHQ share by room. The gold marker is the champion-template share. This answers where your roster is structurally over- or under-weighted, not just whether a single KPI is high.</p>
+                        <AnalyticsDeltaRows rows={investmentRows} benchmarkLabel="Elite" />
                     </div>
-                    {/* Health Score */}
-                    <div style={kpiCardStyle}>
-                        <div style={kpiLabelStyle}>Health Score</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={kpiNumberStyle}>{healthScore}</div>
-                            <div style={{ marginTop: '4px' }}>
-                                {typeof MiniDonut !== 'undefined' && React.createElement(MiniDonut, { value: healthScore, size: 48, thickness: 5 })}
-                            </div>
-                        </div>
-                        <div style={kpiDeltaStyle(healthDelta >= 0)}>
-                            {healthDelta >= 0 ? '\u25B2' : '\u25BC'}{Math.abs(healthDelta)} vs elite tier
-                        </div>
-                    </div>
-                    {/* Elite Count */}
-                    <div style={kpiCardStyle}>
-                        <div style={kpiLabelStyle}>Elite Players</div>
-                        <div style={kpiNumberStyle}>{mElite}</div>
-                        <div style={kpiDeltaStyle(mElite >= wElite)}>
-                            {mElite >= Math.ceil(wElite) ? '= ' : '\u25BC '}{mElite >= Math.ceil(wElite) ? 'above' : Math.abs(mElite - Math.ceil(wElite)) + ' below'} elite tier ({Math.ceil(wElite)})
-                        </div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--silver)', opacity: 0.5, marginTop: '4px' }}>Top 5 at position</div>
-                    </div>
-                    {/* Compete Window */}
-                    <div style={kpiCardStyle}>
-                        <div style={kpiLabelStyle}>Compete Window</div>
-                        <div style={kpiNumberStyle}>{compYears}<span style={{ fontSize: '1rem', color: 'var(--silver)', marginLeft: '4px' }}>yr</span></div>
-                        <div style={kpiDeltaStyle(compYears >= 3)}>
-                            {compYears >= 3 ? '\u25B2 Strong' : compYears >= 1 ? '\u25AC Narrowing' : '\u25BC Rebuild mode'}
-                        </div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, marginTop: '4px' }}>{compWindow.label || ''}</div>
+                    <div className="analytics-lab-card">
+                        <span>Priority Evidence</span>
+                        <strong>Rooms To Fix First</strong>
+                        <p>These are the roster-construction gaps that should drive Trade Center and Free Agency decisions. Each row is a data-backed reason, not a generic status card.</p>
+                        <AnalyticsDataStack rows={gapRows} />
                     </div>
                 </div>
 
-                <div className="analytics-action-grid">
-                    <AnalyticsSection title="ACTION BOARD" meta="Highest leverage next moves">
-                        <div className="analytics-signal-list">
-                            {(gapsList.length ? gapsList.slice(0, 4) : [{ action: 'Hold the build', detail: 'No major roster-construction gap is showing against the elite tier template.', priority: 'low' }]).map((g, i) => {
-                                const sev = g.priority || g.severity || 'low';
-                                return (
-                                    <div key={i} className={'analytics-signal analytics-signal-' + sev}>
-                                        <strong>{g.action || g.area || 'Roster signal'}</strong>
-                                        <span>{g.detail || 'Use Trade Center and Free Agency to close this roster gap.'}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </AnalyticsSection>
-                    <AnalyticsSection title="ROOM SNAPSHOT" meta="Coverage and surplus">
+                <div className="analytics-lab-grid">
+                    <div className="analytics-lab-card">
+                        <span>Coverage Matrix</span>
+                        <strong>Starter Quality By Room</strong>
+                        <p>Coverage is measured against league settings and room requirements. Red rooms need usable bodies; green rooms are possible trade surplus.</p>
                         <div className="analytics-chip-grid">
                             {['QB','RB','WR','TE','K','DL','LB','DB'].map(pos => {
                                 const assessPos = assessment?.posAssessment?.[pos] || {};
@@ -528,72 +552,16 @@ function AnalyticsPanel({
                                 );
                             })}
                         </div>
-                    </AnalyticsSection>
-                </div>
-
-                {/* ── TWO-COLUMN CHART GRID ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '12px' }}>
-                    {/* Left: Position Investment BarChart */}
-                    <div style={aCardStyle}>
-                        <div style={aHeaderStyle}><span>POSITION INVESTMENT</span></div>
-                        <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>Position investment shows what % of your total roster DHQ is allocated to each position. For example, "QB: 18%" means 18% of your total dynasty value is in QBs.</div>
-                        <div style={{ marginBottom: '12px' }}>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--gold)', fontFamily: 'Inter, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Elite Tier Teams</div>
-                            {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: posBarWinnerItems, width: Math.min(380, 360), height: 18, gap: 4 })}
-                        </div>
-                        <div>
-                            <div style={{ fontSize: '0.7rem', color: '#4ECDC4', fontFamily: 'Inter, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>You</div>
-                            {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: posBarItems, width: Math.min(380, 360), height: 18, gap: 4 })}
-                        </div>
-                        <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '0.72rem' }}>
-                            <span style={{ color: 'var(--gold)' }}>{'\u25A0'} Elite Tier %</span>
-                            <span style={{ color: '#4ECDC4' }}>{'\u25A0'} Your %</span>
-                        </div>
                     </div>
-
-                    {/* Right: Gap Analysis Visual Cards */}
-                    <div style={aCardStyle}>
-                        <div style={aHeaderStyle}><span>GAP ANALYSIS</span></div>
-                        {gapsList.length === 0 && <div style={{ color: goodColor, fontSize: '0.9rem', padding: '12px 0' }}>Your roster matches the elite tier template closely.</div>}
-                        {gapsList.slice().sort((a,b) => { const sevOrder = {critical:0,high:1,medium:2,low:3}; return (sevOrder[a.priority||a.severity]||9) - (sevOrder[b.priority||b.severity]||9); }).slice(0, 6).map((g, i) => {
-                            const sev = g.priority || g.severity || 'low';
-                            const sevBg = sev === 'high' || sev === 'critical' ? 'rgba(231,76,60,0.08)' : sev === 'medium' ? 'rgba(240,165,0,0.08)' : 'rgba(46,204,113,0.06)';
-                            const gapDhq = (typeof g.winners === 'number' && typeof g.yours === 'number' && g.unit !== '%') ? Math.max(0, g.winners - g.yours) : 0;
-                            // Parse position from gap title/name/area/action if g.pos is missing
-                            const gapPos = g.pos || (g.title || g.name || g.area || g.action || '').match(/\b(QB|RB|WR|TE|K|DL|LB|DB)\b/)?.[1] || null;
-                            const avgPlayerVal = gapPos ? ({QB:8000,RB:5500,WR:5500,TE:5000,K:2000,DL:3500,LB:3500,DB:3500}[gapPos] || 4000) : 4000;
-                            const neededPlayers = gapDhq > 0 ? Math.max(1, Math.round(gapDhq / avgPlayerVal)) : 0;
-                            return (
-                            <div key={i} style={{
-                                padding: '10px 14px', marginBottom: '8px',
-                                background: sevBg,
-                                borderLeft: '3px solid ' + sevColor(sev),
-                                borderRadius: '0 8px 8px 0',
-                            }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ color: sevColor(sev), fontWeight: 700, fontSize: '0.82rem', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase' }}>
-                                        {g.action || g.area}
-                                    </span>
-                                    <span style={{
-                                        fontSize: '0.65rem', fontFamily: 'Inter, sans-serif', padding: '2px 8px',
-                                        borderRadius: '10px', background: sevColor(sev), color: 'var(--black)', fontWeight: 700,
-                                    }}>
-                                        {(sev).toUpperCase()}
-                                    </span>
-                                </div>
-                                {g.source && <div style={{ color: 'var(--silver)', fontSize: '0.66rem', opacity: 0.55, marginTop: '3px', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    {g.source === 'roster-assessment' ? 'Current roster need' : 'Champion template'}
-                                </div>}
-                                <div style={{ color: 'var(--silver)', fontSize: '0.78rem', marginTop: '4px' }}>
-                                    {g.detail || (neededPlayers > 0 && gapPos
-                                        ? 'Need ~' + neededPlayers + ' more ' + gapPos + (neededPlayers > 1 ? 's' : '') + ' to match elite tier'
-                                        : (g.yours != null && g.winners != null
-                                            ? (g.unit === '%' ? pctFmt(g.yours) + ' (elite tier: ' + pctFmt(g.winners) + ')' : numFmt(g.yours) + ' ' + (g.unit || 'DHQ') + ' (elite tier: ' + numFmt(g.winners) + ')')
-                                            : ''))}
-                                </div>
-                            </div>
-                            );
-                        })}
+                    <div className="analytics-lab-card">
+                        <span>Next Workbench</span>
+                        <strong>Where This Data Should Send You</strong>
+                        <p>Analytics should prove the move, then route you to the module that executes it.</p>
+                        <div className="analytics-signal-list">
+                            <div className="analytics-signal analytics-signal-high"><strong>Trade Center</strong><span>Use the partner finder to turn weak rooms into targeted packages.</span></div>
+                            <div className="analytics-signal analytics-signal-medium"><strong>Free Agency</strong><span>Use the waiver board for cheap depth in thin starter-quality rooms.</span></div>
+                            <div className="analytics-signal analytics-signal-low"><strong>My Roster</strong><span>Use granular roster views for player-level keep/sell/stash decisions.</span></div>
+                        </div>
                     </div>
                 </div>
 
@@ -606,7 +574,7 @@ function AnalyticsPanel({
                             borderLeft: '4px solid ' + ins.color,
                             border: '1px solid rgba(255,255,255,0.06)',
                         }}>
-                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: ins.color, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', fontWeight: 700, color: ins.color, marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 {ins.title}
                             </div>
                             <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.5 }}>{ins.text}</div>
@@ -627,14 +595,14 @@ function AnalyticsPanel({
                             <div style={aHeaderStyle}><span>YOUR 5-YEAR OUTLOOK</span></div>
                             {proj.map((p, i) => (
                                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                                    <span style={{ color: 'var(--silver)', fontFamily: 'Inter, sans-serif', minWidth: '40px', fontSize: '0.9rem' }}>{p.year}</span>
+                                    <span style={{ color: 'var(--silver)', fontFamily: 'var(--font-body)', minWidth: '40px', fontSize: '0.9rem' }}>{p.year}</span>
                                     <div style={{ flex: 1, position: 'relative', height: '24px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', overflow: 'hidden' }}>
                                         <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: (p.projectedDHQ / maxDHQ * 100) + '%', background: tierColor(p.tier), borderRadius: '6px', opacity: 0.6, transition: 'width 0.5s ease' }} />
-                                        <div style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', fontFamily: 'Inter, sans-serif', color: 'var(--white)', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                        <div style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.75rem', fontFamily: 'var(--font-body)', color: 'var(--white)', fontWeight: 700, whiteSpace: 'nowrap' }}>
                                             {p.projectedDHQ.toLocaleString()} DHQ
                                         </div>
                                     </div>
-                                    <span style={{ color: tierColor(p.tier), fontFamily: 'Inter, sans-serif', fontSize: '0.8rem', minWidth: '90px', textAlign: 'right' }}>
+                                    <span style={{ color: tierColor(p.tier), fontFamily: 'var(--font-body)', fontSize: '0.8rem', minWidth: '90px', textAlign: 'right' }}>
                                         {p.tier} {p.tier === 'Rebuilding' || p.tier === 'Deep Rebuild' ? '\uD83D\uDD34' : p.tier === 'Playoff Team' ? '\u26A0\uFE0F' : ''}
                                     </span>
                                 </div>
@@ -706,7 +674,7 @@ function AnalyticsPanel({
                                 <div>
                                     <div style={{ color: 'var(--silver)', fontSize: '0.8rem', marginBottom: '6px', fontWeight: 700 }}>Players at risk:</div>
                                     {arPlayers2.slice(0, 5).map((p, i) => (
-                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.85rem', fontFamily: 'Inter, sans-serif' }}>
+                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}>
                                             <span style={{ color: 'var(--silver)' }}>{p.name} ({p.age})</span>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <span style={{ color: badColor }}>{p.dhq.toLocaleString()} DHQ</span>
@@ -776,7 +744,7 @@ function AnalyticsPanel({
                 minWidth: '140px',
             };
             const dKpiNum = { fontFamily: 'Rajdhani, sans-serif', fontSize: '2.2rem', lineHeight: 1, color: 'var(--white)', marginBottom: '2px' };
-            const dKpiLabel = { fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 };
+            const dKpiLabel = { fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 };
 
             // Build bar chart items for hit rate by round
             const hitRateBarItems = rounds.filter(rd => dr.winnerHitRate[rd]).map(rd => ({
@@ -820,89 +788,77 @@ function AnalyticsPanel({
             const currentPickValue = currentPicks.reduce((s, p) => s + (p.value || 0), 0);
             const earlyPicks = currentPicks.filter(p => p.round <= 2).length;
             const topCurrentPicks = [...currentPicks].sort((a, b) => b.value - a.value || a.year - b.year || a.round - b.round).slice(0, 5);
+            const draftProofItems = [
+                { label: 'Hit Rate Edge', value: signedNum(Math.round(avgHitAdv * 100), ' pts'), detail: 'Elite tier average hit-rate advantage by round.', tone: toneFromDelta(avgHitAdv), color: avgHitAdv >= 0 ? goodColor : badColor },
+                { label: 'R1 Benchmark', value: pctFmt(winnerR1Hit), detail: 'Elite tier first-round hit rate in this league.', tone: 'good', color: goodColor },
+                { label: 'Your R1 History', value: pctFmt(myR1Hit), detail: totalMyPicks ? 'Your recorded first-round conversion.' : 'No first-round history loaded yet.', tone: myR1Hit >= winnerR1Hit ? 'good' : 'warn', color: myR1Hit >= winnerR1Hit ? goodColor : warnColor },
+                { label: 'Current Capital', value: currentPickValue.toLocaleString(), detail: currentPicks.length + ' current picks, ' + earlyPicks + ' in R1-R2.', tone: earlyPicks >= 3 ? 'good' : 'warn', color: earlyPicks >= 3 ? goodColor : warnColor },
+            ];
+            const hitRows = rounds.filter(rd => dr.winnerHitRate[rd]).map(rd => ({
+                label: 'R' + rd,
+                yours: Math.round(((myHitRates[rd] || 0) * 100)),
+                benchmark: Math.round(((dr.winnerHitRate[rd].winners || 0) * 100)),
+                suffix: ' pts',
+                format: v => Math.round(v) + '%',
+                color: (myHitRates[rd] || 0) >= (dr.winnerHitRate[rd].winners || 0) ? goodColor : warnColor,
+            }));
+            const curvePickCount = totalTeams * draftRounds;
+            const curveSlots = [...new Set([1, 2, 3, 4, Math.ceil(totalTeams / 2), totalTeams, totalTeams + 1, totalTeams * 2, totalTeams * 3, Math.max(1, curvePickCount - Math.floor(curvePickCount * 0.12)), curvePickCount])].filter(p => p <= curvePickCount);
+            const curveValues = curveSlots.map(p => (typeof window.getIndustryPickValue === 'function' ? window.getIndustryPickValue(p, totalTeams, draftRounds) : Math.max(50, 7500 - p * 100)));
+            const curveMax = Math.max(...curveValues, 1);
+            const draftRows = topCurrentPicks.length ? topCurrentPicks.map(p => ({
+                kicker: p.own ? 'Owned Pick' : 'Acquired Pick',
+                label: p.label,
+                detail: p.own ? 'Original pick path' : 'From ' + (p.from || 'another roster'),
+                value: (p.value || 0).toLocaleString(),
+                color: p.round <= 2 ? 'var(--gold)' : '#9b8afb',
+            })) : [{ kicker: 'Pick Path', label: 'No current picks loaded', detail: 'Draft pick source did not return current inventory.', value: '\u2014' }];
 
             return (
             <React.Fragment>
-                {/* ── DRAFT STRATEGY SUMMARY ── */}
-                <AnalyticsReadout title="Draft Intelligence" detail="Hit-rate read plus current capital">
-                        {!dr.winnerHitRate || Object.keys(dr.winnerHitRate).length === 0
-                            ? 'Your upcoming draft picks and league draft intelligence. Target exciting prospects that fit your roster needs.'
-                            : totalMyPicks === 0
-                            ? 'No draft picks recorded for your team yet. Elite tier teams hit ' + Math.round(winnerR1Hit * 100) + '% on R1 picks in this league \u2014 prioritize ' + topDraftPos + ' in early rounds based on the elite tier template.'
-                            : 'Your draft grade: ' + draftGradeLetter + ' \u2014 ' + (gradeIdx <= 2 ? 'elite drafter, a real advantage' : gradeIdx <= 5 ? 'average, not a competitive edge' : 'below average, costing you roster value') + '. Elite tier teams hit ' + Math.round(winnerR1Hit * 100) + '% in R1 vs your ' + Math.round(myR1Hit * 100) + '%. Recommendation: prioritize ' + topDraftPos + ' in R1-R2 based on the elite tier template. ' + (totalMyPicks < 10 ? 'You have limited draft history \u2014 accumulate picks to build through the draft.' : 'Focus on hit rate over volume.')}
-                        {React.createElement('div', { className: 'analytics-action-row' },
-                            React.createElement('button', { onClick: () => setActiveTab('draft'), style: actionBtnStyle(true) }, 'Open Draft Board')
-                        )}
-                </AnalyticsReadout>
+                <AnalyticsCommandPanel
+                    title="What does this league actually reward in the draft?"
+                    thesis="Draft analytics should not be another pick-count dashboard. This lab separates slot value, round hit-rate, current pick path, and the position patterns that have historically produced title rosters."
+                    stats={[
+                        { label: 'Draft Grade', value: grades[gradeIdx], sub: 'hit-rate evidence', color: gradeIdx <= 2 ? goodColor : gradeIdx <= 5 ? warnColor : badColor },
+                        { label: 'Elite R1 Hit', value: pctFmt(winnerR1Hit), sub: 'winner sample' },
+                        { label: 'Capital Loaded', value: currentPicks.length || '\u2014', sub: currentPickValue.toLocaleString() + ' DHQ' },
+                        { label: 'Template Lean', value: topDraftPos, sub: 'early-round position signal' },
+                    ]}
+                />
 
-                {/* ── TOP KPI CARDS ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '12px' }}>
-                    <div style={dKpiCardStyle}>
-                        <div style={dKpiLabel}>Draft Grade</div>
-                        <div style={{ ...dKpiNum, fontSize: '2rem', color: gradeIdx <= 2 ? goodColor : gradeIdx <= 5 ? warnColor : badColor }}>{grades[gradeIdx]}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>Based on hit rate advantage</div>
-                    </div>
-                    <div style={dKpiCardStyle}>
-                        <div style={dKpiLabel}>Avg Hit Rate</div>
-                        <div style={dKpiNum}>{pctFmt(winnerHitAvg)}</div>
-                        <div style={{ fontSize: '0.72rem', color: goodColor, fontFamily: 'Inter, sans-serif' }}>
-                            +{Math.round(avgHitAdv * 100)}% vs league ({pctFmt(leagueHitAvg)})
+                <AnalyticsProofGrid items={draftProofItems} />
+
+                <div className="analytics-lab-grid">
+                    <div className="analytics-lab-card">
+                        <span>Pick Value Curve</span>
+                        <strong>Slot EV, Not Round Labels</strong>
+                        <p>The shared pick-value file drives this curve. It shows why a specific slot should be treated differently than a generic future round.</p>
+                        <div className="analytics-curve">
+                            {curveValues.map((v, i) => <i key={i} title={curveSlots[i] + ': ' + v} style={{ height: Math.max(5, Math.round(v / curveMax * 100)) + '%' }} />)}
+                        </div>
+                        <div className="analytics-pick-strip" style={{ marginTop: '8px' }}>
+                            {curveSlots.slice(0, 7).map((p, i) => <span key={p}>P{p} <em>{curveValues[i].toLocaleString()}</em></span>)}
                         </div>
                     </div>
-                    <div style={dKpiCardStyle}>
-                        <div style={dKpiLabel}>Round 1 Hit Rate</div>
-                        <div style={dKpiNum}>{pctFmt(winnerR1Hit)}</div>
-                        <div style={{ fontSize: '0.72rem', color: myR1Hit >= winnerR1Hit ? goodColor : warnColor, fontFamily: 'Inter, sans-serif' }}>
-                            You: {pctFmt(myR1Hit)}
-                        </div>
-                    </div>
-                    <div style={dKpiCardStyle}>
-                        <div style={dKpiLabel}>Your Draft Picks</div>
-                        <div style={dKpiNum}>{currentPicks.length || '\u2014'}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>{earlyPicks} in R1-R2</div>
-                    </div>
-                    <div style={dKpiCardStyle}>
-                        <div style={dKpiLabel}>Champions Draft</div>
-                        <div style={dKpiNum}>{topDraftTarget ? topDraftTarget[0] : '\u2014'}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--gold)', opacity: 0.7 }}>Most picked position by championship teams</div>
+                    <div className="analytics-lab-card">
+                        <span>Current Capital</span>
+                        <strong>Pick Path Workbench</strong>
+                        <p>These are the picks that should drive trade-up, trade-down, or consolidation decisions. Acquired picks are shown as independent capital, not blended away.</p>
+                        <AnalyticsDataStack rows={draftRows} />
                     </div>
                 </div>
 
-                <div className="analytics-action-grid">
-                    <AnalyticsSection title="CURRENT PICK STRATEGY" meta={(currentPickValue || 0).toLocaleString() + ' pick DHQ'}>
-                        <div className="analytics-pick-strip">
-                            {topCurrentPicks.length ? topCurrentPicks.map((p, i) => (
-                                <span key={i} className={p.own ? '' : 'is-acquired'}>{p.label} <em>{(p.value || 0).toLocaleString()}</em></span>
-                            )) : <span>No current pick capital loaded</span>}
-                        </div>
-                    </AnalyticsSection>
-                    <AnalyticsSection title="DRAFT EDGE" meta="How to use the formula">
-                        <div className="analytics-signal-list">
-                            <div className="analytics-signal analytics-signal-low"><strong>Early rounds</strong><span>Prioritize {topDraftPos} unless value clearly falls at another need.</span></div>
-                            <div className="analytics-signal analytics-signal-medium"><strong>Trade line</strong><span>{earlyPicks >= 3 ? 'You have enough early capital to consolidate for proven points.' : 'Limited early capital means pick swaps should protect upside.'}</span></div>
-                        </div>
-                    </AnalyticsSection>
-                </div>
-
-                {/* ── TWO-COLUMN: Hit Rates + Draft Formula ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '12px' }}>
-                    {/* Hit Rates as BarChart */}
-                    <div style={aCardStyle}>
-                        <div style={aHeaderStyle}><span>HIT RATES BY ROUND</span></div>
-                        <div style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '10px', lineHeight: 1.5 }}>Hit rate = % of picks at each round that became starter-quality players (top of their position group). Higher hit rate = better draft scouting.</div>
-                        <div style={{ marginBottom: '10px' }}>
-                            <div style={{ fontSize: '0.7rem', color: goodColor, fontFamily: 'Inter, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Elite Tier Teams</div>
-                            {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: hitRateBarItems, width: 340, height: 18, gap: 4 })}
-                        </div>
-                        <div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--silver)', fontFamily: 'Inter, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>League Avg</div>
-                            {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: hitRateLeagueItems, width: 340, height: 18, gap: 4 })}
-                        </div>
+                <div className="analytics-lab-grid">
+                    <div className="analytics-lab-card">
+                        <span>Round Conversion</span>
+                        <strong>Your Hit Rate Vs Winner Benchmark</strong>
+                        <p>Gold markers are the historical elite-tier standard. The bar is your recorded conversion by round.</p>
+                        <AnalyticsDeltaRows rows={hitRows} benchmarkLabel="Elite" />
                     </div>
-
-                    {/* Draft Formula */}
-                    <div style={aCardStyle}>
-                        <div style={aHeaderStyle}>WINNING DRAFT FORMULA</div>
+                    <div className="analytics-lab-card">
+                        <span>Winner Formula</span>
+                        <strong>Position Mix By Round</strong>
                         {rounds.map(rd => {
                             const wProf = dr.winnerDraftProfile[rd] || {};
                             const myProf = myDraftProfile[rd] || {};
@@ -914,7 +870,7 @@ function AnalyticsPanel({
                                     <div style={{ flex: 1, display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                                         {sorted.map(([pos, pct]) => (
                                             <span key={pos} style={{
-                                                fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', padding: '2px 8px',
+                                                fontSize: '0.72rem', fontFamily: 'var(--font-body)', padding: '2px 8px',
                                                 borderRadius: '10px', background: 'rgba(212,175,55,0.12)', color: 'var(--gold)',
                                                 border: '1px solid rgba(212,175,55,0.25)',
                                             }}>{pos} {pctFmt(pct)}</span>
@@ -925,7 +881,7 @@ function AnalyticsPanel({
                                     <div style={{ marginLeft: '65px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                                         {Object.entries(myProf).sort((a, b) => b[1] - a[1]).map(([pos, pct]) => (
                                             <span key={pos} style={{
-                                                fontSize: '0.68rem', fontFamily: 'Inter, sans-serif', padding: '1px 6px',
+                                                fontSize: '0.68rem', fontFamily: 'var(--font-body)', padding: '1px 6px',
                                                 borderRadius: '8px', background: 'rgba(78,205,196,0.1)', color: '#4ECDC4',
                                                 border: '1px solid rgba(78,205,196,0.2)',
                                             }}>{pos} {pctFmt(pct)}</span>
@@ -960,6 +916,7 @@ function AnalyticsPanel({
             const faabEfficiency = wa.faabEfficiency || {};
             const topFaabPos = Object.entries(wa.leagueFaabProfile || {})
                 .sort((a, b) => (b[1].avg || 0) - (a[1].avg || 0))[0];
+            const hasFaabEfficiency = Number.isFinite(Number(faabEfficiency.winners)) || Number.isFinite(Number(faabEfficiency.league));
             const topEffPos = Object.entries(wa.faabEffByPos || {})
                 .sort((a, b) => (b[1].dhqPerDollar || 0) - (a[1].dhqPerDollar || 0))[0];
             const topPosBought = (prof) => {
@@ -986,9 +943,29 @@ function AnalyticsPanel({
                 minWidth: '140px',
             };
             const tKpiNum = { fontFamily: 'Rajdhani, sans-serif', fontSize: '2.2rem', lineHeight: 1, color: 'var(--white)', marginBottom: '2px' };
-            const tKpiLabel = { fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 };
+            const tKpiLabel = { fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 };
 
             const valueDeltaColor = mp.avgValueGained >= 0 ? goodColor : badColor;
+            const marketProofItems = [
+                { label: 'Trade Frequency Edge', value: signedNum(Number((mp.avgTradesPerSeason - wp.avgTradesPerSeason).toFixed(1))), detail: 'Your trades per season vs elite-tier behavior.', tone: toneFromDelta(mp.avgTradesPerSeason - wp.avgTradesPerSeason), color: mp.avgTradesPerSeason >= wp.avgTradesPerSeason ? goodColor : warnColor },
+                { label: 'Value Per Deal', value: signedNum(mp.avgValueGained, ' DHQ'), detail: 'Average DHQ gained/lost in completed trades.', tone: toneFromDelta(mp.avgValueGained), color: valueDeltaColor },
+                { label: 'FAAB Leverage', value: faabRemaining == null ? '\u2014' : '$' + faabRemaining.toLocaleString(), detail: waiverBudget ? Math.round(faabRemaining / Math.max(waiverBudget, 1) * 100) + '% of budget remaining.' : 'No FAAB budget configured.', tone: faabRemaining == null ? 'warn' : faabRemaining >= waiverBudget * 0.5 ? 'good' : 'warn', color: faabRemaining == null ? 'var(--silver)' : faabRemaining >= waiverBudget * 0.5 ? goodColor : warnColor },
+                { label: 'Best Waiver Yield', value: topEffPos ? topEffPos[0] : '\u2014', detail: topEffPos ? (topEffPos[1].dhqPerDollar || 0) + ' DHQ per FAAB dollar.' : 'Bid outcome sample is still thin.', tone: topEffPos ? 'good' : 'warn', color: topEffPos ? goodColor : warnColor },
+            ];
+            const tradeFlowRows = allBoughtPos.map(pos => ({
+                label: pos,
+                yours: (mp.positionsBought || {})[pos] || 0,
+                benchmark: (wp.positionsBought || {})[pos] || 0,
+                suffix: '',
+                format: v => Math.round(v),
+                color: '#7C6BF8',
+            }));
+            const marketRows = [
+                { kicker: 'Partner Archetype', label: 'Elite teams trade with', detail: 'Preferred counterparty posture among title teams.', value: cleanPreference(wp.partnerPreference), color: 'var(--gold)' },
+                { kicker: 'Your Pattern', label: 'You trade with', detail: 'Your observed partner preference.', value: cleanPreference(mp.partnerPreference), color: '#4ECDC4' },
+                { kicker: 'Top Price Position', label: topFaabPos ? topFaabPos[0] : 'No FAAB history', detail: topFaabPos ? 'Average winning bid across waiver history.' : 'Transactions have not produced a market map yet.', value: topFaabPos ? '$' + Math.round(topFaabPos[1].avg || 0) : '\u2014', color: warnColor },
+                { kicker: 'Winner Timing', label: 'Market entry point', detail: 'When title teams usually create transaction value.', value: (wa.winnerTiming?.early || 0) >= 0.5 ? 'Early' : (wa.winnerTiming?.mid || 0) >= (wa.winnerTiming?.late || 0) ? 'Mid' : 'Late', color: goodColor },
+            ];
 
             // ── Trade Strategy Summary ──
             const tradeVolDiff = mp.avgTradesPerSeason - wp.avgTradesPerSeason;
@@ -1006,64 +983,35 @@ function AnalyticsPanel({
 
             return (
             <React.Fragment>
-                {/* ── MARKET STRATEGY SUMMARY ── */}
-                <AnalyticsReadout title="Market Moves" detail="Trades plus waiver and FAAB leverage">
-                        {tradeSummaryText}
-                        {topFaabPos ? ' Waiver market prices are highest at ' + topFaabPos[0] + ' (avg $' + Math.round(topFaabPos[1].avg || 0) + ').' : ' Waiver bid history is still thin, so FAAB reads are directional.'}
-                        {React.createElement('div', { className: 'analytics-action-row' },
-                            React.createElement('button', { onClick: () => { setTradeSubTab('finder'); setActiveTab('trades'); }, style: actionBtnStyle(true) }, 'Open Trade Finder'),
-                            React.createElement('button', { onClick: () => setActiveTab('fa'), style: actionBtnStyle(false) }, 'Open Free Agency')
-                        )}
-                </AnalyticsReadout>
+                <AnalyticsCommandPanel
+                    title="Where is the league market mispricing value?"
+                    thesis="Market analytics should explain owner behavior and price movement. This view separates trade liquidity, deal quality, waiver pricing, FAAB leverage, and position flow before sending you to Trade Center or Free Agency."
+                    stats={[
+                        { label: 'Trade Pattern', value: tradeActivity || 'No trades', sub: tradeEfficiency || 'sample pending', color: mp.avgValueGained >= 0 ? goodColor : badColor },
+                        { label: 'Elite Volume', value: wp.avgTradesPerSeason, sub: 'trades per season' },
+                        { label: 'High Price Room', value: topFaabPos ? topFaabPos[0] : '\u2014', sub: topFaabPos ? '$' + Math.round(topFaabPos[1].avg || 0) + ' avg bid' : 'bid history thin' },
+                        { label: 'FAAB Left', value: faabRemaining == null ? '\u2014' : '$' + faabRemaining.toLocaleString(), sub: waiverBudget ? '$' + waiverBudget.toLocaleString() + ' budget' : 'no budget' },
+                    ]}
+                />
 
-                {/* ── TOP KPI CARDS ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '14px', marginBottom: '12px' }}>
-                    <div style={tKpiCardStyle}>
-                        <div style={tKpiLabel}>Your Trades/Season</div>
-                        <div style={tKpiNum}>{mp.avgTradesPerSeason}</div>
-                        <div style={{ fontSize: '0.72rem', color: mp.avgTradesPerSeason >= lp.avgTradesPerSeason ? goodColor : warnColor, fontFamily: 'Inter, sans-serif' }}>
-                            {mp.avgTradesPerSeason >= lp.avgTradesPerSeason ? '\u25B2' : '\u25BC'} League avg: {lp.avgTradesPerSeason}
-                        </div>
-                    </div>
-                    <div style={tKpiCardStyle}>
-                        <div style={tKpiLabel}>Avg DHQ Gained</div>
-                        <div style={{ ...tKpiNum, color: valueDeltaColor }}>{(mp.avgValueGained >= 0 ? '+' : '') + mp.avgValueGained}</div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--gold)', fontFamily: 'Inter, sans-serif' }}>
-                            Elite Tier: +{wp.avgValueGained}
-                        </div>
-                    </div>
-                    <div style={tKpiCardStyle}>
-                        <div style={tKpiLabel}>Elite Tier Volume</div>
-                        <div style={tKpiNum}>{wp.avgTradesPerSeason}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>trades per season</div>
-                    </div>
-                    <div style={tKpiCardStyle}>
-                        <div style={tKpiLabel}>Top Positions Bought</div>
-                        <div style={{ ...tKpiNum, fontSize: '1.3rem' }}>{topPosBought(wp)}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--gold)', opacity: 0.7 }}>Positions champions acquire most via trade</div>
-                    </div>
-                    <div style={tKpiCardStyle}>
-                        <div style={tKpiLabel}>FAAB Remaining</div>
-                        <div style={{ ...tKpiNum, color: faabRemaining == null ? 'var(--silver)' : faabRemaining >= waiverBudget * 0.5 ? goodColor : warnColor }}>{faabRemaining == null ? '\u2014' : '$' + faabRemaining.toLocaleString()}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>{waiverBudget ? '$' + waiverBudget.toLocaleString() + ' budget' : 'No FAAB budget'}</div>
-                    </div>
-                    <div style={tKpiCardStyle}>
-                        <div style={tKpiLabel}>FAAB Efficiency</div>
-                        <div style={{ ...tKpiNum, color: (faabEfficiency.winners || 0) >= (faabEfficiency.league || 0) ? goodColor : 'var(--gold)' }}>{faabEfficiency.winners || '\u2014'}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6 }}>winner DHQ per $ · league {faabEfficiency.league || '\u2014'}</div>
-                    </div>
-                </div>
+                <AnalyticsProofGrid items={marketProofItems} />
 
-                <div className="analytics-action-grid">
-                    <AnalyticsSection title="WAIVER PRICE MAP" meta={topEffPos ? 'Best yield: ' + topEffPos[0] : 'Bid history'}>
+                <div className="analytics-lab-grid">
+                    <div className="analytics-lab-card">
+                        <span>Waiver Economy</span>
+                        <strong>Position Price Map</strong>
+                        <p>Average FAAB paid by room. Use this to decide whether a free-agent target is cheap relative to the league's actual market.</p>
                         <div className="analytics-mini-table">
                             {Object.entries(wa.leagueFaabProfile || {}).sort((a, b) => (b[1].avg || 0) - (a[1].avg || 0)).slice(0, 6).map(([pos, info]) => (
                                 <div key={pos}><strong>{pos}</strong><span>${Math.round(info.avg || 0)} avg</span><em>{info.count || 0} bids</em></div>
                             ))}
                             {!Object.keys(wa.leagueFaabProfile || {}).length && <div><strong>No FAAB history</strong><span>Use Free Agency recommendations until transactions load.</span></div>}
                         </div>
-                    </AnalyticsSection>
-                    <AnalyticsSection title="MARKET TIMING" meta="When winners act">
+                    </div>
+                    <div className="analytics-lab-card">
+                        <span>Market Clock</span>
+                        <strong>When Winners Act</strong>
+                        <p>Winner timing versus the league baseline. This is the calendar pressure behind buy/sell windows.</p>
                         <div className="analytics-mini-table">
                             {[
                                 ['Early', wa.winnerTiming?.early, wa.leagueTiming?.early],
@@ -1073,52 +1021,21 @@ function AnalyticsPanel({
                                 <div key={label}><strong>{label}</strong><span>{pctFmt(winners || 0)} winners</span><em>{pctFmt(league || 0)} league</em></div>
                             ))}
                         </div>
-                    </AnalyticsSection>
+                    </div>
                 </div>
 
-                {/* ── TWO-COLUMN: Position Bought + Trade Profile Table ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '12px' }}>
-                    {/* Positions Bought BarChart */}
-                    <div style={aCardStyle}>
-                        <div style={aHeaderStyle}>POSITIONS ACQUIRED VIA TRADE</div>
-                        {allBoughtPos.length > 0 ? (
-                        <React.Fragment>
-                            <div style={{ marginBottom: '10px' }}>
-                                <div style={{ fontSize: '0.7rem', color: 'var(--gold)', fontFamily: 'Inter, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Elite Tier Teams</div>
-                                {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: boughtBarWinner, width: 340, height: 18, gap: 4 })}
-                            </div>
-                            <div>
-                                <div style={{ fontSize: '0.7rem', color: '#4ECDC4', fontFamily: 'Inter, sans-serif', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>You</div>
-                                {typeof BarChart !== 'undefined' && React.createElement(BarChart, { items: boughtBarYou, width: 340, height: 18, gap: 4 })}
-                            </div>
-                            <div style={{ display: 'flex', gap: '16px', marginTop: '10px', fontSize: '0.7rem' }}>
-                                <span style={{ color: 'var(--gold)' }}>{'\u25A0'} Elite Tier</span>
-                                <span style={{ color: '#4ECDC4' }}>{'\u25A0'} You</span>
-                            </div>
-                        </React.Fragment>
-                        ) : <div style={{ color: 'var(--silver)', fontSize: '0.85rem', opacity: 0.6 }}>No position data available</div>}
+                <div className="analytics-lab-grid">
+                    <div className="analytics-lab-card">
+                        <span>Trade Flow</span>
+                        <strong>Positions Acquired Via Trade</strong>
+                        <p>Bars show the positions you buy. Gold markers show elite-tier acquisition frequency.</p>
+                        {tradeFlowRows.length ? <AnalyticsDeltaRows rows={tradeFlowRows} benchmarkLabel="Elite" /> : <div className="analytics-proof-card"><strong>No position trade flow yet</strong><em>Completed trade data has not yielded position movement.</em></div>}
                     </div>
-
-                    {/* Trade Comparison Table */}
-                    <div style={aCardStyle}>
-                        <div style={aHeaderStyle}>TRADE COMPARISON</div>
-                        {/* Header */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '8px', padding: '8px 0', fontWeight: 700, color: 'var(--gold)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '2px solid rgba(212,175,55,0.2)', fontFamily: 'Inter, sans-serif' }}>
-                            <div>Metric</div><div>Elite Tier</div><div>League</div><div>You</div>
-                        </div>
-                        {[
-                            ['Trades/Season', wp.avgTradesPerSeason, lp.avgTradesPerSeason, mp.avgTradesPerSeason],
-                            ['Avg DHQ Gained', (wp.avgValueGained >= 0 ? '+' : '') + wp.avgValueGained, (lp.avgValueGained >= 0 ? '+' : '') + lp.avgValueGained, (mp.avgValueGained >= 0 ? '+' : '') + mp.avgValueGained],
-                            ['Top Bought', topPosBought(wp), topPosBought(lp), topPosBought(mp)],
-                            ['Partner Pref.', cleanPreference(wp.partnerPreference), cleanPreference(lp.partnerPreference), cleanPreference(mp.partnerPreference)],
-                        ].map(([label, wVal, lVal, mVal], i) => (
-                            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '8px', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontFamily: 'Inter, sans-serif', fontSize: '0.85rem' }}>
-                                <div style={{ color: 'var(--silver)' }}>{label}</div>
-                                <div style={{ color: 'var(--gold)' }}>{wVal}</div>
-                                <div style={{ color: 'var(--silver)', opacity: 0.7 }}>{lVal}</div>
-                                <div style={{ color: 'var(--white)' }}>{mVal}</div>
-                            </div>
-                        ))}
+                    <div className="analytics-lab-card">
+                        <span>Owner Behavior</span>
+                        <strong>Market Pattern Evidence</strong>
+                        <p>Behavioral evidence explains where Trade Center should search first.</p>
+                        <AnalyticsDataStack rows={marketRows} />
                     </div>
                 </div>
 
@@ -1132,13 +1049,13 @@ function AnalyticsPanel({
                             return (
                                 <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--gold)', fontFamily: 'Inter, sans-serif' }}>S{trade.season || '?'} W{trade.week || '?'}</span>
-                                        <span style={{ fontSize: '0.68rem', fontFamily: 'Inter, sans-serif', padding: '2px 8px', borderRadius: '10px', background: resultColor + '22', color: resultColor, border: '1px solid ' + resultColor + '44', fontWeight: 700 }}>{result}</span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--gold)', fontFamily: 'var(--font-body)' }}>S{trade.season || '?'} W{trade.week || '?'}</span>
+                                        <span style={{ fontSize: '0.68rem', fontFamily: 'var(--font-body)', padding: '2px 8px', borderRadius: '10px', background: resultColor + '22', color: resultColor, border: '1px solid ' + resultColor + '44', fontWeight: 700 }}>{result}</span>
                                     </div>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--silver)', fontFamily: 'Inter, sans-serif' }}>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--silver)', fontFamily: 'var(--font-body)' }}>
                                         {assetListText(trade.gave)} <span style={{ color: 'var(--gold)', margin: '0 4px' }}>{'\u2192'}</span> {assetListText(trade.got)}
                                     </div>
-                                    <div style={{ fontSize: '0.75rem', fontFamily: 'Inter, sans-serif', color: netDhq >= 0 ? goodColor : badColor, fontWeight: 700 }}>
+                                    <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-body)', color: netDhq >= 0 ? goodColor : badColor, fontWeight: 700 }}>
                                         {netDhq >= 0 ? '+' : ''}{netDhq.toLocaleString()} DHQ
                                     </div>
                                 </div>
@@ -1156,7 +1073,7 @@ function AnalyticsPanel({
                             borderLeft: '4px solid ' + sevColor(a.sev),
                             border: '1px solid rgba(255,255,255,0.06)',
                         }}>
-                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', fontWeight: 700, color: sevColor(a.sev), marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', fontWeight: 700, color: sevColor(a.sev), marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                 {a.title}
                             </div>
                             <div style={{ fontSize: '0.78rem', color: 'var(--silver)', lineHeight: 1.5 }}>{a.msg}</div>
@@ -1201,20 +1118,27 @@ function AnalyticsPanel({
                 : myPlayoffAppearances === 0
                 ? ' Focus on building a contender before worrying about playoff optimization.'
                 : ' Your playoff track record is solid. Maintain your competitive edge.';
+            const playoffProofItems = [
+                { label: 'Titles', value: myChampionships, detail: seasons.length + ' completed seasons in evidence.', tone: myChampionships ? 'good' : 'warn', color: myChampionships ? 'var(--gold)' : 'var(--silver)' },
+                { label: 'Finals Conversion', value: (myChampionships + myRunnerUps) ? Math.round(myChampionships / Math.max(myChampionships + myRunnerUps, 1) * 100) + '%' : '\u2014', detail: (myChampionships + myRunnerUps) + ' finals appearances.', tone: myChampionships >= myRunnerUps ? 'good' : 'warn', color: myChampionships >= myRunnerUps ? goodColor : warnColor },
+                { label: 'Semifinal Reach', value: mySemiFinals, detail: 'Documented semifinal berths.', tone: mySemiFinals ? 'good' : 'warn', color: mySemiFinals ? '#4ECDC4' : 'var(--silver)' },
+                { label: 'Playoff Record', value: playoffWins + '-' + playoffLosses, detail: 'Winners bracket games only.', tone: playoffWins >= playoffLosses ? 'good' : 'bad', color: playoffWins >= playoffLosses ? goodColor : badColor },
+            ];
 
             return (
             <React.Fragment>
-                {/* ── PLAYOFF PROFILE SUMMARY ── */}
-                <AnalyticsReadout title="Playoff Profile" detail="Completed seasons only">
-                        {playoffDiag + playoffInsight}
-                </AnalyticsReadout>
+                <AnalyticsCommandPanel
+                    title="What has the bracket proven about your title path?"
+                    thesis={playoffDiag + playoffInsight + ' Trophy Room owns legacy; Analytics keeps the bracket evidence and roadblock data.'}
+                    stats={[
+                        { label: 'Completed Seasons', value: seasons.length, sub: 'with champion and runner-up' },
+                        { label: 'Your Finals', value: myChampionships + myRunnerUps, sub: myRunnerUps + ' runner-up' },
+                        { label: 'Roadblock Sample', value: (window.App?.detectRivalries?.(myRoster?.roster_id) || []).length, sub: 'repeat playoff opponents' },
+                        { label: 'Bracket Games', value: playoffWins + playoffLosses, sub: 'winners bracket' },
+                    ]}
+                />
 
-                <div className="analytics-kpi-grid">
-                    <AnalyticsKpi label="Titles" value={myChampionships} sub={seasons.length + ' completed seasons'} color={myChampionships ? 'var(--gold)' : 'var(--silver)'} />
-                    <AnalyticsKpi label="Finals" value={myChampionships + myRunnerUps} sub={myRunnerUps + ' runner-up'} color={(myChampionships + myRunnerUps) ? 'var(--gold)' : 'var(--silver)'} />
-                    <AnalyticsKpi label="Semis" value={mySemiFinals} sub="documented semifinal berths" color={mySemiFinals ? '#4ECDC4' : 'var(--silver)'} />
-                    <AnalyticsKpi label="Playoff Record" value={playoffWins + '-' + playoffLosses} sub="winners bracket games" color={playoffWins >= playoffLosses ? goodColor : badColor} />
-                </div>
+                <AnalyticsProofGrid items={playoffProofItems} />
 
                 {(() => {
                     const detectRivalries = window.App?.detectRivalries;
@@ -1243,7 +1167,7 @@ function AnalyticsPanel({
                 })()}
 
                 <div style={aCardStyle}>
-                    <div style={aHeaderStyle}>PLAYOFF HISTORY</div>
+                    <div style={aHeaderStyle}>TITLE PATH EVIDENCE</div>
                     {seasons.map(([season, data]) => {
                         const champName = ownerNameSafe(data.champion);
                         const runnerName = ownerNameSafe(data.runnerUp);
@@ -1282,7 +1206,7 @@ function AnalyticsPanel({
                     if (!bracketSeasons.length) return null;
                     return (
                         <div style={aCardStyle}>
-                            <div style={aHeaderStyle}>PLAYOFF BRACKETS</div>
+                            <div style={aHeaderStyle}>BRACKET EVIDENCE</div>
                             {bracketSeasons.map(([season, sData]) => {
                                 const brackets = [
                                     { key: 'winners', label: 'Winners Bracket', data: sData.winners || sData.w || [] },
@@ -1295,7 +1219,7 @@ function AnalyticsPanel({
                                             if (!b.data || !b.data.length) return null;
                                             return (
                                                 <div key={b.key} style={{ marginBottom: '12px' }}>
-                                                    <div style={{ fontSize: '0.75rem', color: 'var(--silver)', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{b.label}</div>
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--silver)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{b.label}</div>
                                                     {b.data.map((matchup, mi) => {
                                                         const t1 = matchup.t1 || matchup.team1;
                                                         const t2 = matchup.t2 || matchup.team2;
@@ -1320,7 +1244,7 @@ function AnalyticsPanel({
                                                                 display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', marginBottom: '4px',
                                                                 background: isMyGame ? 'rgba(212,175,55,0.06)' : 'rgba(255,255,255,0.02)',
                                                                 borderLeft: isMyGame ? '3px solid var(--gold)' : '3px solid transparent',
-                                                                borderRadius: '4px', fontSize: '0.8rem', fontFamily: 'Inter, sans-serif',
+                                                                borderRadius: '4px', fontSize: '0.8rem', fontFamily: 'var(--font-body)',
                                                             }}>
                                                                 <span style={{ fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.6, minWidth: '80px' }}>{roundLabel}</span>
                                                                 <span style={{ color: sameId(w, t1) ? 'var(--gold)' : 'var(--silver)', fontWeight: sameId(w, t1) ? 700 : 400 }}>{ownerNameSafe(t1)}</span>
@@ -1354,14 +1278,14 @@ function AnalyticsPanel({
                                 return (
                                     <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.85rem', color: 'var(--white)', fontWeight: 600, flex: 1 }}>{rivalName}</span>
-                                            <span style={{ fontSize: '0.78rem', color: r.wins > r.losses ? goodColor : r.wins < r.losses ? badColor : warnColor, fontWeight: 700, fontFamily: 'Inter, sans-serif' }}>{r.wins}-{r.losses}</span>
+                                            <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', color: 'var(--white)', fontWeight: 600, flex: 1 }}>{rivalName}</span>
+                                            <span style={{ fontSize: '0.78rem', color: r.wins > r.losses ? goodColor : r.wins < r.losses ? badColor : warnColor, fontWeight: 700, fontFamily: 'var(--font-body)' }}>{r.wins}-{r.losses}</span>
                                             <span style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>{r.total} meetings</span>
                                         </div>
                                         {r.meetings && r.meetings.length > 0 && (
                                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
                                                 {r.meetings.map((mtg, mi) => (
-                                                    <span key={mi} style={{ fontSize: '0.68rem', fontFamily: 'Inter, sans-serif', padding: '1px 6px', borderRadius: '8px', background: mtg.won ? 'rgba(46,204,113,0.1)' : 'rgba(231,76,60,0.1)', color: mtg.won ? goodColor : badColor, border: '1px solid ' + (mtg.won ? goodColor : badColor) + '33' }}>
+                                                    <span key={mi} style={{ fontSize: '0.68rem', fontFamily: 'var(--font-body)', padding: '1px 6px', borderRadius: '8px', background: mtg.won ? 'rgba(46,204,113,0.1)' : 'rgba(231,76,60,0.1)', color: mtg.won ? goodColor : badColor, border: '1px solid ' + (mtg.won ? goodColor : badColor) + '33' }}>
                                                         Met in {mtg.bracket || 'Winners'} R{mtg.round || '?'} ({mtg.season || '?'})
                                                     </span>
                                                 ))}
@@ -1391,7 +1315,6 @@ function AnalyticsPanel({
 
             championshipEntries.forEach(([season, data]) => {
                 if (data.champion) events.push({ year: season, type: 'champ', title: ownerNameSafe(data.champion) + ' wins the championship', color: 'var(--gold)', ts: parseInt(season)*100+99 });
-                if (data.runnerUp) events.push({ year: season, type: 'finals', title: ownerNameSafe(data.runnerUp) + ' finishes runner-up', color: 'var(--silver)', ts: parseInt(season)*100+98 });
             });
 
             // Collect all trades with DHQ, then keep top 5 by total value
@@ -1472,13 +1395,21 @@ function AnalyticsPanel({
             });
             teamHealthList.sort((a, b) => b.health - a.health);
             const nextChampCandidates = teamHealthList.slice(0, 3).map(t => t.name).join(', ') || 'insufficient data';
+            const majorTradeCount = events.filter(e => e.type === 'trade').length;
+            const personalEventCount = events.filter(e => e.type === 'personal').length;
 
             return (
                 <React.Fragment>
-                {/* ── LEAGUE NARRATIVE SUMMARY ── */}
-                <AnalyticsReadout title="League Narrative" detail="Completed history plus current roster power">
-                    {(dominantTitles > 0 ? 'League dominated by ' + dominantTeam + ' with ' + dominantTitles + ' title' + (dominantTitles > 1 ? 's' : '') + '.' : 'No completed championship history is resolved yet.') + (repeatWinners.length > 0 ? ' Repeat elite tier: ' + repeatWinners.join(', ') + '.' : ' No repeat champions yet \u2014 wide-open league.') + ' Your trajectory: ' + myTrajectory + (myChampsTL > 0 ? ' (' + myChampsTL + ' title' + (myChampsTL > 1 ? 's' : '') + ')' : '') + '. Next likely champion candidates: ' + nextChampCandidates + '.'}
-                </AnalyticsReadout>
+                <AnalyticsCommandPanel
+                    title="How has the league evolved, and where are you in the current era?"
+                    thesis={(dominantTitles > 0 ? 'League dominated by ' + dominantTeam + ' with ' + dominantTitles + ' title' + (dominantTitles > 1 ? 's' : '') + '.' : 'No completed championship history is resolved yet.') + (repeatWinners.length > 0 ? ' Repeat elite tier: ' + repeatWinners.join(', ') + '.' : ' No repeat champions yet — wide-open league.') + ' Your trajectory: ' + myTrajectory + (myChampsTL > 0 ? ' (' + myChampsTL + ' title' + (myChampsTL > 1 ? 's' : '') + ')' : '') + '. Next likely champion candidates: ' + nextChampCandidates + '.'}
+                    stats={[
+                        { label: 'Timeline Events', value: events.length, sub: 'resolved evidence points' },
+                        { label: 'Major Trades', value: majorTradeCount, sub: '5000+ DHQ moved' },
+                        { label: 'My Highlights', value: personalEventCount, sub: 'personal league events' },
+                        { label: 'Current Trajectory', value: myTrajectory, sub: 'projection signal', color: myTrajectory === 'rising' ? goodColor : myTrajectory === 'declining' ? badColor : warnColor },
+                    ]}
+                />
 
                 <div className="analytics-filter-row">
                     {[
@@ -1492,12 +1423,12 @@ function AnalyticsPanel({
                 </div>
 
                 <div style={{ background:'var(--black)', border:'2px solid rgba(212,175,55,0.3)', borderRadius:'12px', padding:'24px' }}>
-                    <div style={{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.3rem', color:'var(--gold)', letterSpacing:'0.08em', marginBottom:'12px' }}>LEAGUE TIMELINE</div>
+                    <div style={{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.3rem', color:'var(--gold)', letterSpacing:'0.08em', marginBottom:'12px' }}>ERA / MOVE TIMELINE</div>
                     {(() => {
                         const visibleEvents = timelineFilter === 'all'
                             ? events
                             : timelineFilter === 'champ'
-                            ? events.filter(e => e.type === 'champ' || e.type === 'finals')
+                            ? events.filter(e => e.type === 'champ')
                             : events.filter(e => e.type === timelineFilter);
                         const visibleYears = [...new Set(visibleEvents.map(e => e.year))].sort((a, b) => b - a);
                         return visibleYears.map(year => {
@@ -1512,7 +1443,7 @@ function AnalyticsPanel({
                                     {yearEvents.map((ev, i) => (
                                         <div key={i} style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(212,175,55,0.12)', borderLeft:'3px solid '+ev.color, borderRadius:'6px', padding:'10px 14px', marginBottom:'8px', position:'relative' }}>
                                             <div style={{ position:'absolute', left:'-14px', top:'12px', width:'8px', height:'8px', background:ev.color, borderRadius:'50%', border:'2px solid var(--black)' }} />
-                                            <div style={{ fontSize:'0.78rem', color:ev.color, textTransform:'uppercase', fontFamily:'Inter, sans-serif', letterSpacing:'0.06em', marginBottom:'3px' }}>{ev.type === 'champ' ? 'Championship' : ev.type === 'finals' ? 'Runner-Up' : ev.type === 'personal' ? 'Your Highlight' : 'Trade'}</div>
+                                            <div style={{ fontSize:'0.78rem', color:ev.color, textTransform:'uppercase', fontFamily: 'var(--font-body)', letterSpacing:'0.06em', marginBottom:'3px' }}>{ev.type === 'champ' ? 'Championship' : ev.type === 'finals' ? 'Runner-Up' : ev.type === 'personal' ? 'Your Highlight' : 'Trade'}</div>
                                             <div style={{ fontSize:'0.78rem', color:'var(--white)', fontWeight:600 }}>{ev.title}</div>
                                             {ev.sub && <div style={{ fontSize:'0.74rem', color:'var(--silver)', opacity:0.6, marginTop:'2px' }}>{ev.sub}</div>}
                                         </div>

@@ -844,7 +844,7 @@
                                     <div style={{ maxHeight: '200px', overflow: 'auto' }}>
                                         {mflFranchises.map(f => (
                                             <button key={f.id} onClick={() => finalizeMFLConnect(f.id)}
-                                                style={{ display: 'block', width: '100%', padding: '8px 10px', marginBottom: '4px', background: 'rgba(46,125,50,0.08)', border: '1px solid rgba(46,125,50,0.25)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', cursor: 'pointer', textAlign: 'left' }}>
+                                                style={{ display: 'block', width: '100%', padding: '8px 10px', marginBottom: '4px', background: 'rgba(46,125,50,0.08)', border: '1px solid rgba(46,125,50,0.25)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.78rem', fontFamily: 'var(--font-body)', cursor: 'pointer', textAlign: 'left' }}>
                                                 {f.name || f.owner_name || ('Team ' + f.id)}
                                             </button>
                                         ))}
@@ -857,12 +857,12 @@
                                 <div>
                                     <div style={{ fontSize: '0.72rem', color: 'var(--silver)', marginBottom: '8px' }}>Enter your MFL League ID and year to connect.</div>
                                     <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
-                                        <input id="wr-mfl-id" placeholder="League ID" style={{ flex: 1, padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'Inter, sans-serif' }} />
-                                        <input id="wr-mfl-year" placeholder="Year" defaultValue="2026" style={{ width: '70px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'Inter, sans-serif', textAlign: 'center' }} />
+                                        <input id="wr-mfl-id" placeholder="League ID" style={{ flex: 1, padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }} />
+                                        <input id="wr-mfl-year" placeholder="Year" defaultValue="2026" style={{ width: '70px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'var(--font-body)', textAlign: 'center' }} />
                                     </div>
                                     <details style={{ marginBottom: '8px' }}>
                                         <summary style={{ fontSize: '0.72rem', color: 'var(--silver)', cursor: 'pointer', opacity: 0.7 }}>Private league? Add API key</summary>
-                                        <input id="wr-mfl-apikey" placeholder="API Key (optional)" style={{ width: '100%', marginTop: '6px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'Inter, sans-serif' }} />
+                                        <input id="wr-mfl-apikey" placeholder="API Key (optional)" style={{ width: '100%', marginTop: '6px', padding: '8px 10px', background: 'var(--charcoal)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }} />
                                     </details>
                                     {mflError && <div style={{ fontSize: '0.72rem', color: '#E74C3C', marginBottom: '8px' }}>{mflError}</div>}
                                     <button className="hub-cta gold" disabled={mflConnecting} onClick={() => {

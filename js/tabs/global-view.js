@@ -195,9 +195,9 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
     // ══════════════════════════════════════════════════════════════
     // STYLE SYSTEM — Bloomberg × Sleeper
     // ══════════════════════════════════════════════════════════════
-    const G = '#D4AF37', W = '#f0f0f3', S2 = 'rgba(255,255,255,0.45)', BK = '#0a0a0a', BK2 = '#0e0e0e';
+    const G = '#D4AF37', W = 'var(--text-primary)', S2 = 'rgba(255,255,255,0.45)', BK = '#0a0a0a', BK2 = '#0e0e0e';
     const mono = "'JetBrains Mono', 'SF Mono', Consolas, monospace";
-    const sans = "'DM Sans', 'Inter', -apple-system, sans-serif";
+    const sans = "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
     const raj = "'Rajdhani', sans-serif";
 
     const filterPill = (key, val, label, color) => {
@@ -215,7 +215,7 @@ function EmpireDashboard({ allLeagues, playersData, sleeperUserId, onEnterLeague
 
     const kpiCell = (label, value, sub, color) => (
         <div style={{ padding: '10px 14px', borderRight: '1px solid rgba(255,255,255,0.04)' }}>
-            <div style={{ fontFamily: mono, fontSize: '1.2rem', fontWeight: 700, color: color || W, lineHeight: 1, letterSpacing: '-0.03em' }}>{value}</div>
+            <div style={{ fontFamily: mono, fontSize: '1.2rem', fontWeight: 700, color: color || W, lineHeight: 1, letterSpacing: 0 }}>{value}</div>
             <div style={{ fontSize: '0.55rem', color: G, marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>{label}</div>
             {sub && <div style={{ fontSize: '0.52rem', color: S2, marginTop: '1px' }}>{sub}</div>}
         </div>

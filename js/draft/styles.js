@@ -27,7 +27,7 @@
         BP_MOBILE:  768,
     };
 
-    const FONT_UI    = "Inter, 'DM Sans', sans-serif";
+    const FONT_UI    = "'DM Sans', sans-serif";
     const FONT_DISPL = "Rajdhani, sans-serif";
     const FONT_MONO  = "'JetBrains Mono', monospace";
 

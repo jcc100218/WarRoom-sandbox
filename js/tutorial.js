@@ -147,7 +147,7 @@ function _showWRStep() {
 
         tooltip.innerHTML = `
             <div style="font-size:0.65rem;font-weight:700;color:rgba(212,175,55,0.8);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Step ${_wrTutStep + 1} of ${WR_TUTORIAL_STEPS.length}</div>
-            <div style="font-size:1.1rem;font-weight:800;color:#fff;margin-bottom:8px;letter-spacing:-.02em">${step.title}</div>
+            <div style="font-size:1.1rem;font-weight:800;color:#fff;margin-bottom:8px;letter-spacing:0">${step.title}</div>
             <div style="font-size:0.85rem;color:rgba(255,255,255,0.7);line-height:1.6;margin-bottom:${step.alexPicker ? '12px' : '20px'}">${step.desc}</div>
             ${alexPickerHTML}
             <div style="display:flex;gap:8px;align-items:center">

@@ -168,7 +168,7 @@
                 style: { fontSize: '0.6rem', color: 'var(--silver)', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600, marginBottom: '8px' }
             }, label),
             h('div', {
-                style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.85rem', fontWeight: 700, lineHeight: 1, color: valColor, letterSpacing: '-0.01em' }
+                style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.85rem', fontWeight: 700, lineHeight: 1, color: valColor, letterSpacing: 0 }
             }, value != null && value !== '' ? value : '\u2014'),
             deltaEl
                 ? h('div', { style: { marginTop: '6px' } }, deltaEl)

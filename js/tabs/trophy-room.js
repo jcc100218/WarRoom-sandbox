@@ -296,7 +296,7 @@ function TrophyRoomTab({ currentLeague, playersData, myRoster, sleeperUserId }) 
                             borderRadius: '4px', cursor: o.isFormer ? 'default' : 'pointer',
                             background: isMe ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.01)',
                             borderLeft: isMe ? '2px solid var(--gold)' : '2px solid transparent',
-                            fontFamily: 'Inter, sans-serif',
+                            fontFamily: 'var(--font-body)',
                             opacity: o.isFormer ? 0.65 : 1,
                         },
                     },
@@ -719,7 +719,7 @@ ${importText.substring(0, 8000)}`;
             React.createElement('button', { onClick: () => setView('league'), style: { background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.78rem', cursor: 'pointer', padding: '0 0 10px', fontFamily: 'inherit', fontWeight: 600 } }, '\u2190 Back'),
 
             // League name
-            chronicles.leagueName && React.createElement('div', { style: { fontSize: '1.1rem', fontWeight: 800, color: 'var(--gold)', marginBottom: '12px', textAlign: 'center', letterSpacing: '-0.02em' } }, chronicles.leagueName),
+            chronicles.leagueName && React.createElement('div', { style: { fontSize: '1.1rem', fontWeight: 800, color: 'var(--gold)', marginBottom: '12px', textAlign: 'center', letterSpacing: 0 } }, chronicles.leagueName),
 
             // Championship History
             chronicles.championshipHistory?.length > 0 && React.createElement('div', { style: cardStyle },
@@ -889,7 +889,7 @@ ${importText.substring(0, 8000)}`;
                 React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '8px' } },
                     ...hof.map(p => {
                         const meta = resolve(p.pid);
-                        const posCol = POS_COLORS[meta.pos] || '#7d8291';
+                        const posCol = POS_COLORS[meta.pos] || '#8D887E';
                         return React.createElement('div', {
                             key: p.pid, onClick: () => { if (typeof window.openPlayerModal === 'function') window.openPlayerModal(p.pid); },
                             style: { padding: '10px 12px', background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '8px', cursor: 'pointer' },
@@ -925,7 +925,7 @@ ${importText.substring(0, 8000)}`;
                         const order = ['QB','RB','WR','TE','FLEX','SUPER_FLEX','K','DEF','DL','LB','DB','IDP_FLEX','BN'];
                         return (order.indexOf(a) === -1 ? 99 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 99 : order.indexOf(b));
                     }).map(([slot, p]) => {
-                        const posCol = POS_COLORS[p.pos] || '#7d8291';
+                        const posCol = POS_COLORS[p.pos] || '#8D887E';
                         return React.createElement('div', {
                             key: slot, onClick: () => { if (typeof window.openPlayerModal === 'function') window.openPlayerModal(p.pid); },
                             style: { padding: '8px 10px', background: 'rgba(255,255,255,0.02)', border: '1px solid ' + posCol + '44', borderRadius: '6px', cursor: 'pointer' },
@@ -957,7 +957,7 @@ ${importText.substring(0, 8000)}`;
                     ),
                     ...sortedRoster.map(p => {
                         const meta = resolve(p.pid);
-                        const posCol = POS_COLORS[meta.pos] || '#7d8291';
+                        const posCol = POS_COLORS[meta.pos] || '#8D887E';
                         const avg = (p.totalPoints / p.appearances).toFixed(1);
                         return React.createElement('div', {
                             key: p.pid, onClick: () => { if (typeof window.openPlayerModal === 'function') window.openPlayerModal(p.pid); },

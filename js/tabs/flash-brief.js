@@ -290,7 +290,7 @@ function IntelligenceBriefWidget({
     });
 
     // ── Reusable action button ───────────────────────────────────────
-    const baseBtn = { background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '10px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 500, textAlign: 'left', display: 'flex', alignItems: 'flex-start', gap: '10px', transition: 'all 0.15s', lineHeight: 1.4 };
+    const baseBtn = { background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '10px', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 500, textAlign: 'left', display: 'flex', alignItems: 'flex-start', gap: '10px', transition: 'all 0.15s', lineHeight: 1.4 };
     function renderActionBtn(a, key, opts = {}) {
         const compact = !!opts.compact;
         const btnStyle = {
@@ -513,7 +513,7 @@ function FieldNotesWidget({ size = 'lg', navigateWidget }) {
     }, [fieldEntries]);
 
     const totalCount = fieldEntries.length;
-    const monoFont = "'Courier Prime', 'Courier New', monospace";
+    const monoFont = "'JetBrains Mono', monospace";
     const cardStyle = { background: 'var(--black)', border: 'var(--card-border, 1px solid rgba(212,175,55,0.2))', borderRadius: 'var(--card-radius, 10px)', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
     const openNotes = () => navigateWidget && navigateWidget('fieldNotes');
     const noteCardStyle = { ...cardStyle, cursor: navigateWidget ? 'pointer' : 'default' };

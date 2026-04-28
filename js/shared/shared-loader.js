@@ -3,7 +3,7 @@
 
 (function() {
     const REMOTE_BASE = 'https://jcc100218.github.io/ReconAI/shared/';
-    const DEFAULT_VERSION = '20260427a';
+    const DEFAULT_VERSION = '20260427d';
     const config = {
         localBase: null,
         remoteBase: REMOTE_BASE,

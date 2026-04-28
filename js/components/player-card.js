@@ -25,8 +25,8 @@
         if (dhq >= 5000) return { label: 'Tier 1', color: '#3498DB' };
         if (dhq >= 3500) return { label: 'Tier 2', color: '#D4AF37' };
         if (dhq >= 2000) return { label: 'Tier 3', color: '#D0D0D0' };
-        if (dhq > 0)    return { label: 'Depth', color: '#7d8291' };
-        return { label: '—', color: '#7d8291' };
+        if (dhq > 0)    return { label: 'Depth', color: 'var(--text-muted)' };
+        return { label: '—', color: 'var(--text-muted)' };
     }
 
     // Chronicles → custom-awards index. Scans `wr_chronicles_*` keys ONCE and
@@ -171,7 +171,7 @@
         const valueYrs = Math.max(0, declineHi - age);
         const peakLabel = age < pLo ? 'Rising' : age <= pHi ? 'Prime' : age <= declineHi ? 'Veteran' : 'Post-Window';
         const peakCol = age < pLo ? '#2ECC71' : age <= pHi ? '#D4AF37' : age <= declineHi ? '#F0A500' : '#E74C3C';
-        const dhqCol = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#3498DB' : dhq >= 2000 ? '#D0D0D0' : '#7d8291';
+        const dhqCol = dhq >= 7000 ? '#2ECC71' : dhq >= 4000 ? '#3498DB' : dhq >= 2000 ? '#D0D0D0' : 'var(--text-muted)';
         const sc = scoringSettings || window.S?.leagues?.[0]?.scoring_settings || {};
         const ppgRaw = typeof window.App?.calcPPG === 'function' ? window.App.calcPPG(st, sc) : 0;
         const ppg = ppgRaw > 0 ? +ppgRaw.toFixed(1) : (meta.ppg || 0);
@@ -190,7 +190,7 @@
         const dhqContextCol = meta.statusReason ? '#E74C3C'
             : meta.roleMult && meta.roleMult < 0.9 ? '#F0A500'
                 : meta.opportunityMult && meta.opportunityMult < 1 ? '#F0A500'
-                    : '#7d8291';
+                    : 'var(--text-muted)';
 
         // Roster context
         const S = window.S || {};
@@ -260,7 +260,7 @@
                         { v: rec, l: 'Action', c: recCol },
                     ].map((s, i) => React.createElement('div', { key: i, style: { textAlign: 'center' } },
                         React.createElement('div', { style: { fontFamily: 'JetBrains Mono, monospace', fontSize: '1.05rem', fontWeight: 700, color: s.c } }, s.v),
-                        React.createElement('div', { style: { fontSize: '0.65rem', color: '#7d8291', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '3px' } }, s.l)
+                        React.createElement('div', { style: { fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '3px' } }, s.l)
                     ))
                 ),
                 dhqContext && React.createElement('div', {
@@ -295,12 +295,12 @@
                                     flex: 1, background: col, opacity: a === age ? 1 : 0.55,
                                     outline: a === age ? '2px solid #D4AF37' : 'none', outlineOffset: '-1px',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: '0.6rem', fontWeight: 700, color: a === age ? '#f0f0f3' : 'transparent'
+                                    fontSize: '0.6rem', fontWeight: 700, color: a === age ? 'var(--text-primary)' : 'transparent'
                                 }
                             }, a === age ? String(age) : '');
                         })
                     ),
-                    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: '#7d8291', marginTop: '4px' } },
+                    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '4px' } },
                         React.createElement('span', null, '20'),
                         React.createElement('span', null, 'Peak ' + pLo + '–' + pHi),
                         React.createElement('span', null, '36')
@@ -314,8 +314,8 @@
                         { l: 'Height / Weight', v: heightWeight || '—' },
                         { l: 'College', v: p.college || '—' },
                     ].map((s, i) => React.createElement('div', { key: i },
-                        React.createElement('div', { style: { fontSize: '0.64rem', color: '#7d8291', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' } }, s.l),
-                        React.createElement('div', { style: { fontSize: '0.86rem', color: '#f0f0f3', fontWeight: 500 } }, s.v)
+                        React.createElement('div', { style: { fontSize: '0.64rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '3px' } }, s.l),
+                        React.createElement('div', { style: { fontSize: '0.86rem', color: 'var(--text-primary)', fontWeight: 500 } }, s.v)
                     ))
                 ),
                 // Team history
@@ -330,12 +330,12 @@
                                     style: {
                                         padding: '4px 10px', background: 'rgba(212,175,55,0.08)',
                                         border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px',
-                                        fontSize: '0.78rem', color: '#f0f0f3', fontFamily: 'JetBrains Mono, monospace'
+                                        fontSize: '0.78rem', color: 'var(--text-primary)', fontFamily: 'JetBrains Mono, monospace'
                                     }
                                 }, r.team + ' ' + (r.start === r.end ? r.start : r.start + '–' + r.end)))
                             )
                             : React.createElement('div', null,
-                                React.createElement('div', { style: { fontSize: '0.82rem', color: '#f0f0f3' } },
+                                React.createElement('div', { style: { fontSize: '0.82rem', color: 'var(--text-primary)' } },
                                     team === 'FA' ? 'Free Agent' : ('Current: ' + team)
                                 ),
                                 React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.55, marginTop: '4px' } },
@@ -351,7 +351,7 @@
                         customAwards.map((a, i) => React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: 'rgba(212,175,55,0.06)', borderRadius: '6px' } },
                             React.createElement('span', { style: { fontSize: '0.95rem' } }, '\uD83C\uDFC5'),
                             React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                                React.createElement('div', { style: { fontSize: '0.8rem', fontWeight: 700, color: '#f0f0f3' } }, a.name),
+                                React.createElement('div', { style: { fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' } }, a.name),
                                 React.createElement('div', { style: { fontSize: '0.68rem', color: 'var(--silver)' } },
                                     [a.year, a.stats, a.league].filter(Boolean).join(' · ')
                                 )
@@ -420,7 +420,7 @@
                         })
                     ),
                     React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                        React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.45rem', color: '#f0f0f3', letterSpacing: '0.02em' } }, name),
+                        React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: '1.45rem', color: 'var(--text-primary)', letterSpacing: '0.02em' } }, name),
                         // Single-row identity strip — no redundant profile block below
                         React.createElement('div', { style: { fontSize: '0.82rem', color: '#D0D0D0', marginTop: '2px' } },
                             [nPos, team, 'Age ' + (age || '?'), heightWeight, p.college].filter(Boolean).join(' · ')
@@ -428,7 +428,7 @@
                     ),
                     React.createElement('button', {
                         ref: closeRef, onClick: onClose,
-                        style: { background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '6px', color: '#7d8291', cursor: 'pointer', fontSize: '0.95rem', padding: '4px 10px' }
+                        style: { background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '6px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.95rem', padding: '4px 10px' }
                     }, '✕')
                 ),
                 // Tabs
@@ -441,7 +441,7 @@
                                 padding: '10px 14px', background: 'transparent',
                                 border: 'none', borderBottom: tab === t ? '2px solid var(--gold)' : '2px solid transparent',
                                 color: tab === t ? 'var(--gold)' : 'var(--silver)',
-                                fontFamily: 'Inter, sans-serif', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'pointer'
+                                fontFamily: 'var(--font-body)', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', cursor: 'pointer'
                             }
                         }, t === 'overview' ? 'Overview' : 'Career Stats')
                     )

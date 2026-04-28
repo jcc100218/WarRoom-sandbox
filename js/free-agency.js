@@ -153,7 +153,7 @@
             }).slice(0, 50);
         }, [availablePlayers, faFilter, faSearch, faSort, statsData]);
 
-        const faHeaderStyle = { fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' };
+        const faHeaderStyle = { fontSize: '0.78rem', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', userSelect: 'none' };
 
         // Compute roster needs for recommendations
         const assess = useMemo(() => typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null, [myRoster]);
@@ -608,9 +608,15 @@
             }
             return (
                 <div className="fa-page wr-fade-in">
-                    <div className="fa-page-title">
-                        <h1>FREE AGENCY</h1>
-                        <p>Action-first waiver decisions, FAAB leverage, and roster-fit targeting.</p>
+                    <div className="wr-module-strip">
+                        <div className="wr-module-context">
+                            <span>Waivers</span>
+                            <strong>Action HQ</strong>
+                            <em>Add/drop priorities, FAAB leverage, and roster-fit targeting.</em>
+                        </div>
+                        <div className="wr-module-actions">
+                            <span className="wr-module-pill">Command</span>
+                        </div>
                     </div>
                     {renderActionHQ(true)}
                 </div>
@@ -620,9 +626,15 @@
         // ── ANALYST VIEW: full market terminal ──
         return (
             <div className="fa-page wr-fade-in">
-                <div className="fa-page-title">
-                    <h1>FREE AGENCY</h1>
-                    <p>Action-first waiver decisions, FAAB leverage, and full market exploration.</p>
+                <div className="wr-module-strip">
+                    <div className="wr-module-context">
+                        <span>Waivers</span>
+                        <strong>Action HQ</strong>
+                        <em>Add/drop priorities, FAAB leverage, and full market exploration.</em>
+                    </div>
+                    <div className="wr-module-actions">
+                        <span className="wr-module-pill">Analyst</span>
+                    </div>
                 </div>
 
                 {renderActionHQ(false)}
@@ -638,45 +650,31 @@
                     </div>
                 </div>
 
-                <div className="fa-market-toolbar">
-                    <span>POS:</span>
+                <div className="fa-market-toolbar wr-module-toolbar">
+                    <span className="wr-module-toolbar-label">POS</span>
+                    <div className="wr-module-nav">
                     {['', 'QB', 'RB', 'WR', 'TE', 'K', 'DL', 'LB', 'DB'].map(pos =>
-                        <button key={pos} onClick={() => setFaFilter(pos)} style={{ padding: '5px 12px', fontSize: '0.76rem', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', background: faFilter === pos ? 'var(--gold)' : 'rgba(255,255,255,0.04)', color: faFilter === pos ? 'var(--black)' : 'var(--silver)', border: '1px solid ' + (faFilter === pos ? 'var(--gold)' : 'rgba(255,255,255,0.08)'), borderRadius: '4px', cursor: 'pointer' }}>{pos || 'All'}</button>
+                        <button key={pos} className={faFilter === pos ? 'is-active' : ''} onClick={() => setFaFilter(pos)}>{pos || 'All'}</button>
                     )}
+                    </div>
                 </div>
 
                 {/* Phase 6 deferred: presets + column picker + SavedViewBar */}
-                <div className="fa-market-toolbar">
-                    <span>VIEW:</span>
+                <div className="fa-market-toolbar wr-module-toolbar">
+                    <span className="wr-module-toolbar-label">View</span>
+                    <div className="wr-module-nav">
                     {Object.entries(FA_COLUMN_PRESETS).map(([key, cols]) => (
-                        <button key={key} onClick={() => { setVisibleFaCols(cols); setFaColPreset(key); }}
-                            style={{
-                                padding: '3px 10px', fontSize: '0.7rem', fontWeight: faColPreset === key ? 700 : 400,
-                                fontFamily: 'Inter, sans-serif', textTransform: 'uppercase',
-                                background: faColPreset === key ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
-                                color: faColPreset === key ? 'var(--black)' : 'var(--silver)',
-                                border: '1px solid ' + (faColPreset === key ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
-                                borderRadius: '3px', cursor: 'pointer', letterSpacing: '0.03em'
-                            }}>{key}</button>
+                        <button key={key} className={faColPreset === key ? 'is-active' : ''} onClick={() => { setVisibleFaCols(cols); setFaColPreset(key); }}>{key}</button>
                     ))}
-                    <button onClick={() => setShowFaColPicker(!showFaColPicker)} style={{
-                        padding: '3px 10px', fontSize: '0.7rem',
-                        fontFamily: 'Inter, sans-serif', background: showFaColPicker ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.04)',
-                        color: showFaColPicker ? 'var(--gold)' : 'var(--silver)',
-                        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '3px', cursor: 'pointer'
-                    }}>COLUMNS</button>
+                    <button className={showFaColPicker ? 'is-active' : ''} onClick={() => setShowFaColPicker(!showFaColPicker)}>Columns</button>
+                    </div>
                     {/* Rolling PPG window selector — shared with My Roster */}
-                    <span style={{ fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65, marginLeft: '6px', fontFamily: 'Inter, sans-serif' }}>PPG:</span>
+                    <span className="wr-module-toolbar-label">PPG</span>
+                    <div className="wr-module-nav">
                     {[{k:'season',l:'Season'},{k:'l5',l:'L5'},{k:'l3',l:'L3'}].map(opt => (
-                        <button key={opt.k} onClick={() => setPpgWindow(opt.k)} title={opt.k === 'season' ? 'Season-to-date PPG' : 'Last ' + (opt.k === 'l5' ? 5 : 3) + ' games'} style={{
-                            padding: '3px 8px', fontSize: '0.7rem', fontWeight: ppgWindow === opt.k ? 700 : 400,
-                            fontFamily: 'Inter, sans-serif', textTransform: 'uppercase',
-                            background: ppgWindow === opt.k ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
-                            color: ppgWindow === opt.k ? 'var(--black)' : 'var(--silver)',
-                            border: '1px solid ' + (ppgWindow === opt.k ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
-                            borderRadius: '3px', cursor: 'pointer', letterSpacing: '0.03em'
-                        }}>{opt.l}</button>
+                        <button key={opt.k} className={ppgWindow === opt.k ? 'is-active' : ''} onClick={() => setPpgWindow(opt.k)} title={opt.k === 'season' ? 'Season-to-date PPG' : 'Last ' + (opt.k === 'l5' ? 5 : 3) + ' games'}>{opt.l}</button>
                     ))}
+                    </div>
 
                     {window.WR?.SavedViews?.SavedViewBar && (
                         <div style={{ marginLeft: 'auto' }}>
@@ -790,7 +788,7 @@
                                         case 'pos':        return <span style={{ fontSize: '0.76rem', fontWeight: 700, color: posColors[pos] || 'var(--silver)' }}>{pos}</span>;
                                         case 'team':       return <span style={{ fontSize: '0.74rem', color: 'var(--silver)', fontWeight: 600 }}>{p.team || 'FA'}</span>;
                                         case 'age':        return <span style={{ fontSize: '0.78rem', color: 'var(--silver)' }}>{p.age || '\u2014'}</span>;
-                                        case 'dhq':        return <span style={{ fontSize: '0.82rem', fontWeight: 700, fontFamily: 'Inter, sans-serif', color: dhqCol }}>{dhq > 0 ? dhq.toLocaleString() : '\u2014'}</span>;
+                                        case 'dhq':        return <span style={{ fontSize: '0.82rem', fontWeight: 700, fontFamily: 'var(--font-body)', color: dhqCol }}>{dhq > 0 ? dhq.toLocaleString() : '\u2014'}</span>;
                                         case 'ppg':        return <span style={{ fontSize: '0.78rem', color: ppg >= 10 ? '#2ECC71' : ppg >= 5 ? 'var(--silver)' : 'rgba(255,255,255,0.3)' }}>{ppg > 0 ? ppg : '\u2014'}{ppgMarker}</span>;
                                         case 'peakYr':     return <span style={{ fontSize: '0.74rem', color: peakCol, fontWeight: 600 }}>{peakLabel}</span>;
                                         case 'yrsExp':     return <span style={{ fontSize: '0.74rem', color: 'var(--silver)' }}>{p.years_exp != null ? p.years_exp : '\u2014'}</span>;
@@ -852,7 +850,7 @@
 
                     {/* FAAB Recommendation */}
                     {selFaab && <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
-                        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>FAAB Recommendation</div>
+                        <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>FAAB Recommendation</div>
                         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.8rem', fontWeight: 600, color: 'var(--gold)' }}>{'$' + selFaab.lo + ' \u2013 $' + selFaab.hi}</div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--silver)', marginTop: '4px' }}>Suggested: <strong style={{ color: 'var(--white)' }}>{'$' + selFaab.sug}</strong> of ${remaining} remaining</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
@@ -867,7 +865,7 @@
                         const need = assess.needs?.find(n => n.pos === selPos);
                         const strength = assess.strengths?.includes(selPos);
                         return <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
-                            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>ROSTER FIT</div>
+                            <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>ROSTER FIT</div>
                             {need && <div style={{ fontSize: '0.82rem', color: '#2ECC71', fontWeight: 600, marginBottom: '4px' }}>Fills {selPos} {need.urgency}</div>}
                             {strength && <div style={{ fontSize: '0.82rem', color: 'var(--silver)', opacity: 0.7, marginBottom: '4px' }}>You already have {selPos} surplus — stash only</div>}
                             {!need && !strength && <div style={{ fontSize: '0.82rem', color: 'var(--silver)', marginBottom: '4px' }}>Depth add at {selPos}</div>}
@@ -879,7 +877,7 @@
 
                     {/* Season Stats */}
                     {selStats.gp > 0 && <div style={{ marginBottom: '16px' }}>
-                        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.82rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>SEASON STATS</div>
+                        <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.82rem', color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>SEASON STATS</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                             {[
                                 ['Games', selStats.gp],

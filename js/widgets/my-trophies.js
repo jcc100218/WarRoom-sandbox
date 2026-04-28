@@ -137,7 +137,7 @@
                         const tc = window.WrAchievements.tierColor(a.tier);
                         return React.createElement('span', {
                             key: a.id, title: a.label + ' — ' + a.description,
-                            style: { display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.62rem', padding: '2px 6px', background: tc + '14', border: '1px solid ' + tc + '44', borderRadius: '4px', color: tc, fontWeight: 600, fontFamily: 'Inter, sans-serif' },
+                            style: { display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.62rem', padding: '2px 6px', background: tc + '14', border: '1px solid ' + tc + '44', borderRadius: '4px', color: tc, fontWeight: 600, fontFamily: 'var(--font-body)' },
                         }, React.createElement('span', { style: { fontSize: '0.78rem' } }, a.icon), a.label);
                     }),
                 ),
@@ -161,7 +161,7 @@
             },
                 React.createElement('span', { style: { fontSize: '0.95rem', filter: earned ? 'none' : 'grayscale(0.6)' } }, a.icon),
                 React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-                    React.createElement('div', { style: { fontSize: '0.66rem', fontWeight: 700, color: earned ? tc : 'var(--silver)', fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, a.label),
+                    React.createElement('div', { style: { fontSize: '0.66rem', fontWeight: 700, color: earned ? tc : 'var(--silver)', fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, a.label),
                     !opts.hideDesc && React.createElement('div', { style: { fontSize: '0.54rem', color: 'var(--silver)', opacity: 0.65, lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, a.description),
                     !earned && a.target > 1 && React.createElement('div', { style: { height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden', marginTop: '3px' } },
                         React.createElement('div', { style: { width: (a.progress * 100) + '%', height: '100%', background: tc, opacity: 0.8 } }),
@@ -260,7 +260,7 @@
                                     const madePlayoffs = s.place && s.place <= playoffCutoff;
                                     const totalG = s.wins + s.losses;
                                     const wp = totalG ? (s.wins / totalG) * 100 : 0;
-                                    return React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.66rem', fontFamily: 'Inter, sans-serif', padding: '3px 6px', background: isChamp ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.02)', borderRadius: '4px', borderLeft: isChamp ? '2px solid var(--gold)' : isRunner ? '2px solid #C0C0C0' : madePlayoffs ? '2px solid #2ECC71' : '2px solid transparent' } },
+                                    return React.createElement('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.66rem', fontFamily: 'var(--font-body)', padding: '3px 6px', background: isChamp ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.02)', borderRadius: '4px', borderLeft: isChamp ? '2px solid var(--gold)' : isRunner ? '2px solid #C0C0C0' : madePlayoffs ? '2px solid #2ECC71' : '2px solid transparent' } },
                                         React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', color: 'var(--gold)', minWidth: 36, fontWeight: 700 } }, s.season),
                                         React.createElement('span', { style: { fontFamily: 'JetBrains Mono, monospace', color: 'var(--white)', minWidth: 40, fontWeight: 600 } }, s.wins + '-' + s.losses),
                                         React.createElement('div', { style: { flex: 1, minWidth: 0, height: 5, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' } },

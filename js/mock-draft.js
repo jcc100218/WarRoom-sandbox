@@ -131,7 +131,7 @@ function MdsPosBadge({ pos }) {
     return (
         <span style={{
             fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: '3px',
-            background: c + '22', color: c, fontFamily: "'DM Sans', Inter, sans-serif",
+            background: c + '22', color: c, fontFamily: "'DM Sans', sans-serif",
             letterSpacing: '0.04em', flexShrink: 0,
         }}>{pos}</span>
     );
@@ -329,7 +329,7 @@ function MockDraftSimulator({ playersData, myRoster, currentLeague, draftRounds:
     }, [ds?.pickOrder]);
 
     /* ── Style constants ─────────────────────────────────────── */
-    const font = "'DM Sans', Inter, sans-serif";
+    const font = "'DM Sans', sans-serif";
     const card = { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(212,175,55,0.15)', borderRadius: '8px' };
     const selStyle = { width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '6px', color: 'var(--white)', fontSize: '0.82rem', fontFamily: font, outline: 'none', cursor: 'pointer' };
 

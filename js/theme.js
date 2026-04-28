@@ -27,29 +27,29 @@
             preview: '🏴',
             fonts: {
                 display: 'Rajdhani, sans-serif',
-                ui: "'DM Sans', Inter, sans-serif",
+                ui: "'DM Sans', sans-serif",
                 mono: "'JetBrains Mono', monospace",
                 sizeScale: 1.0,
             },
             colors: {
                 bg:         '#08080B',
-                card:       '#14141A',
+                card:       '#121217',
                 cardHover:  'rgba(212,175,55,0.06)',
                 accent:     '#D4AF37',
                 accentDark: '#B8941E',
-                text:       '#FFFFFF',
-                textMuted:  '#D0D0D0',
-                textFaint:  'rgba(255,255,255,0.4)',
+                text:       '#F5F2EA',
+                textMuted:  '#BDB8AD',
+                textFaint:  'rgba(189,184,173,0.62)',
                 positive:   '#2ECC71',
                 negative:   '#E74C3C',
-                info:       '#3498DB',
+                info:       '#5DADE2',
                 warn:       '#F0A500',
-                purple:     '#7C6BF8',
+                purple:     '#9B8AFB',
                 border:     'rgba(212,175,55,0.2)',
                 borderHover:'rgba(212,175,55,0.4)',
             },
             card: {
-                background: '#14141A',
+                background: '#121217',
                 border:     '1px solid rgba(212,175,55,0.2)',
                 borderHover:'1px solid rgba(212,175,55,0.4)',
                 radius:     '10px',
@@ -78,7 +78,7 @@
             preview: '☀️',
             fonts: {
                 display: 'Rajdhani, sans-serif',
-                ui: "'DM Sans', Inter, sans-serif",
+                ui: "'DM Sans', sans-serif",
                 mono: "'JetBrains Mono', monospace",
                 sizeScale: 1.0,
             },
@@ -147,8 +147,26 @@
     --charcoal: ${c.cardHover || '#2A2A2A'};
     --silver: ${c.textMuted || '#D0D0D0'};
     --white: ${c.text || '#FFFFFF'};
+    --text-primary: ${c.text || '#FFFFFF'};
+    --text-secondary: ${c.textMuted || '#D0D0D0'};
+    --text-muted: ${c.textMuted || '#D0D0D0'};
+    --text-faint: ${c.textFaint || 'rgba(255,255,255,0.4)'};
+    --surface-0: ${c.bg || '#08080B'};
+    --surface-1: ${c.card || c.bg || '#14141A'};
+    --surface-2: ${c.cardHover && c.cardHover.startsWith('#') ? c.cardHover : '#1F1F26'};
+    --surface-3: ${c.cardHover || '#2A2A2A'};
+    --good: ${c.positive || '#2ECC71'};
+    --warn: ${c.warn || '#F0A500'};
+    --bad: ${c.negative || '#E74C3C'};
+    --info: ${c.info || '#3498DB'};
+    --purple: ${c.purple || '#7C6BF8'};
     --win-green: ${c.positive || '#2ECC71'};
     --loss-red: ${c.negative || '#E74C3C'};
+    --font-title: ${t.fonts?.display || 'Rajdhani, sans-serif'};
+    --font-display: var(--font-title);
+    --font-body: ${t.fonts?.ui || "'DM Sans', sans-serif"};
+    --font-ui: var(--font-body);
+    --font-mono: ${t.fonts?.mono || "'JetBrains Mono', monospace"};
 }
 [data-wr-theme="${themeId}"] body { background: var(--page-bg) !important; }
 `;

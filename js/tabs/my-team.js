@@ -432,7 +432,7 @@ function MyTeamTab({
     const draftRounds = currentLeague.settings?.draft_rounds || 5;
     const leagueSeason = parseInt(currentLeague.season) || new Date().getFullYear();
     for (let yr = leagueSeason; yr <= leagueSeason + 2; yr++) for (let rd = 1; rd <= draftRounds; rd++) {
-      const pv = typeof getIndustryPickValue === 'function' ? getIndustryPickValue(rd, Math.ceil(totalTeams / 2), totalTeams) : window.App.PlayerValue?.getPickValue?.(yr, rd, totalTeams) ?? 0;
+      const pv = typeof getIndustryPickValue === 'function' ? getIndustryPickValue((rd - 1) * totalTeams + Math.ceil(totalTeams / 2), totalTeams, draftRounds) : window.App.PlayerValue?.getPickValue?.(yr, rd, totalTeams) ?? 0;
       const ta = (_sTradedPicks).find(p => parseInt(p.season) === yr && p.round === rd && p.roster_id === r.roster_id && p.owner_id !== r.roster_id);
       if (!ta) pickDHQ += pv;
       (_sTradedPicks).filter(p => parseInt(p.season) === yr && p.round === rd && p.owner_id === r.roster_id && p.roster_id !== r.roster_id).forEach(() => { pickDHQ += pv; });
@@ -468,7 +468,7 @@ function MyTeamTab({
     padding: '6px 11px',
     fontSize: '0.72rem',
     fontWeight: active ? 800 : 650,
-    fontFamily: 'Inter, sans-serif',
+    fontFamily: 'var(--font-body)',
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
     background: active ? 'var(--gold)' : 'rgba(255,255,255,0.045)',
@@ -537,7 +537,7 @@ function MyTeamTab({
     switch(colKey) {
       case 'pos': return <div key={colKey} style={{...base}}><span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '1px 4px', borderRadius: '2px', background: (posColors[r.pos]||'#666')+'22', color: posColors[r.pos]||'var(--silver)' }}>{r.pos}</span></div>;
       case 'age': return <div key={colKey} style={{...base, background: ageBg(r.age, r.pos)}}><span style={{ color: ageCol(r.age, r.pos), fontWeight: 600 }}>{r.age||'\u2014'}</span></div>;
-      case 'dhq': return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}}><span style={{ color: dhqCol(r.dhq), fontWeight: 700, fontFamily: 'Inter, sans-serif', fontSize: '0.82rem' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span></div>;
+      case 'dhq': return <div key={colKey} style={{...base, background: dhqBg(r.dhq)}}><span style={{ color: dhqCol(r.dhq), fontWeight: 700, fontFamily: 'var(--font-body)', fontSize: '0.82rem' }}>{r.dhq > 0 ? r.dhq.toLocaleString() : '\u2014'}</span></div>;
       case 'ppg': {
         // Rolling PPG override — swap in last-N-games PPG when user toggled the window.
         // If a window is active but weekly data isn't ready for this player, fall back
@@ -643,7 +643,7 @@ function MyTeamTab({
         if (!sos) return <div key={colKey} style={{...base}}><span style={{ color: 'rgba(255,255,255,0.2)' }}>{'\u2014'}</span></div>;
         const sosBg = sos.avgRank >= 25 ? 'rgba(46,204,113,0.12)' : sos.avgRank <= 8 ? 'rgba(231,76,60,0.1)' : 'transparent';
         return <div key={colKey} style={{...base, background: sosBg, flexDirection: 'column', gap: '1px'}} title={sos.label + ' schedule (' + sos.avgRank + '/32)'}>
-          <span style={{ color: sos.color, fontWeight: 700, fontSize: '0.82rem', fontFamily: 'Inter, sans-serif' }}>{sos.avgRank}</span>
+          <span style={{ color: sos.color, fontWeight: 700, fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>{sos.avgRank}</span>
           <span style={{ color: sos.color, fontSize: '0.58rem', opacity: 0.8 }}>{sos.label.toUpperCase()}</span>
         </div>;
       }
@@ -720,32 +720,42 @@ function MyTeamTab({
       </section>
 
       <section style={{ background: 'rgba(20,20,26,0.78)', border: '1px solid rgba(255,255,255,0.075)', borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={groupLabelStyle}>Scope</span>
+        <div className="wr-module-toolbar">
+          <span className="wr-module-toolbar-label">Scope</span>
+          <div className="wr-module-nav">
           {['All','Starters','Bench','Taxi','IR','Offense','IDP'].map(f => (
-            <button key={f} onClick={() => setRosterFilter(f)} style={controlBtn(rosterFilter === f)}>{f}</button>
+            <button key={f} className={rosterFilter === f ? 'is-active' : ''} onClick={() => setRosterFilter(f)}>{f}</button>
           ))}
+          </div>
           <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'var(--silver)', opacity: 0.66, whiteSpace: 'nowrap' }}>{filtered.length} of {allPlayers.length} shown</span>
         </div>
 
-        <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={groupLabelStyle}>Columns</span>
+        <div className="wr-module-toolbar">
+          <span className="wr-module-toolbar-label">Columns</span>
+          <div className="wr-module-nav">
           {Object.entries(COLUMN_PRESETS).map(([key, cols]) => (
-            <button key={key} onClick={() => { setVisibleCols(cols); setColPreset(key); }} style={controlBtn(activePresetKey === key)}>{COLUMN_PRESET_META[key]?.label || key}</button>
+            <button key={key} className={activePresetKey === key ? 'is-active' : ''} onClick={() => { setVisibleCols(cols); setColPreset(key); }}>{COLUMN_PRESET_META[key]?.label || key}</button>
           ))}
-          <button onClick={() => setShowColPicker(!showColPicker)} style={controlBtn(showColPicker || activePresetKey === 'custom')}>Customize</button>
-          <span style={groupLabelStyle}>PPG</span>
+          <button className={(showColPicker || activePresetKey === 'custom') ? 'is-active' : ''} onClick={() => setShowColPicker(!showColPicker)}>Customize</button>
+          </div>
+          <span className="wr-module-toolbar-label">PPG</span>
+          <div className="wr-module-nav">
           {[{k:'season',l:'Season'},{k:'l5',l:'L5'},{k:'l3',l:'L3'}].map(opt => (
-            <button key={opt.k} onClick={() => setPpgWindow(opt.k)} title={opt.k === 'season' ? 'Season-to-date PPG' : 'Last ' + (opt.k === 'l5' ? 5 : 3) + ' games — requires weekly data'} style={controlBtn(ppgWindow === opt.k)}>{opt.l}</button>
+            <button key={opt.k} className={ppgWindow === opt.k ? 'is-active' : ''} onClick={() => setPpgWindow(opt.k)} title={opt.k === 'season' ? 'Season-to-date PPG' : 'Last ' + (opt.k === 'l5' ? 5 : 3) + ' games — requires weekly data'}>{opt.l}</button>
           ))}
-          <span style={groupLabelStyle}>Density</span>
+          </div>
+          <span className="wr-module-toolbar-label">Density</span>
+          <div className="wr-module-nav">
           {[{k:'comfortable',l:'Comfort'},{k:'compact',l:'Compact'}].map(opt => (
-            <button key={opt.k} onClick={() => setRowDensity(opt.k)} style={controlBtn(rowDensity === opt.k)}>{opt.l}</button>
+            <button key={opt.k} className={rowDensity === opt.k ? 'is-active' : ''} onClick={() => setRowDensity(opt.k)}>{opt.l}</button>
           ))}
-          <span style={groupLabelStyle}>Group</span>
+          </div>
+          <span className="wr-module-toolbar-label">Group</span>
+          <div className="wr-module-nav">
           {GROUP_MODES.map(opt => (
-            <button key={opt.key} onClick={() => setRosterGroupMode(opt.key)} style={controlBtn(rosterGroupMode === opt.key)}>{opt.label}</button>
+            <button key={opt.key} className={rosterGroupMode === opt.key ? 'is-active' : ''} onClick={() => setRosterGroupMode(opt.key)}>{opt.label}</button>
           ))}
+          </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginLeft: 'auto', fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.72 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '4px', height: '13px', borderRadius: '2px', background: 'var(--gold)' }} />Starter</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '4px', height: '13px', borderRadius: '2px', background: '#3498DB' }} />Taxi</span>
@@ -866,7 +876,7 @@ function MyTeamTab({
           <div style={{ minWidth: tableMinWidth + 'px' }}>
             {/* Header row */}
             <div style={{ display: 'flex', height: '40px', background: 'linear-gradient(180deg, rgba(212,175,55,0.12), rgba(212,175,55,0.055))', borderBottom: '1px solid rgba(212,175,55,0.24)', position: 'sticky', top: 0, zIndex: 5 }}>
-              <div title="Player" style={{ width: playerColWidth + 'px', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: '0.78rem', fontWeight: 800, color: rosterSort.key === 'name' ? 'var(--white)' : 'var(--gold)', fontFamily: 'Inter, sans-serif', letterSpacing: '0.05em', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid rgba(212,175,55,0.2)', textTransform: 'uppercase', position: 'sticky', left: 0, zIndex: 7, background: 'linear-gradient(180deg, #272315, #17150d)', boxShadow: '10px 0 18px rgba(0,0,0,0.24)' }}
+              <div title="Player" style={{ width: playerColWidth + 'px', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: '0.78rem', fontWeight: 800, color: rosterSort.key === 'name' ? 'var(--white)' : 'var(--gold)', fontFamily: 'var(--font-body)', letterSpacing: '0.05em', cursor: 'pointer', userSelect: 'none', borderRight: '1px solid rgba(212,175,55,0.2)', textTransform: 'uppercase', position: 'sticky', left: 0, zIndex: 7, background: 'linear-gradient(180deg, #272315, #17150d)', boxShadow: '10px 0 18px rgba(0,0,0,0.24)' }}
                 onClick={() => setRosterSort(prev => prev.key === 'name' ? {...prev, dir: prev.dir*-1} : {key: 'name', dir: 1})}>
                 Player{rosterSort.key === 'name' ? (rosterSort.dir === -1 ? ' \u25BC' : ' \u25B2') : ''}
               </div>
@@ -878,7 +888,7 @@ function MyTeamTab({
                   const isGroupStart = visibleColGroupStarts.has(colKey);
                   return (
                     <div key={colKey} title={col.label} onClick={() => setRosterSort(prev => prev.key === colKey ? {...prev, dir: prev.dir*-1} : {key: colKey, dir: 1})}
-                      style={{ width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: '0.76rem', fontWeight: 800, color: isSorted ? 'var(--white)' : 'var(--gold)', fontFamily: 'Inter, sans-serif', letterSpacing: '0.045em', cursor: 'pointer', userSelect: 'none', textTransform: 'uppercase', borderLeft: isGroupStart ? '2px solid rgba(212,175,55,0.28)' : '1px solid rgba(255,255,255,0.045)', padding: '0 4px', textAlign: 'center', lineHeight: 1.05, background: isSorted ? 'rgba(212,175,55,0.13)' : isGroupStart ? 'rgba(212,175,55,0.035)' : 'transparent' }}>
+                      style={{ width: col.width, minWidth: col.width, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: '0.76rem', fontWeight: 800, color: isSorted ? 'var(--white)' : 'var(--gold)', fontFamily: 'var(--font-body)', letterSpacing: '0.045em', cursor: 'pointer', userSelect: 'none', textTransform: 'uppercase', borderLeft: isGroupStart ? '2px solid rgba(212,175,55,0.28)' : '1px solid rgba(255,255,255,0.045)', padding: '0 4px', textAlign: 'center', lineHeight: 1.05, background: isSorted ? 'rgba(212,175,55,0.13)' : isGroupStart ? 'rgba(212,175,55,0.035)' : 'transparent' }}>
                       {isGroupStart && <span style={{ fontSize: '0.44rem', color: 'var(--silver)', opacity: 0.52, letterSpacing: '0.08em', lineHeight: 1 }}>{columnGroupLabelFor(colKey)}</span>}
                       <span>{col.shortLabel || col.label}{rosterSort.key === colKey ? (rosterSort.dir === -1 ? ' \u25BC' : ' \u25B2') : ''}</span>
                     </div>
@@ -976,7 +986,7 @@ function MyTeamTab({
                     <div style={{ background: 'rgba(255,255,255,0.022)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '9px', padding: '10px 12px', minWidth: 0 }}>
                       <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.58, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800, marginBottom: '7px' }}>Decision Stack</div>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 800, fontFamily: 'Inter, sans-serif', padding: '3px 10px', borderRadius: '999px', background: /sell/i.test(r.rec) ? 'rgba(231,76,60,0.15)' : /buy|build|core/i.test(r.rec) ? 'rgba(46,204,113,0.15)' : 'rgba(212,175,55,0.12)', color: /sell/i.test(r.rec) ? '#E74C3C' : /buy|build|core/i.test(r.rec) ? '#2ECC71' : 'var(--gold)', letterSpacing: '0.03em' }}>{r.rec}</span>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 800, fontFamily: 'var(--font-body)', padding: '3px 10px', borderRadius: '999px', background: /sell/i.test(r.rec) ? 'rgba(231,76,60,0.15)' : /buy|build|core/i.test(r.rec) ? 'rgba(46,204,113,0.15)' : 'rgba(212,175,55,0.12)', color: /sell/i.test(r.rec) ? '#E74C3C' : /buy|build|core/i.test(r.rec) ? '#2ECC71' : 'var(--gold)', letterSpacing: '0.03em' }}>{r.rec}</span>
                         <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: '999px', background: dhqBg(r.dhq), color: dhqCol(r.dhq) }}>
                           {(typeof window.App?.isElitePlayer === 'function' ? window.App.isElitePlayer(r.pid) : r.dhq >= 7000) ? 'Elite' : r.dhq >= 4000 ? 'Starter' : r.dhq >= 2000 ? 'Depth' : 'Stash'} {'\u00B7'} {r.dhq.toLocaleString()} DHQ
                         </span>
@@ -1004,13 +1014,13 @@ function MyTeamTab({
                           const rank = allAtPos.findIndex(x=>x.pid===r.pid)+1;
                           return rank > 0 ? r.pos + rank : '\u2014';
                         })(), col: 'var(--gold)' },
-                        { label: 'PPG', val: r.effectivePPG || '\u2014', col: r.effectivePPG >= (posP75[r.pos]||10) ? '#2ECC71' : '#f0f0f3' },
+                        { label: 'PPG', val: r.effectivePPG || '\u2014', col: r.effectivePPG >= (posP75[r.pos]||10) ? '#2ECC71' : 'var(--text-primary)' },
                         { label: 'GP', val: r.effectiveGP || '\u2014', col: r.effectiveGP >= 14 ? '#2ECC71' : r.effectiveGP >= 10 ? 'var(--silver)' : '#E74C3C' },
                         { label: 'TREND', val: r.trend ? (r.trend > 0 ? '+' : '') + r.trend + '%' : '\u2014', col: r.trend >= 15 ? '#2ECC71' : r.trend <= -15 ? '#E74C3C' : 'var(--silver)' },
                         { label: 'DEPTH', val: r.p.depth_chart_order != null ? r.pos + (r.p.depth_chart_order + 1) : '\u2014', col: r.p.depth_chart_order != null && r.p.depth_chart_order <= 1 ? '#2ECC71' : 'var(--silver)' },
                       ].map((s, i) => (
                         <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '8px 6px', textAlign: 'center' }}>
-                          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.1rem', fontWeight: 600, color: s.col, letterSpacing: '-0.02em' }}>{s.val}</div>
+                          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '1.1rem', fontWeight: 600, color: s.col, letterSpacing: 0 }}>{s.val}</div>
                           {s.gauge && <div className="wr-gauge" style={{ marginTop: '3px' }}>{Array.from({length: 10}, (_, gi) => <div key={gi} className={'wr-gauge-seg' + (gi < dhqFilled ? ' ' + dhqColor : '')}></div>)}</div>}
                           <div style={{ fontSize: '0.64rem', color: 'var(--silver)', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '2px' }}>{s.label}</div>
                         </div>
@@ -1020,7 +1030,7 @@ function MyTeamTab({
 
                   {/* Physical + Draft Profile */}
                   <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '14px' }}>
-                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Profile</div>
+                    <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Profile</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '4px', fontSize: '0.78rem' }}>
                       <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>Ht </span><span style={{ color: 'var(--white)' }}>{r.p.height ? Math.floor(r.p.height/12)+"'"+r.p.height%12+'"' : '\u2014'}</span></div>
                       <div><span style={{ color: 'var(--silver)', opacity: 0.6 }}>Wt </span><span style={{ color: 'var(--white)' }}>{r.p.weight ? r.p.weight+'lbs' : '\u2014'}</span></div>
@@ -1042,14 +1052,14 @@ function MyTeamTab({
 	                    const ages = Array.from({length: 17}, (_, i) => i + 20);
                     return <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Age Curve</div>
+                        <div style={{ fontFamily: 'var(--font-body)', fontSize: '0.7rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Age Curve</div>
 	                        <div style={{ fontSize: '0.72rem', color: 'var(--silver)' }}>{'Currently age ' + (r.age || '?') + ' \u00B7 ' + r.peakPhase + ' \u00B7 ' + (r.peakYrsLeft > 0 ? '~' + r.peakYrsLeft + ' peak yr left' : r.valueYrsLeft > 0 ? '~' + r.valueYrsLeft + ' value yr left' : 'Past value window')}</div>
                       </div>
                       <div style={{ display: 'flex', height: '22px', borderRadius: '5px', overflow: 'hidden', gap: '1px' }}>
                         {ages.map(a => {
 	                          const col = a < pLo - 3 ? 'rgba(96,165,250,0.3)' : a < pLo ? 'rgba(46,204,113,0.45)' : (a >= pLo && a <= pHi) ? 'rgba(46,204,113,0.75)' : a <= declineHi ? 'rgba(212,175,55,0.45)' : 'rgba(231,76,60,0.35)';
                           const isMe = a === (r.age || 0);
-                          return <div key={a} style={{ flex: 1, background: col, opacity: isMe ? 1 : 0.55, outline: isMe ? '2px solid #D4AF37' : 'none', outlineOffset: '-1px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 700, color: isMe ? '#f0f0f3' : 'transparent' }}>{isMe ? a : ''}</div>;
+                          return <div key={a} style={{ flex: 1, background: col, opacity: isMe ? 1 : 0.55, outline: isMe ? '2px solid #D4AF37' : 'none', outlineOffset: '-1px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 700, color: isMe ? 'var(--text-primary)' : 'transparent' }}>{isMe ? a : ''}</div>;
                         })}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.64rem', color: 'var(--silver)', marginTop: '3px' }}>
@@ -1063,13 +1073,13 @@ function MyTeamTab({
 
                   {/* Action buttons */}
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button onClick={e => { e.stopPropagation(); const playerName = r.p.full_name || getPlayerName(r.pid); setReconPanelOpen(true); sendReconMessage("I'd like help with " + playerName + ". Here are my options:\n1. Who are the best trade partners for " + playerName + "?\n2. What's the long-term projection for " + playerName + "?\n3. Should I hold or sell " + playerName + " right now?"); }} style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', background: 'rgba(124,107,248,0.15)', color: '#9b8afb', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>ASK ALEX</button>
+                    <button onClick={e => { e.stopPropagation(); const playerName = r.p.full_name || getPlayerName(r.pid); setReconPanelOpen(true); sendReconMessage("I'd like help with " + playerName + ". Here are my options:\n1. Who are the best trade partners for " + playerName + "?\n2. What's the long-term projection for " + playerName + "?\n3. Should I hold or sell " + playerName + " right now?"); }} style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'rgba(124,107,248,0.15)', color: '#9b8afb', border: '1px solid rgba(124,107,248,0.3)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>ASK ALEX</button>
                     {/* Phase 2: News button removed per user feedback (2026-04-18) */}
                     {[{tag:'trade',label:'TRADE BLOCK',bg:'rgba(240,165,0,0.15)',col:'#F0A500',border:'rgba(240,165,0,0.3)'},{tag:'cut',label:'CUT',bg:'rgba(231,76,60,0.15)',col:'#E74C3C',border:'rgba(231,76,60,0.3)'},{tag:'untouchable',label:'UNTOUCHABLE',bg:'rgba(46,204,113,0.15)',col:'#2ECC71',border:'rgba(46,204,113,0.3)'},{tag:'watch',label:'WATCH',bg:'rgba(52,152,219,0.15)',col:'#3498DB',border:'rgba(52,152,219,0.3)'}].map(t => {
                       const isActive = window._playerTags?.[r.pid] === t.tag;
-                      return <button key={t.tag} onClick={e => { e.stopPropagation(); const leagueId = currentLeague.id || currentLeague.league_id || ''; const tags = window._playerTags || {}; const wasActive = tags[r.pid] === t.tag; if (wasActive) delete tags[r.pid]; else tags[r.pid] = t.tag; window._playerTags = { ...tags }; if (window.OD?.savePlayerTags) window.OD.savePlayerTags(leagueId, tags); if (!wasActive) { const playerName = r.p.full_name || getPlayerName(r.pid); window.wrLogAction?.('\uD83C\uDFF7\uFE0F', 'Tagged ' + playerName + ' as ' + t.label, 'roster', { players: [{ name: playerName, pid: r.pid }], actionType: 'tag' }); } setTimeRecomputeTs(Date.now()); }} style={{ padding: '7px 12px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif', background: isActive ? t.bg : 'transparent', color: isActive ? t.col : 'var(--silver)', border: '1px solid ' + (isActive ? t.border : 'rgba(255,255,255,0.1)'), borderRadius: '6px', cursor: 'pointer', fontWeight: isActive ? 700 : 400, letterSpacing: '0.03em' }}>{t.label}</button>;
+                      return <button key={t.tag} onClick={e => { e.stopPropagation(); const leagueId = currentLeague.id || currentLeague.league_id || ''; const tags = window._playerTags || {}; const wasActive = tags[r.pid] === t.tag; if (wasActive) delete tags[r.pid]; else tags[r.pid] = t.tag; window._playerTags = { ...tags }; if (window.OD?.savePlayerTags) window.OD.savePlayerTags(leagueId, tags); if (!wasActive) { const playerName = r.p.full_name || getPlayerName(r.pid); window.wrLogAction?.('\uD83C\uDFF7\uFE0F', 'Tagged ' + playerName + ' as ' + t.label, 'roster', { players: [{ name: playerName, pid: r.pid }], actionType: 'tag' }); } setTimeRecomputeTs(Date.now()); }} style={{ padding: '7px 12px', fontSize: '0.72rem', fontFamily: 'var(--font-body)', background: isActive ? t.bg : 'transparent', color: isActive ? t.col : 'var(--silver)', border: '1px solid ' + (isActive ? t.border : 'rgba(255,255,255,0.1)'), borderRadius: '6px', cursor: 'pointer', fontWeight: isActive ? 700 : 400, letterSpacing: '0.03em' }}>{t.label}</button>;
                     })}
-                    <button onClick={e => { e.stopPropagation(); setExpandedPid(null); }} style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif', background: 'transparent', color: 'var(--silver)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>COLLAPSE</button>
+                    <button onClick={e => { e.stopPropagation(); setExpandedPid(null); }} style={{ padding: '7px 16px', fontSize: '0.78rem', fontFamily: 'var(--font-body)', background: 'transparent', color: 'var(--silver)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer' }}>COLLAPSE</button>
                   </div>
                 </div>
               )}

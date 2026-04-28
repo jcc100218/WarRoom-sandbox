@@ -158,7 +158,7 @@
         const lbl = label || 'VIEW';
 
         const btnBase = {
-            padding: '3px 10px', fontSize: '0.7rem', fontFamily: 'Inter, sans-serif',
+            padding: '3px 10px', fontSize: '0.7rem', fontFamily: 'var(--font-body)',
             textTransform: 'uppercase', background: 'rgba(255,255,255,0.04)',
             color: 'var(--silver)', border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: '3px', cursor: 'pointer', letterSpacing: '0.03em',
@@ -166,7 +166,7 @@
         const btnActive = { ...btnBase, background: 'var(--gold)', color: 'var(--black)', border: '1px solid var(--gold)', fontWeight: 700 };
 
         return React.createElement('div', { style: { display: 'inline-flex', gap: '6px', alignItems: 'center', position: 'relative' } },
-            React.createElement('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65, fontFamily: 'Inter, sans-serif' } }, lbl + ':'),
+            React.createElement('span', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.65, fontFamily: 'var(--font-body)' } }, lbl + ':'),
             // View selector (dropdown trigger)
             React.createElement('button', {
                 onClick: () => setMenuOpen(!menuOpen),
@@ -236,7 +236,7 @@
                     onChange: (e) => setSaveDialog({ ...saveDialog, name: e.target.value }),
                     onKeyDown: (e) => { if (e.key === 'Enter') doSaveNew(); if (e.key === 'Escape') setSaveDialog(null); },
                     placeholder: 'View name',
-                    style: { width: '100%', padding: '6px 8px', fontSize: '0.82rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--white)', marginBottom: '8px', fontFamily: 'Inter, sans-serif' }
+                    style: { width: '100%', padding: '6px 8px', fontSize: '0.82rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--white)', marginBottom: '8px', fontFamily: 'var(--font-body)' }
                 }),
                 React.createElement('div', { style: { display: 'flex', gap: '6px', justifyContent: 'flex-end' } },
                     React.createElement('button', { onClick: () => setSaveDialog(null), style: btnBase }, 'Cancel'),

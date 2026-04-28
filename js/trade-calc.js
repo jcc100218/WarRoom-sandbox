@@ -1182,7 +1182,7 @@
                             <div className="tc-team-detail-panel">
                                 <div style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.5rem' }}>
                                     <div style={{ fontWeight:700, fontSize:'0.9rem' }}>{detail.ownerName} <span style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.6, marginLeft:'0.5rem' }}>{detail.teamName}</span></div>
-                                    <button onClick={() => setSelectedAuditTeam(null)} style={{ background:'transparent', border:'1.5px solid var(--gold)', color:'var(--gold)', fontFamily:'Inter, sans-serif', fontSize:'0.7rem', fontWeight:600, padding:'0.32rem 0.65rem', borderRadius:'4px', cursor:'pointer' }}>X Close</button>
+                                    <button onClick={() => setSelectedAuditTeam(null)} style={{ background:'transparent', border:'1.5px solid var(--gold)', color:'var(--gold)', fontFamily: 'var(--font-body)', fontSize:'0.7rem', fontWeight:600, padding:'0.32rem 0.65rem', borderRadius:'4px', cursor:'pointer' }}>X Close</button>
                                 </div>
                                 <div>
                                     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.5rem' }}>
@@ -1296,7 +1296,7 @@
                             {React.createElement(function DnaGuideInline() {
                                 const [guideOpen, setGuideOpen] = React.useState(false);
                                 return React.createElement(React.Fragment, null,
-                                    React.createElement('button', { onClick:()=>setGuideOpen(!guideOpen), style:{fontSize:'0.7rem',color:'var(--gold)',background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.25)',borderRadius:'4px',padding:'2px 8px',cursor:'pointer',fontFamily:'Inter, sans-serif',textTransform:'uppercase',letterSpacing:'0.05em',marginLeft:'6px'} }, guideOpen ? 'Hide DNA Guide' : 'Show DNA Guide'),
+                                    React.createElement('button', { onClick:()=>setGuideOpen(!guideOpen), style:{fontSize:'0.7rem',color:'var(--gold)',background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.25)',borderRadius:'4px',padding:'2px 8px',cursor:'pointer',fontFamily: 'var(--font-body)',textTransform:'uppercase',letterSpacing:'0.05em',marginLeft:'6px'} }, guideOpen ? 'Hide DNA Guide' : 'Show DNA Guide'),
                                     guideOpen ? React.createElement('div', { style:{marginTop:'8px', display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'8px'} },
                                         ...Object.entries(DNA_TYPES).filter(function(e){return e[0]!=='NONE'}).map(function(entry) {
                                             var key=entry[0], d=entry[1];
@@ -1591,7 +1591,7 @@
                     {React.createElement(function DnaGuideInline() {
                         const [guideOpen, setGuideOpen] = React.useState(false);
                         return React.createElement('div', { style:{marginBottom:'0.75rem'} },
-                            React.createElement('button', { onClick:()=>setGuideOpen(!guideOpen), style:{fontSize:'0.76rem',color:'var(--gold)',background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.25)',borderRadius:'6px',padding:'0.4rem 0.8rem',cursor:'pointer',fontFamily:'Inter, sans-serif',textTransform:'uppercase',letterSpacing:'0.04em'} }, guideOpen ? 'Hide DNA Guide' : 'Show DNA Guide'),
+                            React.createElement('button', { onClick:()=>setGuideOpen(!guideOpen), style:{fontSize:'0.76rem',color:'var(--gold)',background:'rgba(212,175,55,0.08)',border:'1px solid rgba(212,175,55,0.25)',borderRadius:'6px',padding:'0.4rem 0.8rem',cursor:'pointer',fontFamily: 'var(--font-body)',textTransform:'uppercase',letterSpacing:'0.04em'} }, guideOpen ? 'Hide DNA Guide' : 'Show DNA Guide'),
                             guideOpen ? React.createElement('div', { style:{marginTop:'0.5rem',display:'grid',gap:'0.5rem'} },
                                 ...Object.entries(DNA_TYPES).filter(function(e){return e[0]!=='NONE'}).map(function(entry) {
                                     var key=entry[0], d=entry[1];
@@ -2273,17 +2273,13 @@
             const _analyzerMode = window._wrAnalyzerMode || 'build';
             return (
                 <div>
-                    <div style={{ display:'flex', gap:'6px', marginBottom:'10px' }}>
+                    <div className="wr-module-toolbar">
+                        <span className="wr-module-toolbar-label">Mode</span>
+                        <div className="wr-module-nav">
                         {['build','find'].map(m => (
-                            <button key={m} onClick={() => { window._wrAnalyzerMode = m; setExpandedDnaOwner(prev => prev); /* trigger re-render via setState noop */ if (typeof setGrudges === 'function') setGrudges(g => [...g]); }} style={{
-                                padding: '5px 12px', fontSize: '0.72rem', fontFamily: 'Inter, sans-serif',
-                                textTransform: 'uppercase', letterSpacing: '0.05em',
-                                background: _analyzerMode === m ? 'rgba(212,175,55,0.18)' : 'rgba(255,255,255,0.04)',
-                                color: _analyzerMode === m ? 'var(--gold)' : 'var(--silver)',
-                                border: '1px solid ' + (_analyzerMode === m ? 'rgba(212,175,55,0.4)' : 'rgba(255,255,255,0.08)'),
-                                borderRadius: '4px', cursor: 'pointer', fontWeight: _analyzerMode === m ? 700 : 400,
-                            }}>{m === 'build' ? 'Build a Trade' : 'Find a Trade'}</button>
+                            <button key={m} className={_analyzerMode === m ? 'is-active' : ''} onClick={() => { window._wrAnalyzerMode = m; setExpandedDnaOwner(prev => prev); /* trigger re-render via setState noop */ if (typeof setGrudges === 'function') setGrudges(g => [...g]); }}>{m === 'build' ? 'Build a Trade' : 'Find a Trade'}</button>
                         ))}
+                        </div>
                     </div>
 
                     {/* FIND mode — auto-generate proposals (ex-Trade Finder tab) */}
@@ -2338,7 +2334,7 @@
                     {/* Verdict */}
                     {hasTrade && (
                         <div className="tc-ta-verdict tc-ta-sticky-summary" id="wr-export-trade">
-                            <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis')} style={{ background:'none', border:'1px solid rgba(212,175,55,0.25)', borderRadius:'4px', padding:'2px 8px', color:'var(--gold)', fontSize:'0.68rem', cursor:'pointer', fontFamily:'Inter, sans-serif' }}>Snapshot</button></div>
+                            <div className="tc-section-hdr" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>TRADE ANALYSIS<button onClick={() => window.wrExport?.capture(document.getElementById('wr-export-trade'), 'trade-analysis')} style={{ background:'none', border:'1px solid rgba(212,175,55,0.25)', borderRadius:'4px', padding:'2px 8px', color:'var(--gold)', fontSize:'0.68rem', cursor:'pointer', fontFamily: 'var(--font-body)' }}>Snapshot</button></div>
                             <div style={{ display:'flex', alignItems:'baseline', gap:'0.6rem', flexWrap:'wrap' }}>
                                 <span className="tc-verdict-diff" style={{ color: verdictColor }}>{diffDisplay}</span>
                                 <span style={{ fontFamily:'Rajdhani, sans-serif', fontSize:'1.1rem', color: verdictColor }}>{verdictText}</span>
@@ -2449,7 +2445,7 @@
                         <div style={{ fontSize:'0.76rem', color:'var(--silver)', opacity:0.655, lineHeight:1.5 }}>
                             Recent trades analyzed with DHQ values and fairness grades.
                         </div>
-                        <select value={inboxTeamFilter} onChange={e => setInboxTeamFilter(e.target.value)} style={{ padding:'4px 8px', fontSize:'0.74rem', fontFamily:'Inter, sans-serif', background:'var(--charcoal)', border:'1px solid rgba(212,175,55,0.2)', borderRadius:'4px', color:'var(--silver)', cursor:'pointer' }}>
+                        <select value={inboxTeamFilter} onChange={e => setInboxTeamFilter(e.target.value)} style={{ padding:'4px 8px', fontSize:'0.74rem', fontFamily: 'var(--font-body)', background:'var(--charcoal)', border:'1px solid rgba(212,175,55,0.2)', borderRadius:'4px', color:'var(--silver)', cursor:'pointer' }}>
                             <option value="all">All Teams</option>
                             {allRosters.map(r => <option key={r.roster_id} value={r.roster_id}>{ownerNameForRosterId(r.roster_id) || 'Team ' + r.roster_id}</option>)}
                         </select>
@@ -2460,7 +2456,7 @@
                                 <React.Fragment>
                                     <div className="ld"><span>.</span><span>.</span><span>.</span></div>
                                     <div style={{ marginTop:'8px' }}>Loading trade history from DHQ engine...</div>
-                                    <button onClick={() => { setTimeout(() => setTcTab('inbox'), 50); setTcTab('dna'); }} style={{ marginTop:'12px', padding:'6px 14px', background:'rgba(212,175,55,0.12)', color:'var(--gold)', border:'1px solid rgba(212,175,55,0.25)', borderRadius:'6px', fontFamily:'Inter, sans-serif', fontSize:'0.78rem', cursor:'pointer' }}>Retry</button>
+                                    <button onClick={() => { setTimeout(() => setTcTab('inbox'), 50); setTcTab('dna'); }} style={{ marginTop:'12px', padding:'6px 14px', background:'rgba(212,175,55,0.12)', color:'var(--gold)', border:'1px solid rgba(212,175,55,0.25)', borderRadius:'6px', fontFamily: 'var(--font-body)', fontSize:'0.78rem', cursor:'pointer' }}>Retry</button>
                                 </React.Fragment>
                             )}
                         </div>
@@ -2560,7 +2556,7 @@
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.5 }}>{t.healthScore} health {'\u00B7'} {t.wins}-{t.losses} {'\u00B7'} {t.tier}</span>
                         {showCTA && <React.Fragment>
-                            <button onClick={() => { const targetRoster = allRosters.find(r => r.roster_id === t.rosterId); const topPid = (targetRoster?.players || []).map(pid => ({ pid, val: getPlayerValue(pid).value })).filter(p => p.val > 0).sort((a, b) => b.val - a.val)[0]; setSelectedDealPartnerId(t.ownerId); setDealMode('acquire'); if (topPid) { setDealFocusPid(topPid.pid); setFinderAutoTarget({ pid: topPid.pid, mode: 'acquire' }); } setTcTab('dealhq'); }} style={{ marginLeft: 'auto', padding: '5px 12px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '4px', fontFamily: 'Inter, sans-serif', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 700 }}>GENERATE TRADES</button>
+                            <button onClick={() => { const targetRoster = allRosters.find(r => r.roster_id === t.rosterId); const topPid = (targetRoster?.players || []).map(pid => ({ pid, val: getPlayerValue(pid).value })).filter(p => p.val > 0).sort((a, b) => b.val - a.val)[0]; setSelectedDealPartnerId(t.ownerId); setDealMode('acquire'); if (topPid) { setDealFocusPid(topPid.pid); setFinderAutoTarget({ pid: topPid.pid, mode: 'acquire' }); } setTcTab('dealhq'); }} style={{ marginLeft: 'auto', padding: '5px 12px', background: 'var(--gold)', color: 'var(--black)', border: 'none', borderRadius: '4px', fontFamily: 'var(--font-body)', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 700 }}>GENERATE TRADES</button>
                         </React.Fragment>}
                     </div>
                 </div>
@@ -2568,7 +2564,13 @@
 
             return (
                 <div style={{ padding: '20px 24px', maxWidth: '1000px', margin: '0 auto' }} className="wr-fade-in">
-                    <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' }}>INTELLIGENCE BRIEFING</div>
+                    <div className="wr-module-strip">
+                        <div className="wr-module-context">
+                            <span>Trade</span>
+                            <strong>Intelligence Briefing</strong>
+                            <em>Best partners, leverage spots, and low-probability paths.</em>
+                        </div>
+                    </div>
 
                     {/* Strategy summary */}
                     <div style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '10px', padding: '14px 18px', marginBottom: '20px', fontSize: '0.85rem', color: 'var(--silver)', lineHeight: 1.7 }}>
@@ -2632,20 +2634,27 @@
         // Deal HQ is now the primary Trade Center surface. Owner Profiles and
         // the manual analyzer remain available as supporting views.
         const _activeTcTab = tcTab === 'analyzer' ? 'analyzer' : (tcTab === 'profiles' || tcTab === 'dna') ? 'profiles' : 'dealhq';
+        const _tcTabLabels = { dealhq: 'Deal HQ', profiles: 'Owner Profiles', analyzer: 'Trade Analyzer' };
+        const _tcTabContext = {
+            dealhq: 'Ranked partners, generated packages, and saved deal flow.',
+            profiles: 'Owner posture, roster gaps, pick context, and trade history.',
+            analyzer: 'Manual player, pick, and FAAB inspection.'
+        };
         return (
             <div style={{ padding: 'var(--card-pad, 14px 16px)' }}>
-                <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '2rem', fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.06em', marginBottom: '4px' }}>TRADE CENTER</div>
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
+                <div className="wr-module-strip">
+                    <div className="wr-module-context">
+                        <span>Trade</span>
+                        <strong>{_tcTabLabels[_activeTcTab]}</strong>
+                        <em>{_tcTabContext[_activeTcTab]}</em>
+                    </div>
+                    <div className="wr-module-actions">
+                    <div className="wr-module-nav">
                     {['dealhq','profiles','analyzer'].map(tab => (
-                        <button key={tab} onClick={() => setTcTab(tab)} style={{
-                            padding: '6px 14px', fontSize: '0.78rem', fontFamily: 'Inter, sans-serif',
-                            textTransform: 'uppercase', letterSpacing: '0.04em',
-                            background: _activeTcTab === tab ? 'var(--gold)' : 'rgba(255,255,255,0.04)',
-                            color: _activeTcTab === tab ? 'var(--black)' : 'var(--silver)',
-                            border: '1px solid ' + (_activeTcTab === tab ? 'var(--gold)' : 'rgba(255,255,255,0.08)'),
-                            borderRadius: '4px', cursor: 'pointer'
-                        }}>{({dealhq:'Deal HQ',profiles:'Owner Profiles',analyzer:'Trade Analyzer'})[tab]}</button>
+                        <button key={tab} className={_activeTcTab === tab ? 'is-active' : ''} onClick={() => setTcTab(tab)}>{_tcTabLabels[tab]}</button>
                     ))}
+                    </div>
+                    </div>
                 </div>
                 {_activeTcTab === 'dealhq' && (canAccess('trade-finder') ? renderDealHQ() : React.createElement(UpgradeGate, { feature:'trade-finder', title:'UNLOCK DEAL HQ', description:'Generate advisory trade packages with partner fit, owner psychology, pick capital, FAAB, and roster impact.', targetTier:'warroom' }))}
                 {_activeTcTab === 'profiles' && (canAccess('owner-dna') ? renderOwnerDna() : React.createElement(UpgradeGate, { feature:'owner-dna', title:'UNLOCK OWNER DNA', description:'Profile every manager\'s trading psychology. Know who\'s a Fleecer, who\'s Desperate, and exactly how to approach each trade conversation.', targetTier:'warroom' }))}
