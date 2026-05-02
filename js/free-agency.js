@@ -329,10 +329,10 @@
         }
 
         function gradeForStatus(status) {
-            if (status === 'surplus') return { grade: 'A', color: '#2ECC71', weight: 3 };
-            if (status === 'ok') return { grade: 'B', color: 'var(--silver)', weight: 2 };
-            if (status === 'thin') return { grade: 'C', color: '#F0A500', weight: 1 };
-            return { grade: 'D', color: '#E74C3C', weight: 0 };
+            if (status === 'surplus') return { grade: 'A', label: 'Surplus', color: '#2ECC71', bg: 'rgba(46,204,113,0.12)', weight: 3 };
+            if (status === 'ok') return { grade: 'B', label: 'OK', color: 'var(--silver)', bg: 'rgba(255,255,255,0.06)', weight: 2 };
+            if (status === 'thin') return { grade: 'C', label: 'Thin', color: '#F0A500', bg: 'rgba(240,165,0,0.10)', weight: 1 };
+            return { grade: 'D', label: 'Deficit', color: '#E74C3C', bg: 'rgba(231,76,60,0.10)', weight: 0 };
         }
 
         function rosterNeedsPosition(roster, pos) {
@@ -577,18 +577,13 @@
                             <div className="fa-hq-subhead">Roster Gap Matrix</div>
                             <div className="fa-hq-gap-matrix">
                                 {rosterGapRows.map(row => (
-                                    <div key={row.pos}>
+                                    <div key={row.pos} style={{ background: row.bg }}>
                                         <span style={{ color: posColors[row.pos] || row.color }}>{row.pos}</span>
-                                        <strong style={{ color: row.color }}>{row.grade}</strong>
+                                        <strong className="fa-gap-badge" style={{ color: row.color, borderColor: row.color }}>{row.label}</strong>
                                         <em>{row.data.nflStarters || Math.min(row.data.actual || 0, row.data.minQuality || row.data.startingReq || 0)}/{row.data.minQuality || row.data.startingReq || 0}</em>
-                                        <i>{row.bestWire ? playerName(row.bestWire.p) : 'No wire target'}</i>
+                                        <i>{row.bestWire ? playerName(row.bestWire.p) : '—'}</i>
                                     </div>
                                 ))}
-                            </div>
-                            <div className="fa-hq-chipline">
-                                {deficitChips.map(pos => <span key={'d'+pos} className="is-bad">DEF {pos}</span>)}
-                                {thinChips.map(pos => <span key={'t'+pos}>THIN {pos}</span>)}
-                                {(assess?.strengths || []).map(pos => <span key={'s'+pos} className="is-good">PLUS {pos}</span>)}
                             </div>
                         </aside>
                     </div>
