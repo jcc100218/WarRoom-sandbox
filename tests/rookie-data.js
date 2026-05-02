@@ -83,7 +83,8 @@ group('shared script resolver');
 
 test('War Room root uses shared-loader for ReconAI shared modules', () => {
   ok(rootIndex.includes('js/shared/shared-loader.js'), 'root shared-loader tag missing');
-  ok(rootIndex.includes("WRShared.loadMany(["), 'root shared loadMany call missing');
+  ok(rootIndex.includes('WRShared.loadMany('), 'root shared loadMany call missing');
+  ok(rootIndex.includes('WR_SHARED_FILES'), 'root shared file registry missing');
   ok(rootIndex.includes("'rookie-data.js'"), 'root rookie-data shared load missing');
   ok(!rootIndex.includes('https://jcc100218.github.io/ReconAI/shared/'), 'root still hardcodes remote shared scripts');
 });

@@ -9,6 +9,7 @@ const SOURCE = path.resolve(ROOT, '..', 'reconai', 'shared');
 const TARGET = path.join(ROOT, 'reconai-shared');
 
 const FILES = [
+  'app-config.js',
   'constants.js',
   'utils.js',
   'storage.js',

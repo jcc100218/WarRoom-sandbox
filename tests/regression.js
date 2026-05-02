@@ -160,7 +160,8 @@ group('live platform gate');
 test('live loader keeps non-Sleeper connector files sandbox-only', () => {
   sourceHas(indexHtml, 'const WR_PLATFORM_SANDBOX_ACCESS', 'sandbox platform flag missing from loader');
   sourceHas(indexHtml, "'sleeper-api.js',", 'Sleeper connector must remain in live loader');
-  sourceHas(indexHtml, "if (WR_PLATFORM_SANDBOX_ACCESS) WR_SHARED_FILES.splice(6, 0, 'espn-api.js', 'mfl-api.js', 'yahoo-api.js');", 'beta connectors must be gated behind sandbox flag');
+  sourceHas(indexHtml, "'app-config.js',", 'shared backend config must load before backend-backed modules');
+  sourceHas(indexHtml, "if (WR_PLATFORM_SANDBOX_ACCESS) WR_SHARED_FILES.splice(7, 0, 'espn-api.js', 'mfl-api.js', 'yahoo-api.js');", 'beta connectors must be gated behind sandbox flag');
   ok(!/WRShared\.loadMany\(\[[\s\S]*'espn-api\.js'/.test(indexHtml), 'ESPN connector should not be in unconditional live loadMany list');
 });
 

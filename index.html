@@ -1509,11 +1509,12 @@
     <div id="root"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.101.1/dist/umd/supabase.min.js"></script>
-<script src="js/shared/shared-loader.js?v=20260502a"></script>
+<script src="js/shared/shared-loader.js?v=20260502b"></script>
 <script>
 const WR_PLATFORM_SANDBOX_ACCESS = (window.location.hostname || '').includes('sandbox')
   || ['localhost', '127.0.0.1'].includes(window.location.hostname || '');
 const WR_SHARED_FILES = [
+  'app-config.js',
   'constants.js',
   'utils.js',
   'storage.js',
@@ -1537,7 +1538,7 @@ const WR_SHARED_FILES = [
   'player-modal.js',
   'rookie-data.js',
 ];
-if (WR_PLATFORM_SANDBOX_ACCESS) WR_SHARED_FILES.splice(6, 0, 'espn-api.js', 'mfl-api.js', 'yahoo-api.js');
+if (WR_PLATFORM_SANDBOX_ACCESS) WR_SHARED_FILES.splice(7, 0, 'espn-api.js', 'mfl-api.js', 'yahoo-api.js');
 WRShared.loadMany(WR_SHARED_FILES);
 </script>
 <!-- Preserve shared/tier.js canAccess before core.js hoists its own canAccess over window.canAccess -->
