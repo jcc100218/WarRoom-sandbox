@@ -600,7 +600,7 @@ function TrophyRoomTab({ currentLeague, playersData, myRoster, sleeperUserId }) 
                     ))
                 ),
             // Add form (scope-aware)
-            React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1.5fr 1fr 0.6fr auto', gap: '6px' } },
+            React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '6px' } },
                 React.createElement('input', { value: hofDraft.scope === scope ? hofDraft.name : '', onChange: e => setHofDraft({ ...hofDraft, scope, name: e.target.value }), placeholder: scope === 'team' ? 'Player or moment name' : 'Player, team, or moment', style: { padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--white)', fontSize: '0.76rem', fontFamily: 'inherit' } }),
                 React.createElement('input', { value: hofDraft.scope === scope ? hofDraft.category : '', onChange: e => setHofDraft({ ...hofDraft, scope, category: e.target.value }), placeholder: 'Category (e.g., QB, Draft Steal)', style: { padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--white)', fontSize: '0.76rem', fontFamily: 'inherit' } }),
                 React.createElement('input', { type: 'number', value: hofDraft.scope === scope ? hofDraft.year : '', onChange: e => setHofDraft({ ...hofDraft, scope, year: e.target.value }), placeholder: 'Year', style: { padding: '6px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'var(--white)', fontSize: '0.76rem', fontFamily: 'inherit' } }),
@@ -1041,7 +1041,7 @@ Make it feel like a real sports story. Give it a compelling headline. End with a
 
     return React.createElement('div', { style: { padding: '0' } },
         // Tab toolbar — view toggle on the left, Season Recap CTA on the right (League view only)
-        React.createElement('div', { style: { display: 'flex', gap: '6px', marginBottom: '12px', overflowX: 'auto', scrollbarWidth: 'none', alignItems: 'center' } },
+        React.createElement('div', { style: { display: 'flex', gap: '6px', marginBottom: '12px', overflowX: 'visible', scrollbarWidth: 'none', alignItems: 'center', flexWrap: 'wrap' } },
             tabBtn('League', 'league'),
             tabBtn('My Trophies', 'personal', () => { setView('personal'); if (!selectedOwner) setSelectedOwner(myRoster?.roster_id); }),
             tabBtn('All-Time', 'alltime'),

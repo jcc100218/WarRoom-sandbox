@@ -1,8 +1,8 @@
 // ══════════════════════════════════════════════════════════════════
 // draft-room.js — DraftTab component (Flash Brief, Big Board)
 // ══════════════════════════════════════════════════════════════════
-    const WR_KEYS  = window.App.WR_KEYS;
-    const WrStorage = window.App.WrStorage;
+    const DRAFT_WR_KEYS  = window.App.WR_KEYS;
+    const DraftStorage = window.App.WrStorage;
     // ══════════════════════════════════════════════════════════════════════════
     // END FREE AGENCY TAB
     // ══════════════════════════════════════════════════════════════════════════
@@ -17,7 +17,7 @@
         const [draftSort, setDraftSort] = useState({ key: 'dhq', dir: -1 });
         const [draftView, setDraftView] = useState('command'); // 'command' | 'board' | 'mock' | 'live'
         const [draftInfo, setDraftInfo] = useState(null);
-        const [boardData, setBoardData] = useState(() => WrStorage.get(WR_KEYS.BIGBOARD(currentLeague.id || ''), null));
+        const [boardData, setBoardData] = useState(() => DraftStorage.get(DRAFT_WR_KEYS.BIGBOARD(currentLeague.id || ''), null));
         const [draftedPids, setDraftedPids] = useState(new Set());
         const [boardNotes, setBoardNotes] = useState({});
         const [boardTags, setBoardTags] = useState({}); // pid -> 'target'|'avoid'|'sleeper'|'must'
@@ -290,7 +290,7 @@
 
         // Auto-save board data to localStorage on changes
         useEffect(() => {
-            WrStorage.set(WR_KEYS.BIGBOARD(currentLeague.id || ''),
+            DraftStorage.set(DRAFT_WR_KEYS.BIGBOARD(currentLeague.id || ''),
                 { tags: boardTags, notes: boardNotes, drafted: Array.from(draftedPids), myOrder: myBoardOrder });
         }, [boardTags, boardNotes, draftedPids, myBoardOrder, currentLeague.id]);
 

@@ -140,10 +140,17 @@ const dnaFnSrc = extractFunction(tradeCalcSrc, 'function computeWeightedDNA(rost
 vm.runInContext(`var allRosters = []; ${dnaFnSrc}`, ctx);
 process.stdout.write('OK\n\n');
 
+process.stdout.write('  Extracting buildEmpirePortfolioModel … ');
+const globalViewSrc = fs.readFileSync(path.join(ROOT, 'js/tabs/global-view.js'), 'utf8');
+const empireModelSrc = extractFunction(globalViewSrc, 'function buildEmpirePortfolioModel(input)');
+vm.runInContext(empireModelSrc, ctx);
+process.stdout.write('OK\n\n');
+
 // ── Grab references from context ──────────────────────────────────
 const { normPos, calcRawPts, calcPPG }                         = ctx.App;
 const { getPickValue, projectPlayerValue, PICK_VALUES }        = ctx.App.PlayerValue;
 const computeWeightedDNA                                       = ctx.computeWeightedDNA;
+const buildEmpirePortfolioModel                                = ctx.buildEmpirePortfolioModel;
 // getUserTier / canAccess are top-level function declarations in core.js
 const getUserTier = ctx.getUserTier;
 const canAccess   = ctx.canAccess;
@@ -575,6 +582,126 @@ test('confidence always in [0, 92]',
 test('source integrity: computeWeightedDNA signature unchanged in trade-calc.js',
   () => ok(tradeCalcSrc.includes('function computeWeightedDNA(rosterId)'),
            'function signature not found — update this test if function was renamed'));
+
+// ══════════════════════════════════════════════════════════════════
+// 9. buildEmpirePortfolioModel
+// ══════════════════════════════════════════════════════════════════
+group('buildEmpirePortfolioModel');
+
+function empireFixture(overrides) {
+  const base = {
+    sleeperUserId: 'u1',
+    nowYear: 2026,
+    normPos,
+    posColors: { QB: '#E74C3C', RB: '#2ECC71', WR: '#3498DB', TE: '#F0A500' },
+    scores: { p1: 8000, p2: 5000, p3: 1000, p4: 2200 },
+    playersData: {
+      p1: { full_name: 'Jalen Hurts', position: 'QB', age: 30, team: 'PHI' },
+      p2: { full_name: 'Bijan Robinson', position: 'RB', age: 24, team: 'ATL' },
+      p3: { full_name: 'Veteran Tight End', position: 'TE', age: 34, team: 'FA' },
+      p4: { full_name: 'Rookie Wideout', position: 'WR', age: 22, team: 'NYG' },
+    },
+    getAgeCurve: pos => ({
+      QB: { build: [23, 27], peak: [28, 34], decline: [35, 38] },
+      RB: { build: [21, 22], peak: [23, 25], decline: [26, 28] },
+      WR: { build: [22, 24], peak: [25, 28], decline: [29, 31] },
+      TE: { build: [23, 25], peak: [26, 29], decline: [30, 32] },
+    }[pos] || { build: [22, 24], peak: [24, 29], decline: [30, 32] }),
+    tradeValueTier: val => {
+      if (val >= 7000) return { tier: 'Elite', col: '#2ECC71' };
+      if (val >= 4000) return { tier: 'Starter', col: '#3498DB' };
+      if (val >= 2000) return { tier: 'Depth', col: '#D4AF37' };
+      if (val > 0) return { tier: 'Stash', col: 'rgba(255,255,255,0.58)' };
+      return { tier: 'Unscored', col: 'rgba(255,255,255,0.38)' };
+    },
+    assessTeam: rid => rid === 1
+      ? { healthScore: 82, tier: 'CONTENDER', needs: [{ pos: 'WR' }], strengths: ['QB'] }
+      : { healthScore: 34, tier: 'REBUILDING', needs: ['RB'], strengths: ['Picks'] },
+    allLeagues: [
+      {
+        id: 'l1',
+        name: 'Alpha',
+        season: '2026',
+        settings: { draft_rounds: 4 },
+        rosters: [
+          { roster_id: 1, owner_id: 'u1', players: ['p1', 'p2', 'p3'], settings: { wins: 8, losses: 3 } },
+          { roster_id: 2, owner_id: 'u2', players: [], settings: { wins: 3, losses: 8 } },
+        ],
+        tradedPicks: [
+          { season: '2026', round: 1, roster_id: 1, owner_id: 2 },
+          { season: '2026', round: 2, roster_id: 2, owner_id: 1 },
+        ],
+      },
+      {
+        id: 'l2',
+        name: 'Beta',
+        season: '2026',
+        settings: { draft_rounds: 4 },
+        rosters: [
+          { roster_id: 3, owner_id: 'u1', players: ['p1', 'p4'], settings: { wins: 1, losses: 10 } },
+          { roster_id: 4, owner_id: 'u3', players: [], settings: { wins: 10, losses: 1 } },
+        ],
+        tradedPicks: [],
+      },
+    ],
+    liLoaded: true,
+  };
+  return Object.assign({}, base, overrides || {});
+}
+
+test('counts multi-league exposure by player',
+  () => {
+    const m = buildEmpirePortfolioModel(empireFixture());
+    const hurts = m.exposure.find(p => p.pid === 'p1');
+    ok(hurts, 'expected Jalen Hurts exposure row');
+    eq(hurts.count, 2);
+    eq(hurts.exposurePct, 100);
+    eq(m.totals.exposureCount, 1);
+  });
+
+test('allocates positions by DHQ share when values are loaded',
+  () => {
+    const m = buildEmpirePortfolioModel(empireFixture());
+    const qb = m.positionAllocation.find(p => p.key === 'QB');
+    const rb = m.positionAllocation.find(p => p.key === 'RB');
+    ok(qb && rb, 'expected QB and RB allocation rows');
+    eq(qb.dhq, 16000);
+    near(qb.share, 66, 1, 'QB share should use DHQ, not count');
+    near(rb.share, 21, 1, 'RB share should reflect DHQ share');
+  });
+
+test('places assets into build, peak, and post-window buckets',
+  () => {
+    const m = buildEmpirePortfolioModel(empireFixture());
+    const build = m.ageAllocation.find(a => a.key === 'build');
+    const peak = m.ageAllocation.find(a => a.key === 'peak');
+    const post = m.ageAllocation.find(a => a.key === 'post');
+    ok(build && peak && post, 'expected build, peak, and post age buckets');
+    eq(build.count, 1);
+    eq(peak.count, 3);
+    eq(post.count, 1);
+  });
+
+test('summarizes own, acquired, and premium draft capital',
+  () => {
+    const m = buildEmpirePortfolioModel(empireFixture());
+    const alpha = m.provinces.find(p => p.id === 'l1');
+    ok(alpha, 'expected Alpha league');
+    eq(alpha.pickCount, 12);
+    eq(alpha.ownPickCount, 11);
+    eq(alpha.acquiredPickCount, 1);
+    eq(alpha.premiumPickCount, 6);
+    eq(m.pickCapital.byYear.find(y => y.year === 2026).premium, 4);
+  });
+
+test('marks DHQ as degraded when LI loaded but owned assets are unvalued',
+  () => {
+    const m = buildEmpirePortfolioModel(empireFixture({ scores: {} }));
+    const dhq = m.dataQuality.items.find(i => i.key === 'dhq');
+    ok(dhq, 'expected DHQ quality item');
+    eq(dhq.status, 'degraded');
+    eq(m.totals.useValueShare, false);
+  });
 
 // ══════════════════════════════════════════════════════════════════
 // Summary

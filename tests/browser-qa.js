@@ -76,6 +76,7 @@ async function layoutSnapshot(page) {
       if (!rect.width || !rect.height) return;
       const style = window.getComputedStyle(el);
       if (style.visibility === 'hidden' || style.display === 'none') return;
+      if (rect.right <= 2 && rect.left < 0) return;
       if (rect.left < -2 || rect.right > window.innerWidth + 2) {
         clipped.push({
           tag: el.tagName.toLowerCase(),
@@ -161,6 +162,59 @@ async function main() {
       }
     });
     await page.close();
+    checked++;
+    process.stdout.write('.');
+
+    const empirePage = await context.newPage();
+    await empirePage.setViewportSize({ width: 1365, height: 900 });
+    await empirePage.goto(`http://127.0.0.1:${port}${BASE_PATH}?dev=true&user=${USER}`, { waitUntil: 'domcontentloaded', timeout: 12000 });
+    const launch = empirePage.getByText('Launch Empire Dashboard', { exact: true });
+    await launch.waitFor({ state: 'visible', timeout: 12000 }).catch(() => {});
+    if (await launch.count() !== 1) {
+      failures.push('empire-launch: Launch Empire Dashboard control not found');
+    } else {
+      await launch.click();
+      await empirePage.waitForTimeout(1200);
+      if (await empirePage.getByTestId('empire-root').count() !== 1) {
+        failures.push('empire-launch: Empire root did not render');
+      }
+      if (await empirePage.getByTestId('empire-command-strip').count() !== 1) {
+        failures.push('empire-launch: command strip did not render');
+      }
+      const empireSnap = await layoutSnapshot(empirePage);
+      if (empireSnap.rootTextLength < 80) {
+        failures.push('empire-launch: Empire rendered too little content');
+      }
+      if (empireSnap.scrollWidth > empireSnap.innerWidth + 2) {
+        failures.push(`empire-launch: horizontal overflow ${empireSnap.scrollWidth} > ${empireSnap.innerWidth}`);
+      }
+      const postWindow = empirePage.getByRole('button', { name: 'Post-window', exact: true });
+      if (await postWindow.count() > 0) {
+        await postWindow.first().click();
+        await empirePage.waitForTimeout(300);
+        const hasClear = await empirePage.getByText('Clear 1', { exact: true }).count();
+        const hasEmpty = await empirePage.getByTestId('empire-empty-state').count();
+        const hasRows = await empirePage.getByTestId('empire-asset-row').count();
+        if (!hasClear && !hasEmpty && !hasRows) {
+          failures.push('empire-filter: filter did not produce changed content, rows, or empty state');
+        }
+      }
+      await empirePage.getByText('Clear 1', { exact: true }).click().catch(() => {});
+      await empirePage.waitForTimeout(300);
+      const rowCount = await empirePage.getByTestId('empire-asset-row').count();
+      if (rowCount > 0) {
+        await empirePage.getByTestId('empire-asset-row').first().click();
+        await empirePage.waitForTimeout(300);
+        if (await empirePage.getByText('Player Portfolio', { exact: true }).count() < 1) {
+          failures.push('empire-drilldown: player detail did not open');
+        }
+        const back = empirePage.getByRole('button', { name: '<', exact: true });
+        if (await back.count() > 0) await back.first().click();
+      } else {
+        failures.push('empire-drilldown: no asset rows available to open');
+      }
+    }
+    await empirePage.close();
     checked++;
     process.stdout.write('.');
   } finally {

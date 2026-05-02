@@ -1,8 +1,8 @@
 // ══════════════════════════════════════════════════════════════════
 // components.js — Shared UI components (UpgradeGate, GMMessage, etc.)
 // ══════════════════════════════════════════════════════════════════
-    const WR_KEYS  = window.App.WR_KEYS;
-    const WrStorage = window.App.WrStorage;
+    const COMPONENTS_WR_KEYS  = window.App.WR_KEYS;
+    const ComponentsStorage = window.App.WrStorage;
     function UpgradeGate({ feature, title, description, targetTier, children, onClose }) {
         const tier = getUserTier();
         const hasAccess = canAccess(feature);
@@ -211,10 +211,10 @@
         { id: 'scout', label: 'The Scout', src: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&h=120&fit=crop&crop=face' },
     ];
     function getAlexAvatar() {
-        return WrStorage.get(WR_KEYS.ALEX_AVATAR, 'badge') || 'badge';
+        return ComponentsStorage.get(COMPONENTS_WR_KEYS.ALEX_AVATAR, 'badge') || 'badge';
     }
     function setAlexAvatar(id) {
-        WrStorage.set(WR_KEYS.ALEX_AVATAR, id);
+        ComponentsStorage.set(COMPONENTS_WR_KEYS.ALEX_AVATAR, id);
     }
     function AlexAvatar({ size }) {
         const sz = size || 28;
@@ -709,5 +709,3 @@
         localStorage.removeItem(AUTH_KEY);
         if (!newSession?.token) window.location.href = 'landing.html';
     }
-
-    const { useState, useEffect, useRef, useMemo, useCallback } = React;

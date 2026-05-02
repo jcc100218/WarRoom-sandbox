@@ -2,8 +2,8 @@
 // app.js — OwnerDashboard (root component) + ReactDOM.render
 // Must load LAST — depends on all other modules.
 // ══════════════════════════════════════════════════════════════════
-    const WR_KEYS  = window.App.WR_KEYS;
-    const WrStorage = window.App.WrStorage;
+    const APP_WR_KEYS  = window.App.WR_KEYS;
+    const AppStorage = window.App.WrStorage;
     const WR_HOST = window.location.hostname || '';
     const PLATFORM_SANDBOX_ACCESS = WR_HOST.includes('sandbox') || ['localhost', '127.0.0.1'].includes(WR_HOST);
     const MFL_SANDBOX_ACCESS = PLATFORM_SANDBOX_ACCESS;
@@ -421,8 +421,8 @@
             setActiveLeagueId(league.id);
             setSelectedLeague(league);
             setActiveTab(route.tab || 'dashboard');
-            WrStorage.set(WR_KEYS.LAST_LEAGUE_ID, league.id);
-            WrStorage.set(WR_KEYS.LAST_LEAGUE_NAME, league.name);
+            AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_ID, league.id);
+            AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_NAME, league.name);
             history.replaceState(
                 { view: 'league', leagueId: league.id, tab: route.tab || 'dashboard' },
                 '',
@@ -541,8 +541,8 @@
         }
 
         // ── Shared helpers ──
-        const lastLeagueId = WrStorage.get(WR_KEYS.LAST_LEAGUE_ID);
-        const lastLeagueName = WrStorage.get(WR_KEYS.LAST_LEAGUE_NAME);
+        const lastLeagueId = AppStorage.get(APP_WR_KEYS.LAST_LEAGUE_ID);
+        const lastLeagueName = AppStorage.get(APP_WR_KEYS.LAST_LEAGUE_NAME);
         const displayName = sleeperUser
             ? (customDisplayName || sleeperUser.display_name || sleeperUser.username || sleeperUsername).toUpperCase()
             : (customDisplayName || 'COMMANDER').toUpperCase();
@@ -659,8 +659,8 @@
             setActiveLeagueId(league.id);
             setSelectedLeague(league);
             setActiveTab('dashboard');
-            WrStorage.set(WR_KEYS.LAST_LEAGUE_ID, league.id);
-            WrStorage.set(WR_KEYS.LAST_LEAGUE_NAME, league.name);
+            AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_ID, league.id);
+            AppStorage.set(APP_WR_KEYS.LAST_LEAGUE_NAME, league.name);
             if (!isNavigatingRef.current) {
                 history.pushState({ view: 'league', leagueId: league.id, tab: 'dashboard' }, '', routeUrl(buildHash(league.id, 'dashboard')));
             }
@@ -818,7 +818,7 @@
                                 <div className="hub-connect-card">
                                     <input id="wr-sleeper-input" placeholder="Sleeper username" onKeyDown={e => { if (e.key === 'Enter') { const v = e.target.value.trim(); if (v) { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:v})); window.location.reload(); } } }} />
                                     <button className="hub-cta gold" onClick={() => { const v = document.getElementById('wr-sleeper-input')?.value?.trim(); if (v) { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:v})); window.location.reload(); } }}>CONNECT</button>
-                                    <button className="hub-cta ghost" style={{ marginTop: '6px' }} onClick={() => { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:'jcc100218'})); WrStorage.set(WR_KEYS.DEMO_MODE, '1'); window.location.reload(); }}>Demo League</button>
+                                    <button className="hub-cta ghost" style={{ marginTop: '6px' }} onClick={() => { localStorage.setItem('od_auth_v1', JSON.stringify({sleeperUsername:'jcc100218'})); AppStorage.set(APP_WR_KEYS.DEMO_MODE, '1'); window.location.reload(); }}>Demo League</button>
                                 </div>
                             ) : (
                                 <>

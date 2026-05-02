@@ -2,8 +2,8 @@
 // league-detail.js — LeagueDetail: Dashboard, My Team, League Map, Analytics
 // This is the main app shell after selecting a league.
 // ══════════════════════════════════════════════════════════════════
-    const WR_KEYS  = window.App.WR_KEYS;
-    const WrStorage = window.App.WrStorage;
+    const LEAGUE_WR_KEYS  = window.App.WR_KEYS;
+    const LeagueStorage = window.App.WrStorage;
 
     function escapeHtml(str) {
         return String(str)
@@ -76,7 +76,7 @@
         // Single source of truth. All modules read timeYear and derived helpers.
         const currentSeason = parseInt(league.season) || new Date().getFullYear();
         const [timeYear, setTimeYear] = useState(() => {
-            const saved = WrStorage.get(WR_KEYS.TIME_YEAR);
+            const saved = LeagueStorage.get(LEAGUE_WR_KEYS.TIME_YEAR);
             return saved !== null ? parseInt(saved) : currentSeason;
         });
         const [timeLoading, setTimeLoading] = useState(false);
@@ -187,7 +187,7 @@
         for (let y = leagueStartYear; y <= currentSeason + 2; y++) timeYears.push(y);
 
         // Persist time year
-        useEffect(() => { WrStorage.set(WR_KEYS.TIME_YEAR, String(timeYear)); }, [timeYear]);
+        useEffect(() => { LeagueStorage.set(LEAGUE_WR_KEYS.TIME_YEAR, String(timeYear)); }, [timeYear]);
 
         // Validate shared dependencies from ReconAI CDN
         useEffect(() => {
@@ -442,7 +442,7 @@
         const [rosterSort, setRosterSort] = useState({ key: 'dhq', dir: 1 });
         const defaultRosterCols = ['pos','age','dhq','posRankLg','ppg','durability','peak','action','sos'];
         const [visibleCols, setVisibleCols] = useState(() => {
-            const stored = WrStorage.get(WR_KEYS.ROSTER_COLS);
+            const stored = LeagueStorage.get(LEAGUE_WR_KEYS.ROSTER_COLS);
             const legacyDefault = ['pos','age','dhq','ppg','trend','action'];
             if (Array.isArray(stored) && stored.length) {
                 const wasLegacyDefault = stored.length === legacyDefault.length && stored.every((key, idx) => key === legacyDefault[idx]);
@@ -559,14 +559,14 @@
             return widgets;
         }
         const [selectedWidgets, setSelectedWidgets] = useState(() =>
-            migrateKpisToWidgets(WrStorage.get(WR_KEYS.KPI_SELECTION(currentLeague?.id || ''))) || DEFAULT_WIDGETS
+            migrateKpisToWidgets(LeagueStorage.get(LEAGUE_WR_KEYS.KPI_SELECTION(currentLeague?.id || ''))) || DEFAULT_WIDGETS
         );
         useEffect(() => {
-            WrStorage.set(WR_KEYS.KPI_SELECTION(currentLeague?.id || ''), selectedWidgets);
+            LeagueStorage.set(LEAGUE_WR_KEYS.KPI_SELECTION(currentLeague?.id || ''), selectedWidgets);
         }, [selectedWidgets]);
 
         useEffect(() => {
-            WrStorage.set(WR_KEYS.ROSTER_COLS, visibleCols);
+            LeagueStorage.set(LEAGUE_WR_KEYS.ROSTER_COLS, visibleCols);
         }, [visibleCols]);
 
         function computeKpiValue(kpiKey) {
@@ -934,12 +934,12 @@
         window._wrSetGmStrategyOpen = setGmStrategyOpen;
         const GM_STRATEGY_DEFAULT = { mode: 'balanced', riskTolerance: 'moderate', positionalNeeds: {}, untouchable: [], targets: [], notes: '' };
         const [gmStrategy, setGmStrategy] = useState(() =>
-            WrStorage.get(WR_KEYS.GM_STRATEGY(currentLeague?.league_id)) || GM_STRATEGY_DEFAULT
+            LeagueStorage.get(LEAGUE_WR_KEYS.GM_STRATEGY(currentLeague?.league_id)) || GM_STRATEGY_DEFAULT
         );
         const gmStrategyInitRef = useRef(true);
         useEffect(() => {
             if (currentLeague?.league_id) {
-                WrStorage.set(WR_KEYS.GM_STRATEGY(currentLeague.league_id), gmStrategy);
+                LeagueStorage.set(LEAGUE_WR_KEYS.GM_STRATEGY(currentLeague.league_id), gmStrategy);
                 // Expose to window for AI context
                 window._wrGmStrategy = gmStrategy;
                 // Log deliberate updates (skip initial load)
@@ -999,7 +999,7 @@
         const gmIsUnconfigured = gmStrategy.mode === 'balanced' && !(gmStrategy.untouchable?.length) && !gmStrategy.notes && !(gmStrategy.targets?.length);
         const [gmOnboardStep, setGmOnboardStep] = useState(0); // 0=not started, 1-4=steps, 5=done
         const [reconMessages, setReconMessages] = useState(() => {
-            const saved = WrStorage.get(WR_KEYS.CHAT(currentLeague?.league_id));
+            const saved = LeagueStorage.get(LEAGUE_WR_KEYS.CHAT(currentLeague?.league_id));
             return (Array.isArray(saved) && saved.length > 1) ? saved
                 : [{ role: 'assistant', content: 'Ask me anything about your league, team, or players.' }];
         });
@@ -1037,9 +1037,9 @@
         // First-time welcome — auto-open chat with Alex's intro
         useEffect(() => {
           if (!myRoster?.players?.length || !currentLeague?.league_id) return;
-          const welcomeKey = WR_KEYS.WELCOMED(currentLeague.league_id);
-          if (WrStorage.get(welcomeKey)) return;
-          WrStorage.set(welcomeKey, '1');
+          const welcomeKey = LEAGUE_WR_KEYS.WELCOMED(currentLeague.league_id);
+          if (LeagueStorage.get(welcomeKey)) return;
+          LeagueStorage.set(welcomeKey, '1');
           // Small delay so the app finishes rendering first
           const t = setTimeout(() => {
             setWelcomeMode(true);
@@ -1100,7 +1100,7 @@
           const last = reconMessages[reconMessages.length - 1];
           if (last?.content === '...') return;
           const toSave = reconMessages.slice(-20).map(m => ({ role: m.role, content: m.content }));
-          WrStorage.set(WR_KEYS.CHAT(currentLeague.league_id), toSave);
+          LeagueStorage.set(LEAGUE_WR_KEYS.CHAT(currentLeague.league_id), toSave);
         }, [reconMessages, currentLeague?.league_id]);
 
         // Compute power rankings when DHQ engine finishes or standings change
@@ -2602,12 +2602,12 @@
 
                 {/* ── GLOBAL TIME CONTEXT BAR ── */}
                 <div style={{
-                    display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 24px',
+                    display: 'flex', alignItems: 'center', gap: '8px', padding: '8px clamp(12px, 4vw, 24px)', flexWrap: 'wrap',
                     background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(212,175,55,0.12)',
                     position: 'sticky', top: 0, zIndex: 50
                 }}>
                     {/* Year pills */}
-                    <div style={{ display: 'flex', gap: '3px' }}>
+                    <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', minWidth: 0 }}>
                         {timeYears.map(yr =>
                             <button key={yr} onClick={() => handleTimeYearChange(yr)} style={{
                                 padding: '4px 10px', fontSize: '0.76rem', fontFamily: 'var(--font-body)',
@@ -2888,7 +2888,7 @@
                   <button onClick={() => {
                     setReconMessages([{ role: 'assistant', content: 'Fresh start. What\'s on your mind? — Alex' }]);
                     setGmOnboardStep(5);
-                    WrStorage.remove(WR_KEYS.CHAT(currentLeague?.league_id));
+                    LeagueStorage.remove(LEAGUE_WR_KEYS.CHAT(currentLeague?.league_id));
                   }} title="Clear chat history" style={{
                     background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
                     fontSize: '0.62rem', padding: '2px 4px', fontFamily: 'var(--font-body)', letterSpacing: '0.04em'
@@ -3032,9 +3032,9 @@
                                     }}>Copy DM</button>
                                   )}
                                   <button onClick={() => {
-                                    const saved = WrStorage.get(WR_KEYS.SAVED_TRADES(currentLeague?.league_id)) || [];
+                                    const saved = LeagueStorage.get(LEAGUE_WR_KEYS.SAVED_TRADES(currentLeague?.league_id)) || [];
                                     saved.push({ ...tradeCard, savedAt: Date.now() });
-                                    WrStorage.set(WR_KEYS.SAVED_TRADES(currentLeague?.league_id), saved.slice(-20));
+                                    LeagueStorage.set(LEAGUE_WR_KEYS.SAVED_TRADES(currentLeague?.league_id), saved.slice(-20));
                                   }} style={{
                                     padding: '5px 12px', fontSize: '0.7rem', fontFamily: 'var(--font-body)',
                                     background: 'rgba(212,175,55,0.08)', color: 'var(--gold)',
