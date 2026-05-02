@@ -413,6 +413,7 @@
         const [dealFocusPid, setDealFocusPid] = useState(null);
         const [selectedDealPartnerId, setSelectedDealPartnerId] = useState(null);
         const [dealHqNotice, setDealHqNotice] = useState(null);
+        const [showAllDeals, setShowAllDeals] = useState(false);
         useEffect(() => {
             if (!initialSubTab) return;
             if (initialSubTab === 'finder') {
@@ -862,27 +863,41 @@
             const myRosterObj = allRosters.find(r => r.roster_id === myRosterId);
             const theirRosterObj = allRosters.find(r => r.roster_id === partner?.rosterId);
             if (!partner || !myRosterObj || !theirRosterObj) return [];
+
+            const alexSettings = window.WR?.AlexSettings?.get?.() || {};
+            const aggression = (alexSettings.tradeAggression ?? 50) / 100;
+            const lo = (base) => base - aggression * (base - 0.25);
+            const hi = (base) => base + aggression * (1.8 - base);
+
+            const tp = alexSettings.tradePriority || {};
+            const priPos = Object.entries(tp.positions || {}).filter(([, v]) => v).map(([k]) => k);
+            const priPickYears = Object.entries(tp.picks || {}).filter(([, v]) => v).map(([k]) => k);
+            const priFaab = tp.faab !== false;
+
             const myNeedPos = (myAssessment?.needs || []).map(n => n.pos);
+            const effectiveNeedPos = priPos.length ? [...new Set([...myNeedPos, ...priPos])] : myNeedPos;
             const mySurplusPos = myAssessment?.strengths || [];
             const theirNeedPos = (partner.needs || []).map(n => n.pos);
             const myPlayers = assetsForRoster(myRosterObj);
             const theirPlayers = assetsForRoster(theirRosterObj);
             const myChips = myPlayers.filter(p => !myNeedPos.includes(p.pos) || mySurplusPos.includes(p.pos));
-            const theirPicks = pickAssetsForOwner(partner.ownerId);
-            const myPicks = pickAssetsForOwner(myAssessment?.ownerId);
+            const allTheirPicks = pickAssetsForOwner(partner.ownerId);
+            const allMyPicks = pickAssetsForOwner(myAssessment?.ownerId);
+            const theirPicks = priPickYears.length ? allTheirPicks.filter(pk => priPickYears.some(yr => pk.label?.includes(yr))) : allTheirPicks;
+            const myPicks = priPickYears.length ? allMyPicks.filter(pk => priPickYears.some(yr => pk.label?.includes(yr))) : allMyPicks;
             const candidates = [];
 
             const focusAsset = focusPid ? playerAsset(focusPid) : null;
             const targetPool = focusAsset && (theirRosterObj.players || []).includes(focusPid)
                 ? [focusAsset]
-                : theirPlayers.filter(p => mode === 'fillNeed' ? myNeedPos.includes(p.pos) : true).slice(0, 8);
+                : theirPlayers.filter(p => mode === 'fillNeed' ? effectiveNeedPos.includes(p.pos) : priPos.length ? priPos.includes(p.pos) : true).slice(0, 8);
             const shopPool = focusAsset && (myRosterObj.players || []).includes(focusPid)
                 ? [focusAsset]
                 : myPlayers.filter(p => mode === 'sellSurplus' || mode === 'shop' ? (mySurplusPos.includes(p.pos) || theirNeedPos.includes(p.pos)) : true).slice(0, 10);
 
             if (mode === 'acquire' || mode === 'fillNeed') {
                 targetPool.slice(0, 6).forEach(target => {
-                    const one = myChips.find(p => p.value >= target.value * 0.75 && p.value <= target.value * 1.25);
+                    const one = myChips.find(p => p.value >= target.value * lo(0.75) && p.value <= target.value * hi(1.25));
                     if (one) {
                         const faab = maybeBalanceFaab(partner, [one], [target]);
                         addCandidate(candidates, partner, {
@@ -895,8 +910,8 @@
                             whyYou: myNeedPos.includes(target.pos) ? `You address ${target.pos} without opening a worse hole.` : `You consolidate into the preferred asset.`,
                         });
                     }
-                    const lower = myChips.find(p => p.value < target.value && p.value >= target.value * 0.45);
-                    const bridgePick = lower ? myPicks.find(pk => lower.value + pk.value >= target.value * 0.88 && lower.value + pk.value <= target.value * 1.35) : null;
+                    const lower = myChips.find(p => p.value < target.value && p.value >= target.value * lo(0.45));
+                    const bridgePick = lower ? myPicks.find(pk => lower.value + pk.value >= target.value * lo(0.88) && lower.value + pk.value <= target.value * hi(1.35)) : null;
                     if (lower && bridgePick) {
                         const faab = maybeBalanceFaab(partner, [lower], [target], [bridgePick], []);
                         addCandidate(candidates, partner, {
@@ -914,7 +929,7 @@
                         for (let j = i + 1; j < Math.min(myChips.length, 9); j++) {
                             const pair = [myChips[i], myChips[j]];
                             const total = pair[0].value + pair[1].value;
-                            if (total >= target.value * 0.88 && total <= target.value * 1.35) {
+                            if (total >= target.value * lo(0.88) && total <= target.value * hi(1.35)) {
                                 const faab = maybeBalanceFaab(partner, pair, [target]);
                                 addCandidate(candidates, partner, {
                                     mode,
@@ -936,10 +951,10 @@
             if (mode === 'shop' || mode === 'sellSurplus' || mode === 'picks') {
                 shopPool.slice(0, 7).forEach(asset => {
                     const partnerFit = theirNeedPos.includes(asset.pos);
-                    const playerBack = theirPlayers.find(p => p.value >= asset.value * 0.60 && p.value <= asset.value * 1.10 && (!myNeedPos.length || myNeedPos.includes(p.pos)));
-                    const pickBack = theirPicks.find(pk => pk.value >= asset.value * 0.45 && pk.value <= asset.value * 1.2);
+                    const playerBack = theirPlayers.find(p => p.value >= asset.value * lo(0.60) && p.value <= asset.value * hi(1.10) && (!myNeedPos.length || myNeedPos.includes(p.pos)));
+                    const pickBack = theirPicks.find(pk => pk.value >= asset.value * lo(0.45) && pk.value <= asset.value * hi(1.2));
                     if (mode !== 'picks' && playerBack) {
-                        const bridgePick = partnerFit ? theirPicks.find(pk => playerBack.value + pk.value >= asset.value * 0.82 && playerBack.value + pk.value <= asset.value * 1.25) : null;
+                        const bridgePick = partnerFit ? theirPicks.find(pk => playerBack.value + pk.value >= asset.value * lo(0.82) && playerBack.value + pk.value <= asset.value * hi(1.25)) : null;
                         const receivePicks = bridgePick ? [bridgePick] : [];
                         const faab = maybeBalanceFaab(partner, [asset], [playerBack], [], receivePicks);
                         addCandidate(candidates, partner, {
@@ -954,7 +969,7 @@
                         });
                     }
                     if (pickBack) {
-                        const extraPick = theirPicks.find(pk => pk.id !== pickBack.id && pickBack.value + pk.value <= asset.value * 1.25 && pickBack.value + pk.value >= asset.value * 0.75);
+                        const extraPick = theirPicks.find(pk => pk.id !== pickBack.id && pickBack.value + pk.value <= asset.value * hi(1.25) && pickBack.value + pk.value >= asset.value * lo(0.75));
                         const receivePicks = extraPick ? [pickBack, extraPick] : [pickBack];
                         const faab = maybeBalanceFaab(partner, [asset], [], [], receivePicks);
                         addCandidate(candidates, partner, {
@@ -972,7 +987,7 @@
 
             if (!candidates.length && theirPlayers.length && myPlayers.length) {
                 const target = theirPlayers[0];
-                const chip = myPlayers.find(p => p.value >= target.value * 0.7) || myPlayers[0];
+                const chip = myPlayers.find(p => p.value >= target.value * lo(0.7)) || myPlayers[0];
                 const faab = maybeBalanceFaab(partner, [chip], [target]);
                 addCandidate(candidates, partner, {
                     mode,
@@ -984,6 +999,8 @@
                     whyYou: 'Use this as a starting point for manual refinement.',
                 });
             }
+
+            if (!priFaab) candidates.forEach(c => { c.giveFaab = 0; c.receiveFaab = 0; });
 
             return candidates
                 .sort((a, b) => b.rank - a.rank || b.likelihood - a.likelihood)
@@ -1831,7 +1848,9 @@
 
             const selectedItem = partnerBoard.find(p => String(p.assessment.ownerId) === String(selectedDealPartnerId)) || partnerBoard[0] || null;
             const selectedPartner = selectedItem?.assessment || null;
-            const deals = selectedPartner ? generateDealsForPartner(selectedPartner, dealMode, dealFocusPid) : [];
+            const GRADE_ORDER = { 'A+':0, 'A':1, 'B+':2, 'B':3, 'C':4, 'D':5, 'F':6 };
+            const deals = (selectedPartner ? generateDealsForPartner(selectedPartner, dealMode, dealFocusPid) : [])
+                .sort((a, b) => (GRADE_ORDER[a.grade] ?? 9) - (GRADE_ORDER[b.grade] ?? 9));
             const bestDeal = deals[0] || null;
             const bestPartner = partnerBoard[0];
             const leverageCounts = {};
@@ -1910,31 +1929,42 @@
                             <span className="tc-dhq-eyebrow">{deal.type}</span>
                             <h3>{deal.partnerName}</h3>
                         </div>
-                        <div className="tc-dhq-score-stack">
-                            <strong style={{ color:likelihoodColor2 }}>{deal.likelihood}%</strong>
-                            <span>{deal.confidence} confidence</span>
+                        <div className="tc-dhq-actions">
+                            <button onClick={() => loadDealIntoAnalyzer(deal)}>Analyzer</button>
+                            <button onClick={() => saveDeal(deal)}>Save</button>
                         </div>
                     </div>
+                    <div className="tc-dhq-stat-bar">
+                        <div className="tc-dhq-stat">
+                            <span>Confidence</span>
+                            <strong style={{ color:likelihoodColor2 }}>{deal.likelihood}%</strong>
+                        </div>
+                        <div className="tc-dhq-stat">
+                            <span>DHQ Delta</span>
+                            <strong style={{ color:deltaColor }}>{deal.userGain >= 0 ? '+' : ''}{Math.round(deal.userGain).toLocaleString()}</strong>
+                        </div>
+                        <div className="tc-dhq-stat">
+                            <span>Grade</span>
+                            <strong style={{ color:deal.gradeColor }}>{deal.grade}</strong>
+                        </div>
+                        <div className="tc-dhq-stat">
+                            <span>Fit</span>
+                            <strong>{deal.fit}%</strong>
+                        </div>
+                        <div className="tc-dhq-stat">
+                            <span>Window</span>
+                            <strong style={{ color:deal.windowImpact.color }}>{deal.windowImpact.label.replace(/^Window\s*/i, '')}</strong>
+                        </div>
+                    </div>
+                    <div className="tc-dhq-readout">
+                        <div><b>Accept:</b><span>{deal.whyAccept}</span></div>
+                        <div><b>You:</b><span>{deal.whyYou}</span></div>
+                        <div><b>Swing:</b><span>{deal.swing}</span></div>
+                    </div>
+                    {deal.caution.length > 0 && <div className="tc-dhq-cautions">{deal.caution.slice(0, 3).map(c => <span key={c}>{c}</span>)}</div>}
                     <div className="tc-dhq-deal-grid">
                         {sideSummary('You Send', deal, 'give')}
                         {sideSummary('You Get', deal, 'receive')}
-                    </div>
-                    <div className="tc-dhq-verdict-row">
-                        <span style={{ color:deltaColor }}>{deal.userGain >= 0 ? '+' : ''}{Math.round(deal.userGain).toLocaleString()} DHQ</span>
-                        <span style={{ color:deal.gradeColor }}>{deal.grade} {deal.gradeLabel}</span>
-                        <span>{deal.fit}% partner fit</span>
-                        <span style={{ color:deal.windowImpact.color }}>{deal.windowImpact.label}</span>
-                    </div>
-                    <div className="tc-dhq-readout">
-                        <div><b>Why they accept</b><span>{deal.whyAccept}</span></div>
-                        <div><b>Why you consider it</b><span>{deal.whyYou}</span></div>
-                        <div><b>Roster swing</b><span>{deal.swing}</span></div>
-                    </div>
-                    {deal.caution.length > 0 && <div className="tc-dhq-cautions">{deal.caution.slice(0, 3).map(c => <span key={c}>{c}</span>)}</div>}
-                    <div className="tc-dhq-actions">
-                        <button onClick={() => loadDealIntoAnalyzer(deal)}>Load Analyzer</button>
-                        <button onClick={() => saveDeal(deal)}>Save Deal</button>
-                        <button onClick={clearAnalyzer}>Clear</button>
                     </div>
                 </div>;
             }
@@ -1967,30 +1997,32 @@
                             <span>Trade Partners</span>
                             <em>ranked by fit, need, posture, activity</em>
                         </div>
-                        {partnerBoard.map(item => {
-                            const a = item.assessment;
-                            const selected = selectedPartner && String(selectedPartner.ownerId) === String(a.ownerId);
-                            return <button key={a.rosterId} className={`tc-dhq-partner${selected ? ' is-selected' : ''}`} onClick={() => setSelectedDealPartnerId(a.ownerId)}>
-                                <div className="tc-dhq-partner-main">
-                                    <strong>{a.ownerName}</strong>
-                                    <span>{a.teamName}</span>
-                                </div>
-                                <div className="tc-dhq-partner-score" style={{ color:item.tagColor }}>
-                                    <strong>{item.score}</strong>
-                                    <span>{item.tag}</span>
-                                </div>
-                                <div className="tc-dhq-chipline">
-                                    <span style={{ color:item.posture.color }}>{item.posture.label}</span>
-                                    {item.dnaKey !== 'NONE' && <span style={{ color:item.dna.color }}>{item.dna.label}</span>}
-                                    <span>{item.pickAssets.length} picks</span>
-                                    <span>${a.faabRemaining || 0} FAAB</span>
-                                </div>
-                                <div className="tc-dhq-chipline">
-                                    {(a.needs || []).slice(0, 4).map(n => <i key={n.pos} className={n.urgency === 'deficit' ? 'need' : ''}>{n.pos}</i>)}
-                                    {(a.strengths || []).slice(0, 4).map(s => <i key={s}>+{s}</i>)}
-                                </div>
-                            </button>;
-                        })}
+                        <div className="tc-dhq-panel-body tc-dhq-partner-list">
+                            {partnerBoard.map(item => {
+                                const a = item.assessment;
+                                const selected = selectedPartner && String(selectedPartner.ownerId) === String(a.ownerId);
+                                return <button key={a.rosterId} className={`tc-dhq-partner${selected ? ' is-selected' : ''}`} onClick={() => setSelectedDealPartnerId(a.ownerId)}>
+                                    <div className="tc-dhq-partner-main">
+                                        <strong>{a.ownerName}</strong>
+                                        <span>{a.teamName}</span>
+                                    </div>
+                                    <div className="tc-dhq-partner-score" style={{ color:item.tagColor }}>
+                                        <strong>{item.score}</strong>
+                                        <span>{item.tag}</span>
+                                    </div>
+                                    <div className="tc-dhq-chipline">
+                                        <span style={{ color:item.posture.color }}>{item.posture.label}</span>
+                                        {item.dnaKey !== 'NONE' && <span style={{ color:item.dna.color }}>{item.dna.label}</span>}
+                                        <span>{item.pickAssets.length} picks</span>
+                                        <span>${a.faabRemaining || 0} FAAB</span>
+                                    </div>
+                                    <div className="tc-dhq-chipline">
+                                        {(a.needs || []).slice(0, 4).map(n => <i key={n.pos} className={n.urgency === 'deficit' ? 'need' : ''}>{n.pos}</i>)}
+                                        {(a.strengths || []).slice(0, 4).map(s => <i key={s}>+{s}</i>)}
+                                    </div>
+                                </button>;
+                            })}
+                        </div>
                     </section>
 
                     <section className="tc-dhq-panel tc-dhq-packages">
@@ -1998,17 +2030,21 @@
                             <span>Deal Packages</span>
                             <em>{selectedPartner ? selectedPartner.ownerName : 'Select a partner'}</em>
                         </div>
-                        <div className="tc-dhq-modebar">
-                            {dealModes.map(m => <button key={m.key} className={dealMode === m.key ? 'is-active' : ''} onClick={() => { setDealMode(m.key); setDealFocusPid(null); }}>{m.label}</button>)}
-                        </div>
-                        {(dealMode === 'shop' || dealMode === 'acquire' || dealMode === 'fillNeed' || dealMode === 'sellSurplus') && focusOptions.length > 0 && (
-                            <div className="tc-dhq-focusbar">
-                                <span>{dealMode === 'shop' || dealMode === 'sellSurplus' ? 'Focus asset' : 'Target asset'}</span>
-                                <button className={!dealFocusPid ? 'is-active' : ''} onClick={() => setDealFocusPid(null)}>Auto</button>
-                                {focusOptions.map(p => <button key={p.pid} className={String(dealFocusPid) === String(p.pid) ? 'is-active' : ''} onClick={() => setDealFocusPid(p.pid)}>{p.name} <em>{p.value.toLocaleString()}</em></button>)}
+                        <div className="tc-dhq-panel-body tc-dhq-package-list">
+                            <div className="tc-dhq-modebar">
+                                {dealModes.map(m => <button key={m.key} className={dealMode === m.key ? 'is-active' : ''} onClick={() => { setDealMode(m.key); setDealFocusPid(null); }}>{m.label}</button>)}
                             </div>
-                        )}
-                        {deals.length ? deals.map(dealCard) : <div className="tc-dhq-empty">No package found for this mode. Try another partner, clear the focus asset, or use the manual analyzer.</div>}
+                            {(dealMode === 'shop' || dealMode === 'acquire' || dealMode === 'fillNeed' || dealMode === 'sellSurplus') && focusOptions.length > 0 && (
+                                <div className="tc-dhq-focusbar">
+                                    <span>{dealMode === 'shop' || dealMode === 'sellSurplus' ? 'Focus asset' : 'Target asset'}</span>
+                                    <button className={!dealFocusPid ? 'is-active' : ''} onClick={() => setDealFocusPid(null)}>Auto</button>
+                                    {focusOptions.map(p => <button key={p.pid} className={String(dealFocusPid) === String(p.pid) ? 'is-active' : ''} onClick={() => setDealFocusPid(p.pid)}>{p.name} <em>{p.value.toLocaleString()}</em></button>)}
+                                </div>
+                            )}
+                            {deals.length
+                                ? <div className="tc-dhq-package-note"><b>Ready</b>{deals.length} package{deals.length === 1 ? '' : 's'} generated</div>
+                                : <div className="tc-dhq-empty">No package found for this mode. Try another partner, clear the focus asset, or use the manual analyzer.</div>}
+                        </div>
                     </section>
 
                     <aside className="tc-dhq-panel tc-dhq-dossier">
@@ -2016,6 +2052,7 @@
                             <span>Partner Dossier</span>
                             <em>{selectedPartner?.teamName || 'No partner selected'}</em>
                         </div>
+                        <div className="tc-dhq-panel-body tc-dhq-dossier-body">
                         {selectedItem && selectedPartner ? <>
                             <div className="tc-dhq-dossier-card">
                                 <h3>{selectedPartner.ownerName}</h3>
@@ -2057,8 +2094,22 @@
                                 </div>) : <p>No saved deals yet.</p>}
                             </div>
                         </> : <div className="tc-dhq-empty">Select a partner to view their dossier.</div>}
+                        </div>
                     </aside>
                 </div>
+
+                {deals.length > 0 && (
+                    <section className="tc-dhq-panel tc-dhq-deal-stage">
+                        <div className="tc-dhq-panel-head">
+                            <span>Generated Packages</span>
+                            <em>{deals.length} idea{deals.length === 1 ? '' : 's'} · {selectedPartner ? selectedPartner.ownerName : 'Select a partner'}</em>
+                        </div>
+                        <div className="tc-dhq-deal-stage-body">
+                            {(showAllDeals ? deals : deals.slice(0, 3)).map(dealCard)}
+                        </div>
+                        {deals.length > 3 && <button className="tc-dhq-show-more" onClick={() => setShowAllDeals(!showAllDeals)}>{showAllDeals ? 'Show fewer' : `Show ${deals.length - 3} more`}</button>}
+                    </section>
+                )}
             </div>;
         }
 

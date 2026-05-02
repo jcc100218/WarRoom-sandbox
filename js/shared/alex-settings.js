@@ -35,6 +35,12 @@
         alertThreshold: 70,
         maxAlertsPerWeek: 6,
         minPointsDelta: 2.5,
+        tradeAggression: 50,
+        tradePriority: {
+            positions: { QB: false, RB: false, WR: false, TE: false, DL: false, LB: false, DB: false, K: false },
+            picks: { '2026': true, '2027': true, '2028': false },
+            faab: true,
+        },
         focus: { startSit: true, trades: true, waivers: true, draft: true, injury: false, streaming: false, gmStyle: false },
         channel: { inApp: true, email: false, push: false },
     };
@@ -46,11 +52,17 @@
         try {
             const raw = JSON.parse(localStorage.getItem(KEY) || 'null');
             if (raw && typeof raw === 'object') {
+                const rawTP = raw.tradePriority || {};
                 _cache = {
                     ...DEFAULTS,
                     ...raw,
                     focus: { ...DEFAULTS.focus, ...(raw.focus || {}) },
                     channel: { ...DEFAULTS.channel, ...(raw.channel || {}) },
+                    tradePriority: {
+                        positions: { ...DEFAULTS.tradePriority.positions, ...(rawTP.positions || {}) },
+                        picks: { ...DEFAULTS.tradePriority.picks, ...(rawTP.picks || {}) },
+                        faab: rawTP.faab !== undefined ? rawTP.faab : DEFAULTS.tradePriority.faab,
+                    },
                 };
                 return _cache;
             }

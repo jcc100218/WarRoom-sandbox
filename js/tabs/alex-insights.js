@@ -19,7 +19,7 @@
     // the same tuning. Falls back to a safe inline default if the helper
     // hasn't loaded yet (e.g., script-order edge case).
     const DEFAULT_SETTINGS = (window.WR?.AlexSettings?.DEFAULTS) || {
-        alertThreshold: 70, maxAlertsPerWeek: 6, minPointsDelta: 2.5,
+        alertThreshold: 70, maxAlertsPerWeek: 6, minPointsDelta: 2.5, tradeAggression: 50,
         focus: { startSit: true, trades: true, waivers: true, draft: true, injury: false, streaming: false, gmStyle: false },
         channel: { inApp: true, email: false, push: false },
     };
@@ -1160,6 +1160,9 @@
         const update = (patch) => { const next = { ...settings, ...patch }; setSettings(next); saveSettings(next); };
         const updateFocus = (k, v) => update({ focus: { ...settings.focus, [k]: v } });
         const updateChannel = (k, v) => update({ channel: { ...settings.channel, [k]: v } });
+        const tp = settings.tradePriority || { positions: {}, picks: {}, faab: true };
+        const updateTP = (section, k, v) => update({ tradePriority: { ...tp, [section]: { ...tp[section], [k]: v } } });
+        const updateTPFaab = (v) => update({ tradePriority: { ...tp, faab: v } });
 
         const sliderRow = (label, hint, key, min, max, step, format) => h('div', { style: { marginBottom: '18px' } },
             h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' } },
@@ -1261,6 +1264,85 @@
                         h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.55, marginTop: '10px', lineHeight: 1.5 } },
                             'In-app shows up as toasts on Home + a count badge on GM\'s Office. Email/Push are coming soon \u2014 toggle to opt in early.'),
                     )
+                ),
+            ),
+            // ── Trade Calculator tuning ──
+            h('div', { style: { display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '14px', marginTop: '14px' } },
+                // Left column — Aggression
+                h(window.WR.Card, { padding: '20px 22px' },
+                    sectionTitle({ title: 'Trade Calculator', sub: 'How aggressive Deal HQ builds packages' }),
+                    sliderRow('Trade aggression', 'Controls how wide the value-matching window is when generating packages. Conservative = tight, fair deals. Aggressive = bold moves that might land with the right owner.', 'tradeAggression', 0, 100, 5,
+                        v => v <= 20 ? 'Conservative' : v <= 40 ? 'Cautious' : v <= 60 ? 'Balanced' : v <= 80 ? 'Bold' : 'Aggressive'),
+                    h('div', { style: { fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.55, marginTop: '4px', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Rajdhani, sans-serif', fontWeight: 700 } }, 'Quick presets'),
+                    h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' } },
+                        presetButton('Conservative', 'Tight value · fair only',
+                            () => ({ ...settings, tradeAggression: 15 })),
+                        presetButton('Balanced', 'Default range',
+                            () => ({ ...settings, tradeAggression: 50 })),
+                        presetButton('Aggressive', 'Max range · hunt steals',
+                            () => ({ ...settings, tradeAggression: 100 })),
+                    ),
+                ),
+                // Right column — Asset Priorities
+                h(window.WR.Card, { padding: '20px 22px' },
+                    sectionTitle({ title: 'Asset Priorities', sub: 'What Deal HQ targets' }),
+                    h('div', { style: { fontSize: '0.7rem', color: 'var(--silver)', opacity: 0.6, marginBottom: '14px', lineHeight: 1.45 } },
+                        'Active chips tell Deal HQ which assets to prioritize. All positions off = auto-detect from roster needs.'),
+                    // Positions
+                    h('div', { style: { marginBottom: '16px' } },
+                        h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'Rajdhani, sans-serif' } }, 'Target Positions'),
+                        h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px' } },
+                            ['QB', 'RB', 'WR', 'TE', 'DL', 'LB', 'DB', 'K'].map(pos => {
+                                const posColors = { QB:'#FF6B6B', RB:'#4ECDC4', WR:'#45B7D1', TE:'#F7DC6F', DL:'#E67E22', LB:'#F0A500', DB:'#5DADE2', K:'#BB8FCE' };
+                                const active = tp.positions?.[pos];
+                                const c = posColors[pos] || 'var(--silver)';
+                                return h('button', {
+                                    key: pos, onClick: () => updateTP('positions', pos, !active),
+                                    style: {
+                                        padding: '5px 12px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: 700,
+                                        cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace',
+                                        border: '1px solid ' + (active ? c + '88' : 'rgba(255,255,255,0.1)'),
+                                        background: active ? c + '18' : 'rgba(255,255,255,0.02)',
+                                        color: active ? c : 'var(--silver)',
+                                    }
+                                }, pos);
+                            })
+                        )
+                    ),
+                    // Draft picks + FAAB side by side
+                    h('div', { style: { display: 'grid', gridTemplateColumns: '1fr auto', gap: '16px', alignItems: 'start' } },
+                        h('div', null,
+                            h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'Rajdhani, sans-serif' } }, 'Draft Pick Years'),
+                            h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px' } },
+                                ['2026', '2027', '2028'].map(yr => {
+                                    const active = tp.picks?.[yr];
+                                    return h('button', {
+                                        key: yr, onClick: () => updateTP('picks', yr, !active),
+                                        style: {
+                                            padding: '5px 14px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: 700,
+                                            cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace',
+                                            border: '1px solid ' + (active ? 'rgba(187,143,206,0.5)' : 'rgba(255,255,255,0.1)'),
+                                            background: active ? 'rgba(187,143,206,0.12)' : 'rgba(255,255,255,0.02)',
+                                            color: active ? '#BB8FCE' : 'var(--silver)',
+                                        }
+                                    }, yr);
+                                })
+                            )
+                        ),
+                        h('div', null,
+                            h('div', { style: { fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '7px', fontFamily: 'Rajdhani, sans-serif' } }, 'FAAB'),
+                            h('button', {
+                                onClick: () => updateTPFaab(!tp.faab),
+                                style: {
+                                    padding: '5px 14px', borderRadius: '6px', fontSize: '0.76rem', fontWeight: 700,
+                                    cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace',
+                                    border: '1px solid ' + (tp.faab ? 'rgba(46,204,113,0.5)' : 'rgba(255,255,255,0.1)'),
+                                    background: tp.faab ? 'rgba(46,204,113,0.12)' : 'rgba(255,255,255,0.02)',
+                                    color: tp.faab ? '#2ECC71' : 'var(--silver)',
+                                }
+                            }, tp.faab ? 'Include' : 'Off'),
+                        ),
+                    ),
                 ),
             ),
         );
