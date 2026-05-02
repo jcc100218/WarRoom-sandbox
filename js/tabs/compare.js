@@ -309,20 +309,6 @@ function CompareTab({
         })
         .filter(t => t.roster);
 
-    const quickMatchups = [];
-    const pushQuick = (key, label, sub, team) => {
-        if (!team || quickMatchups.some(q => sameId(q.team.rosterId, team.rosterId))) return;
-        quickMatchups.push({ key, label, sub, team });
-    };
-    const highestDhq = [...opponentOptions].sort((a, b) => b.dhq - a.dhq)[0];
-    const closestDhq = [...opponentOptions].sort((a, b) => a.gap - b.gap)[0];
-    const bestRecord = [...opponentOptions].sort((a, b) => (b.wins || 0) - (a.wins || 0) || (a.losses || 0) - (b.losses || 0))[0];
-    const lowestDhq = [...opponentOptions].sort((a, b) => a.dhq - b.dhq)[0];
-    pushQuick('threat', 'Biggest Threat', highestDhq ? highestDhq.dhq.toLocaleString() + ' DHQ' : '', highestDhq);
-    pushQuick('closest', 'Closest Build', closestDhq ? Math.round(closestDhq.gap).toLocaleString() + ' DHQ gap' : '', closestDhq);
-    pushQuick('record', 'Best Record', bestRecord ? (bestRecord.wins || 0) + '-' + (bestRecord.losses || 0) : '', bestRecord);
-    pushQuick('target', 'Attack Target', lowestDhq ? lowestDhq.dhq.toLocaleString() + ' DHQ' : '', lowestDhq);
-
     const metadata = currentLeague?.metadata || {};
     const getDivisionKey = (roster) => String(roster?.settings?.division ?? 0);
     const getDivisionName = (key) => metadata['division_' + key + '_name'] || metadata['division_' + key] || (key === '0' ? 'Division 0' : 'Division ' + key);
@@ -337,7 +323,10 @@ function CompareTab({
     const activeDivision = selectedDivision || myDivision || divisionKeys[0] || '0';
     const validOpponentIdSet = new Set(opponentOptions.map(t => String(t.rosterId)));
     const cleanManualIds = manualCompareIds.filter(id => validOpponentIdSet.has(String(id)));
-    const defaultGroupIds = quickMatchups.slice(0, Math.min(3, quickMatchups.length)).map(q => String(q.team.rosterId));
+    const defaultGroupIds = [...opponentOptions]
+        .sort((a, b) => b.dhq - a.dhq)
+        .slice(0, Math.min(3, opponentOptions.length))
+        .map(t => String(t.rosterId));
     const selectedGroupIds = cleanManualIds.length >= 2 ? cleanManualIds : defaultGroupIds;
     const selectedGroupTeams = selectedGroupIds
         .map(id => opponentOptions.find(t => sameId(t.rosterId, id)))
@@ -347,7 +336,7 @@ function CompareTab({
     const selectedLeagueTeams = opponentOptions;
     const setScope = (scope) => {
         setCompareScope(scope);
-        if (scope === 'duel' && !compareTeamId && quickMatchups[0]) setCompareTeamId(String(quickMatchups[0].team.rosterId));
+        if (scope === 'duel' && !compareTeamId && opponentOptions[0]) setCompareTeamId(String(opponentOptions[0].rosterId));
     };
     const toggleManualTeam = (id) => {
         const key = String(id);
@@ -476,17 +465,8 @@ function CompareTab({
             <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.2rem', color: 'var(--white)', fontWeight: 700, marginBottom: '6px' }}>
                 Choose a matchup lens
             </div>
-            <div style={{ fontSize: '0.86rem', lineHeight: 1.5, maxWidth: '620px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '0.86rem', lineHeight: 1.5, maxWidth: '620px' }}>
                 Compare is strongest when it answers a specific question: who can beat you now, who is closest long term, and where the roster edge actually lives.
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
-                {quickMatchups.map(q => (
-                    <button key={q.key} onClick={() => setCompareTeamId(String(q.team.rosterId))} style={{ ...quickButtonStyle(false), minHeight: '82px' }}>
-                        <div style={{ fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--gold)', marginBottom: '8px' }}>{q.label}</div>
-                        <div style={{ color: 'var(--white)', fontWeight: 800, fontSize: '0.92rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{q.team.name}</div>
-                        <div style={{ ...mono, fontSize: '0.72rem', marginTop: '4px', color: 'var(--silver)', opacity: 0.72 }}>{q.sub}</div>
-                    </button>
-                ))}
             </div>
         </div>
     );
@@ -601,9 +581,6 @@ function CompareTab({
         });
         const strongest = [...posDiffs].sort((a, b) => b.diff - a.diff)[0];
         const weakest = [...posDiffs].sort((a, b) => a.diff - b.diff)[0];
-        const topThreats = [...opponentProfiles].sort((a, b) => b.total - a.total).slice(0, 3);
-        const closestBuilds = [...opponentProfiles].sort((a, b) => Math.abs(a.total - myProfile.total) - Math.abs(b.total - myProfile.total)).slice(0, 3);
-        const attackTargets = [...opponentProfiles].sort((a, b) => a.total - b.total).slice(0, 3);
         const maxTotal = Math.max(1, ...profiles.map(p => p.totalAssets));
         const maxStarter = Math.max(1, ...profiles.map(p => p.starterTotal));
         const maxByPos = {};
@@ -891,29 +868,6 @@ function CompareTab({
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '14px' }}>
-                    {[
-                        ['Biggest Threats', topThreats, '#E74C3C', p => (p.total - myProfile.total > 0 ? '+' : '') + (p.total - myProfile.total).toLocaleString() + ' vs you'],
-                        ['Closest Builds', closestBuilds, 'var(--gold)', p => Math.abs(p.total - myProfile.total).toLocaleString() + ' DHQ gap'],
-                        ['Attack Targets', attackTargets, '#2ECC71', p => (myProfile.total - p.total > 0 ? '+' : '') + (myProfile.total - p.total).toLocaleString() + ' your edge'],
-                    ].map(([title, list, color, subFn]) => (
-                        <div key={title} style={{ ...panelStyle, padding: '14px' }}>
-                            <div style={{ ...labelStyle, color, opacity: 1, marginBottom: '8px' }}>{title}</div>
-                            <div style={{ display: 'grid', gap: '7px' }}>
-                                {list.map(p => (
-                                    <div key={p.rosterId} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '7px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                                        <div style={{ minWidth: 0 }}>
-                                            <div style={{ color: 'var(--white)', fontWeight: 850, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                                            <div style={{ fontSize: '0.66rem', color: 'var(--silver)', opacity: 0.62 }}>{p.topPlayer?.p?.full_name || 'No top player'}</div>
-                                        </div>
-                                        <div style={{ ...mono, color, fontWeight: 850, whiteSpace: 'nowrap' }}>{subFn(p)}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
                 {renderFieldRosterBreakdown()}
 
                 {divisionKeys.length > 1 && (compareScope === 'division' || compareScope === 'league') ? (
@@ -972,16 +926,6 @@ function CompareTab({
 
         {compareScope === 'duel' ? (
         <React.Fragment>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-            {quickMatchups.map(q => (
-                <button key={q.key} onClick={() => { setCompareScope('duel'); setCompareTeamId(String(q.team.rosterId)); }} style={quickButtonStyle(sameId(q.team.rosterId, compareTeamId))}>
-                    <div style={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.72 }}>{q.label}</div>
-                    <div style={{ fontWeight: 800, color: 'var(--white)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '168px' }}>{q.team.name}</div>
-                    <div style={{ ...mono, fontSize: '0.66rem', opacity: 0.72 }}>{q.sub}</div>
-                </button>
-            ))}
-        </div>
-
         {!compareTeamId && renderLanding()}
 
         {compareTeamId && (() => {

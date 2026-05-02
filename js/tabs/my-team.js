@@ -53,9 +53,6 @@ function MyTeamTab({
 }) {
   // Fallback if prop not passed — prevents crash
   const getAcquisitionInfo = typeof getAcquisitionInfoProp === 'function' ? getAcquisitionInfoProp : () => ({ method: 'Unknown', date: '', cost: '' });
-  const _seasonCtx = React.useContext(window.App.SeasonContext) || {};
-  const _sPlayerStats = _seasonCtx.playerStats || window.S?.playerStats || {};
-  const _sTradedPicks = _seasonCtx.tradedPicks !== undefined ? _seasonCtx.tradedPicks : (window.S?.tradedPicks || []);
 
   function calcRawPts(s) { return window.App.calcRawPts(s, currentLeague?.scoring_settings); }
 
@@ -371,15 +368,11 @@ function MyTeamTab({
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
-  const totalDhq = rows.reduce((s, r) => s + r.dhq, 0);
   const starterRows = rows.filter(r => r.isStarter);
   const tierAssess = typeof window.assessTeamFromGlobal === 'function' ? window.assessTeamFromGlobal(myRoster?.roster_id) : null;
   const tier = (tierAssess?.tier || '').toUpperCase();
   const tierLabel = tier ? tier.charAt(0) + tier.slice(1).toLowerCase() : 'Unranked';
   const needs = tierAssess?.needs?.slice(0, 3) || [];
-  const elites = typeof window.App?.countElitePlayers === 'function'
-    ? window.App.countElitePlayers(rows.map(r => r.pid))
-    : rows.filter(r => r.dhq >= 7000).length;
   const sectionCounts = rows.reduce((acc, r) => {
     acc[r.section] = (acc[r.section] || 0) + 1;
     return acc;
@@ -390,13 +383,6 @@ function MyTeamTab({
     count: rows.filter(r => r.pos === pos).length,
     color: posColors[pos] || 'var(--silver)',
   })).filter(p => p.count > 0);
-  const maxPosCount = Math.max(...posMix.map(p => p.count), 1);
-  const ageRows = rows.filter(r => r.age);
-  const starterAgeRows = starterRows.filter(r => r.age);
-  const avgAge = ageRows.length ? ageRows.reduce((s, r) => s + r.age, 0) / ageRows.length : 0;
-  const starterAvgAge = starterAgeRows.length ? starterAgeRows.reduce((s, r) => s + r.age, 0) / starterAgeRows.length : 0;
-  const starterPeakRows = starterRows.filter(r => r.peakYrsLeft > 0);
-  const competeWindow = Math.round(starterPeakRows.reduce((s, r) => s + r.peakYrsLeft, 0) / (starterPeakRows.length || 1));
   const sellCount = rows.filter(r => /sell/i.test(r.rec || '')).length;
   const stashCount = rows.filter(r => /stash|buy|build/i.test(r.rec || '')).length;
   const bestPosition = posMix.slice().sort((a, b) => b.count - a.count)[0];
@@ -435,61 +421,6 @@ function MyTeamTab({
       textTransform: 'uppercase',
     }}>{cfg.lbl}</span>
   ) : null;
-  const leagueSize = (currentLeague.rosters || []).length;
-  const totalTeams = leagueSize || 12;
-  const rankTone = (rank) => rank > 0 && rank <= 3 ? '#2ECC71' : rank > 0 && rank <= Math.ceil(totalTeams / 2) ? 'var(--gold)' : '#E74C3C';
-
-  const rp2 = currentLeague?.roster_positions || [];
-  const ppgRanks = (currentLeague.rosters || []).map(r => {
-    const ppg = typeof window.App?.calcOptimalPPG === 'function'
-      ? window.App.calcOptimalPPG(r.players || [], playersData, _sPlayerStats, rp2) : 0;
-    return { rid: r.roster_id, ppg };
-  }).sort((a, b) => b.ppg - a.ppg);
-  if (ppgRanks.every(r => r.ppg === 0)) {
-    ppgRanks.forEach(r => {
-      const ros = (currentLeague.rosters || []).find(x => x.roster_id === r.rid);
-      r.ppg = Math.round((ros?.players || []).reduce((s, pid) => s + ((window.App?.LI?.playerScores || {})[pid] || 0), 0) / 550);
-    });
-    ppgRanks.sort((a, b) => b.ppg - a.ppg);
-  }
-  const contenderRank = ppgRanks.findIndex(r => r.rid === myRoster?.roster_id) + 1;
-  const dVals = (currentLeague.rosters || []).map(r => {
-    const pDHQ = (r.players || []).reduce((s, pid) => s + ((window.App?.LI?.playerScores || {})[pid] || 0), 0);
-    let pickDHQ = 0;
-    const draftRounds = currentLeague.settings?.draft_rounds || 5;
-    const leagueSeason = parseInt(currentLeague.season) || new Date().getFullYear();
-    for (let yr = leagueSeason; yr <= leagueSeason + 2; yr++) for (let rd = 1; rd <= draftRounds; rd++) {
-      const pv = typeof getIndustryPickValue === 'function' ? getIndustryPickValue((rd - 1) * totalTeams + Math.ceil(totalTeams / 2), totalTeams, draftRounds) : window.App.PlayerValue?.getPickValue?.(yr, rd, totalTeams) ?? 0;
-      const ta = (_sTradedPicks).find(p => parseInt(p.season) === yr && p.round === rd && p.roster_id === r.roster_id && p.owner_id !== r.roster_id);
-      if (!ta) pickDHQ += pv;
-      (_sTradedPicks).filter(p => parseInt(p.season) === yr && p.round === rd && p.owner_id === r.roster_id && p.roster_id !== r.roster_id).forEach(() => { pickDHQ += pv; });
-    }
-    return { rid: r.roster_id, total: pDHQ + pickDHQ };
-  }).sort((a, b) => b.total - a.total);
-  const dynastyRank = dVals.findIndex(r => r.rid === myRoster?.roster_id) + 1;
-  const pickCount = (() => {
-    let count = 0;
-    const draftRounds = currentLeague.settings?.draft_rounds || 5;
-    const leagueSeason = parseInt(currentLeague.season) || new Date().getFullYear();
-    for (let yr = leagueSeason; yr <= leagueSeason + 2; yr++) for (let rd = 1; rd <= draftRounds; rd++) {
-      const tradedAway = (_sTradedPicks).find(p => parseInt(p.season) === yr && p.round === rd && p.roster_id === myRoster?.roster_id && p.owner_id !== myRoster?.roster_id);
-      if (!tradedAway) count++;
-      (_sTradedPicks).filter(p => parseInt(p.season) === yr && p.round === rd && p.owner_id === myRoster?.roster_id && p.roster_id !== myRoster?.roster_id).forEach(() => { count++; });
-    }
-    return count;
-  })();
-  const expectedPicks = (currentLeague.settings?.draft_rounds || 5) * 3;
-  const tierColor = tier === 'ELITE' ? '#2ECC71'
-    : tier === 'CONTENDER' ? 'var(--gold)'
-    : tier === 'CROSSROADS' ? '#F0A500'
-    : tier === 'REBUILDING' ? '#E74C3C'
-    : 'var(--silver)';
-  const alexLine = [
-    tier === 'REBUILDING' ? 'Rebuilding phase.' : tier === 'CONTENDER' || tier === 'ELITE' ? 'Legitimate contender.' : tier === 'CROSSROADS' ? 'At a crossroads.' : 'Roster profile still forming.',
-    needs.length ? 'Weakest at ' + needs.slice(0, 2).map(n => n.pos).join(' and ') + '.' : '',
-    needs.length ? 'Priority: ' + needs.slice(0, 2).map(n => (n.urgency === 'deficit' ? 'find ' : 'add ') + n.pos + (n.urgency === 'deficit' ? ' via trade or waivers' : ' depth')).join('; ') + '.' : '',
-    elites < 2 ? 'Need more elite assets.' : '',
-  ].filter(Boolean).join(' ');
 
   const controlBtn = (active) => ({
     padding: '6px 11px',
@@ -505,13 +436,6 @@ function MyTeamTab({
     cursor: 'pointer',
     whiteSpace: 'nowrap',
   });
-  const metricCard = (label, value, sub, color) => (
-    <div style={{ background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.075)', borderRadius: '8px', padding: '10px 12px', minWidth: 0 }}>
-      <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.18rem', lineHeight: 1, color, fontWeight: 700, letterSpacing: '0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</div>
-      <div style={{ marginTop: '3px', fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.68, textTransform: 'uppercase', letterSpacing: '0.08em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
-      {sub && <div style={{ marginTop: '2px', fontSize: '0.68rem', color: 'var(--silver)', opacity: 0.52, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>}
-    </div>
-  );
   const groupLabelStyle = { fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.58, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, whiteSpace: 'nowrap' };
   const sameColumnSet = (a, b) => a.length === b.length && a.every((key, idx) => key === b[idx]);
   const activePresetKey = Object.entries(COLUMN_PRESETS).find(([, cols]) => sameColumnSet(cols, visibleCols))?.[0] || 'custom';
@@ -680,70 +604,35 @@ function MyTeamTab({
 
   return (
     <div style={{ padding: 'var(--card-pad, 14px 16px)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      <section style={{ background: 'linear-gradient(180deg, rgba(31,31,38,0.96), rgba(16,16,22,0.98))', border: '1px solid rgba(212,175,55,0.18)', borderRadius: '10px', padding: '16px', boxShadow: '0 14px 36px rgba(0,0,0,0.28)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 0.85fr) minmax(420px, 1.15fr)', gap: '14px', alignItems: 'stretch', marginBottom: '12px' }}>
-          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div>
-              <div style={{ fontSize: '0.66rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.16em', fontWeight: 800 }}>My Roster</div>
-              <div style={{ marginTop: '2px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.9rem', lineHeight: 1, color: 'var(--white)', fontWeight: 700, letterSpacing: '0.02em' }}>{tierLabel} Roster</span>
-                {(() => {
-                  const champs = window.App?.LI?.championships || {};
-                  const myChampCount = Object.values(champs).filter(c => c.champion === myRoster?.roster_id).length;
-                  if (myChampCount <= 0) return null;
-                  return <span style={{ fontSize: '0.68rem', color: 'var(--gold)', fontWeight: 800, border: '1px solid rgba(212,175,55,0.26)', borderRadius: '999px', padding: '3px 8px', background: 'rgba(212,175,55,0.08)' }}>{myChampCount > 1 ? myChampCount + 'x ' : ''}Champion</span>;
-                })()}
-              </div>
-              <div style={{ marginTop: '6px', display: 'flex', gap: '10px', flexWrap: 'wrap', fontSize: '0.78rem', color: 'var(--silver)', opacity: 0.82 }}>
-                <span>{allPlayers.length} players</span>
-                <span>DHQ {totalDhq.toLocaleString()}</span>
-                <span>{sectionCounts.starter} starters</span>
-                <span>{sectionCounts.taxi} taxi</span>
-              </div>
+      <section style={{ background: 'rgba(20,20,26,0.78)', border: '1px solid rgba(255,255,255,0.075)', borderRadius: '10px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '14px', flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 240, flex: '1 1 520px' }}>
+            <div style={{ fontSize: '0.62rem', color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.14em', fontWeight: 800 }}>My Roster</div>
+            <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.45rem', lineHeight: 1, color: 'var(--white)', fontWeight: 700, letterSpacing: '0.02em' }}>{tierLabel} Roster</span>
+              {(() => {
+                const champs = window.App?.LI?.championships || {};
+                const myChampCount = Object.values(champs).filter(c => c.champion === myRoster?.roster_id).length;
+                if (myChampCount <= 0) return null;
+                return <span style={{ fontSize: '0.66rem', color: 'var(--gold)', fontWeight: 800, border: '1px solid rgba(212,175,55,0.24)', borderRadius: '999px', padding: '2px 8px', background: 'rgba(212,175,55,0.08)' }}>{myChampCount > 1 ? myChampCount + 'x ' : ''}Champion</span>;
+              })()}
             </div>
-
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '5px', height: '42px', padding: '8px 8px 5px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              {posMix.map(p => (
-                <div key={p.pos} title={p.pos + ': ' + p.count} style={{ flex: 1, minWidth: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
-                  <div style={{ width: '100%', height: Math.max(5, Math.round((p.count / maxPosCount) * 26)) + 'px', background: p.color, opacity: 0.78, borderRadius: '3px 3px 1px 1px' }} />
-                  <span style={{ fontSize: '0.55rem', color: 'var(--silver)', opacity: 0.62, fontWeight: 700 }}>{p.pos}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ minWidth: 0, display: 'grid', gridTemplateColumns: 'minmax(260px, 0.82fr) minmax(280px, 1fr)', gap: '10px' }}>
-            <div style={{ background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(212,175,55,0.13)', borderRadius: '8px', padding: '10px 12px', minWidth: 0 }} title={alexLine}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                {typeof AlexAvatar !== 'undefined' && <AlexAvatar size={24} />}
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: 'Rajdhani, sans-serif', color: 'var(--gold)', fontWeight: 700, letterSpacing: '0.04em', lineHeight: 1 }}>Alex Ingram</div>
-                  <div style={{ fontSize: '0.62rem', color: 'var(--silver)', opacity: 0.55, textTransform: 'uppercase', letterSpacing: '0.09em' }}>Signals</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {boardInsightChips.slice(0, 3).map(chip => <span key={chip.label} style={{ fontSize: '0.66rem', color: chip.color, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)', borderRadius: '999px', padding: '3px 8px', fontWeight: 800 }}>{chip.label}</span>)}
-                {needs.slice(0, 3).map(n => <span key={n.pos} style={{ fontSize: '0.68rem', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.22)', background: 'rgba(212,175,55,0.07)', borderRadius: '999px', padding: '3px 8px', fontWeight: 700 }}>{n.pos} need</span>)}
-                {sellCount > 0 && <span style={{ fontSize: '0.68rem', color: '#E74C3C', border: '1px solid rgba(231,76,60,0.24)', background: 'rgba(231,76,60,0.08)', borderRadius: '999px', padding: '3px 8px', fontWeight: 700 }}>{sellCount} sell flags</span>}
-                {stashCount > 0 && <span style={{ fontSize: '0.68rem', color: '#2ECC71', border: '1px solid rgba(46,204,113,0.22)', background: 'rgba(46,204,113,0.07)', borderRadius: '999px', padding: '3px 8px', fontWeight: 700 }}>{stashCount} build assets</span>}
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', minWidth: 0 }}>
-              {metricCard('Contender', contenderRank ? '#' + contenderRank + '/' + totalTeams : '—', 'win-now rank', rankTone(contenderRank))}
-              {metricCard('Dynasty', dynastyRank ? '#' + dynastyRank + '/' + totalTeams : '—', 'future value', rankTone(dynastyRank))}
-              {metricCard('Tier', tierLabel, elites + ' elite assets', tierColor)}
-              {metricCard('Picks', pickCount, expectedPicks + ' baseline', pickCount >= expectedPicks ? '#2ECC71' : pickCount >= expectedPicks * 0.6 ? 'var(--gold)' : '#E74C3C')}
+            <div style={{ marginTop: '5px', fontSize: '0.74rem', color: 'var(--silver)', opacity: 0.78, lineHeight: 1.45 }}>
+              {allPlayers.length} players &middot; {sectionCounts.starter} starters &middot; {sectionCounts.bench} bench &middot; {sectionCounts.taxi} taxi &middot; {sectionCounts.ir} IR
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(150px, 1fr))', gap: '8px' }}>
-          {metricCard('Starter Age', starterAvgAge ? starterAvgAge.toFixed(1) : '—', avgAge ? 'roster avg ' + avgAge.toFixed(1) : '', starterAvgAge && starterAvgAge <= 26 ? '#2ECC71' : starterAvgAge && starterAvgAge <= 29 ? 'var(--gold)' : '#E74C3C')}
-          {metricCard('Peak Window', competeWindow || '—', starterPeakRows.length + ' starters in window', competeWindow >= 3 ? '#2ECC71' : competeWindow >= 1 ? 'var(--gold)' : '#E74C3C')}
-          {metricCard('Roster Slots', sectionCounts.starter + '/' + sectionCounts.bench + '/' + sectionCounts.taxi + '/' + sectionCounts.ir, 'STR / BN / TAX / IR', 'var(--silver)')}
-          {metricCard('Showing', filtered.length, rosterFilter + ' filter', 'var(--gold)')}
-        </div>
+        {(boardInsightChips.length > 0 || needs.length > 0) && (
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {boardInsightChips.filter(chip => !/needs/i.test(chip.label)).slice(0, 2).map(chip => (
+              <span key={chip.label} style={{ fontSize: '0.66rem', color: chip.color, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)', borderRadius: '999px', padding: '2px 8px', fontWeight: 700, letterSpacing: '0.02em' }}>{chip.label}</span>
+            ))}
+            {needs.slice(0, 2).map(n => (
+              <span key={n.pos} style={{ fontSize: '0.66rem', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.2)', background: 'rgba(212,175,55,0.07)', borderRadius: '999px', padding: '2px 8px', fontWeight: 700, letterSpacing: '0.02em' }}>{n.pos} need</span>
+            ))}
+          </div>
+        )}
       </section>
 
       <section style={{ background: 'rgba(20,20,26,0.78)', border: '1px solid rgba(255,255,255,0.075)', borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
