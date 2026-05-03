@@ -85,35 +85,38 @@
             else if (setActiveTab) setActiveTab('myteam');
         };
 
-        // ── Position breakdown with letter grades ────────────────
-        const idealRoster = window.App?.LI?.idealRoster || window.App?.PlayerValue?.IDEAL_ROSTER || { QB: 3, RB: 7, WR: 7, TE: 4, K: 2, DL: 7, LB: 6, DB: 6 };
+        // ── Position breakdown — league-relative DHQ ranking ────
         const posOrder = ['QB', 'RB', 'WR', 'TE', 'K', 'DL', 'LB', 'DB'];
         const posBreakdown = React.useMemo(() => {
-            const posAssess = assess?.posAssessment || {};
+            const scores = window.App?.LI?.playerScores || {};
+            const normPos = window.App?.normPos || (p => p);
+            const leagueRosters = currentLeague?.rosters || [];
+            const totalTeams = leagueRosters.length || 1;
+
             return posOrder.map(pos => {
-                const pa = posAssess[pos];
-                const status = pa?.status || 'ok';
-                const count = pa?.count || 0;
-                const ideal = idealRoster[pos] || 3;
-                const topDHQ = pa?.topDHQ || 0;
-                // Letter grade from status, refined by depth ratio
-                const ratio = count / Math.max(ideal, 1);
-                let grade;
-                if (status === 'surplus' && ratio >= 1.2) grade = 'A+';
-                else if (status === 'surplus') grade = 'A';
-                else if (status === 'ok' && ratio >= 0.95) grade = 'B+';
-                else if (status === 'ok') grade = 'B';
-                else if (status === 'thin' && ratio >= 0.6) grade = 'C+';
-                else if (status === 'thin') grade = 'C';
-                else if (status === 'deficit' && ratio >= 0.3) grade = 'D';
-                else grade = 'F';
-                const col = grade.startsWith('A') ? colors.positive
-                    : grade.startsWith('B') ? colors.accent
-                    : grade.startsWith('C') ? colors.warn
-                    : colors.negative;
-                return { pos, count, ideal, status, topDHQ, grade, col, pct: Math.min(100, ratio * 100) };
-            }).filter(p => p.ideal > 0);
-        }, [assess]);
+                const posDhqByTeam = leagueRosters.map(r => {
+                    const sum = (r.players || []).reduce((s, pid) => {
+                        const p = playersData?.[pid];
+                        if (p && normPos(p.position) === pos) return s + (scores[pid] || 0);
+                        return s;
+                    }, 0);
+                    return { rosterId: r.roster_id, sum };
+                }).sort((a, b) => b.sum - a.sum);
+
+                const mySum = posDhqByTeam.find(t => t.rosterId === myRoster?.roster_id)?.sum || 0;
+                const rank = posDhqByTeam.findIndex(t => t.rosterId === myRoster?.roster_id) + 1;
+
+                let grade, col;
+                const pct = totalTeams > 1 ? Math.round((1 - (rank - 1) / totalTeams) * 100) : 50;
+                if (rank <= Math.ceil(totalTeams * 0.2)) { grade = 'A'; col = colors.positive; }
+                else if (rank <= Math.ceil(totalTeams * 0.4)) { grade = 'B'; col = colors.accent; }
+                else if (rank <= Math.ceil(totalTeams * 0.6)) { grade = 'C'; col = colors.warn; }
+                else if (rank <= Math.ceil(totalTeams * 0.8)) { grade = 'D'; col = colors.warn; }
+                else { grade = 'F'; col = colors.negative; }
+
+                return { pos, rank, totalTeams, mySum, grade, col, pct };
+            });
+        }, [assess, currentLeague, myRoster, playersData]);
 
         // ── SM (1×1) ─────────────────────────────────────────────
         if (size === 'sm') {
@@ -233,7 +236,7 @@
                         ))}
                     </div>
 
-                    {/* Position health — letter grades */}
+                    {/* Position health — league-relative grades */}
                     <div style={{ marginBottom: '8px', flexShrink: 0 }}>
                         <div style={{ fontSize: fs(0.6), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px', fontFamily: fonts.ui }}>Position Health</div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '4px' }}>
@@ -249,7 +252,7 @@
                                     <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
                                         <div style={{ width: p.pct + '%', height: '100%', background: p.col, transition: '0.3s' }} />
                                     </div>
-                                    <div style={{ fontSize: fs(0.54), color: colors.textFaint, marginTop: '1px', fontFamily: fonts.mono }}>{p.count}/{p.ideal}</div>
+                                    <div style={{ fontSize: fs(0.54), color: colors.textFaint, marginTop: '1px', fontFamily: fonts.mono }}>#{p.rank}/{p.totalTeams}</div>
                                 </div>
                             ))}
                         </div>
@@ -441,19 +444,19 @@
                             <div style={{ fontSize: fs(0.6), color: colors.textFaint, marginTop: '4px', fontStyle: 'italic', fontFamily: fonts.ui }}>None</div>
                         </div>
                     );
-                    const top = players.slice(0, 3);
                     return (
                         <div key={pos} style={{
                             background: 'rgba(255,255,255,0.02)',
                             border: '1px solid ' + (colors.border || 'rgba(255,255,255,0.06)'),
                             borderRadius: '4px', padding: '6px 8px',
                             display: 'flex', flexDirection: 'column', gap: '3px', minHeight: 0,
+                            overflow: 'hidden',
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <span style={{ fontSize: fs(0.62), fontWeight: 700, color: colors.accent, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: fonts.ui }}>{pos}</span>
                                 <span style={{ fontSize: fs(0.54), color: colors.textFaint, fontFamily: fonts.ui }}>{players.length}</span>
                             </div>
-                            {top.map((pl, i) => (
+                            {players.map((pl, i) => (
                                 <div key={pl.pid} onClick={() => onPlayerClick(pl.pid)} style={{
                                     display: 'flex', alignItems: 'center', gap: '4px',
                                     cursor: 'pointer', padding: '1px 0',
