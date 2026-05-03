@@ -307,7 +307,7 @@ function IntelligenceBriefWidget({
         },
             React.createElement('span', { style: { fontSize: compact ? '0.85rem' : '1rem', flexShrink: 0 } }, a.icon),
             React.createElement('div', { style: { minWidth: 0, flex: 1 } },
-                React.createElement('div', { style: { fontWeight: 600, color: 'var(--white)', fontSize: compact ? '0.74rem' : '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: opts.titleClamp || 2, WebkitBoxOrient: 'vertical' } }, a.title),
+                React.createElement('div', { style: { fontWeight: 600, color: 'var(--white)', fontSize: compact ? '0.74rem' : '0.85rem' } }, a.title),
                 !compact && React.createElement('div', { style: { fontSize: '0.72rem', color: 'var(--silver)', marginTop: '2px' } },
                     Array.isArray(a.detail) ? a.detail : a.detail
                 ),
