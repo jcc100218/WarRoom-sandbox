@@ -328,11 +328,12 @@
             return { label: 'Depth add', short: 'Depth', score: 2, color: 'var(--silver)', need: null };
         }
 
-        function gradeForStatus(status) {
-            if (status === 'surplus') return { grade: 'A', label: 'Surplus', color: '#2ECC71', bg: 'rgba(46,204,113,0.12)', weight: 3 };
-            if (status === 'ok') return { grade: 'B', label: 'OK', color: 'var(--silver)', bg: 'rgba(255,255,255,0.06)', weight: 2 };
-            if (status === 'thin') return { grade: 'C', label: 'Thin', color: '#F0A500', bg: 'rgba(240,165,0,0.10)', weight: 1 };
-            return { grade: 'D', label: 'Deficit', color: '#E74C3C', bg: 'rgba(231,76,60,0.10)', weight: 0 };
+        function gradeLabel(g) {
+            if (g === 'A') return { label: 'Strong', bg: 'rgba(46,204,113,0.12)' };
+            if (g === 'B') return { label: 'OK', bg: 'rgba(255,255,255,0.06)' };
+            if (g === 'C') return { label: 'Thin', bg: 'rgba(240,165,0,0.10)' };
+            if (g === 'D') return { label: 'Weak', bg: 'rgba(240,165,0,0.10)' };
+            return { label: 'Deficit', bg: 'rgba(231,76,60,0.10)' };
         }
 
         function rosterNeedsPosition(roster, pos) {
@@ -380,15 +381,22 @@
             : 0;
         const canOutbidRows = faabMarketRows.filter(r => !r.isMe && r.remaining > remaining).slice(0, 5);
 
+        const posGrades = window.App?.calcPosGrades?.(myRoster?.roster_id, currentLeague?.rosters, playersData) || [];
+        const posGradeMap = {};
+        posGrades.forEach(g => posGradeMap[g.pos] = g);
         const rosterGapRows = ['QB','RB','WR','TE','K','DL','LB','DB']
             .filter(pos => (assess?.posAssessment || {})[pos])
             .map(pos => {
                 const data = assess.posAssessment[pos] || {};
-                const grade = gradeForStatus(data.status || 'ok');
+                const pg = posGradeMap[pos] || { grade: 'C', col: '#F0A500', rank: 0, totalTeams: 0 };
+                const gl = gradeLabel(pg.grade);
                 const bestWire = availablePlayers.find(x => x.pos === pos);
-                return { pos, data, ...grade, bestWire };
+                return { pos, data, grade: pg.grade, label: gl.label, color: pg.col, bg: gl.bg, rank: pg.rank, totalTeams: pg.totalTeams, bestWire };
             })
-            .sort((a, b) => a.weight - b.weight || (faPosOrder[a.pos] ?? 9) - (faPosOrder[b.pos] ?? 9));
+            .sort((a, b) => {
+                const order = { F: 0, D: 1, C: 2, B: 3, A: 4 };
+                return (order[a.grade] ?? 2) - (order[b.grade] ?? 2) || (faPosOrder[a.pos] ?? 9) - (faPosOrder[b.pos] ?? 9);
+            });
 
         const actionBoardPlayers = availablePlayers
             .map(decorateFaCandidate)

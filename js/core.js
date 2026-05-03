@@ -370,6 +370,36 @@ const { useState, useEffect, useMemo, useRef, useCallback } = React;
         return pos;
     };
 
+    // calcPosGrades — league-relative position group grades
+    // Sums DHQ per position for every team, ranks, and assigns A-F.
+    // Returns [{ pos, rank, totalTeams, mySum, grade, col, pct }]
+    window.App.calcPosGrades = window.App.calcPosGrades || function calcPosGrades(myRosterId, rosters, playersData) {
+        const scores = window.App?.LI?.playerScores || {};
+        const normPos = window.App.normPos || (p => p);
+        const posOrder = ['QB', 'RB', 'WR', 'TE', 'K', 'DL', 'LB', 'DB'];
+        const totalTeams = (rosters || []).length || 1;
+        return posOrder.map(pos => {
+            const byTeam = (rosters || []).map(r => {
+                const sum = (r.players || []).reduce((s, pid) => {
+                    const p = playersData?.[pid];
+                    if (p && normPos(p.position) === pos) return s + (scores[pid] || 0);
+                    return s;
+                }, 0);
+                return { rosterId: r.roster_id, sum };
+            }).sort((a, b) => b.sum - a.sum);
+            const mySum = byTeam.find(t => t.rosterId === myRosterId)?.sum || 0;
+            const rank = byTeam.findIndex(t => t.rosterId === myRosterId) + 1;
+            let grade, col;
+            const pct = totalTeams > 1 ? Math.round((1 - (rank - 1) / totalTeams) * 100) : 50;
+            if (rank <= Math.ceil(totalTeams * 0.2)) { grade = 'A'; col = '#2ECC71'; }
+            else if (rank <= Math.ceil(totalTeams * 0.4)) { grade = 'B'; col = '#D4AF37'; }
+            else if (rank <= Math.ceil(totalTeams * 0.6)) { grade = 'C'; col = '#F0A500'; }
+            else if (rank <= Math.ceil(totalTeams * 0.8)) { grade = 'D'; col = '#F0A500'; }
+            else { grade = 'F'; col = '#E74C3C'; }
+            return { pos, rank, totalTeams, mySum, grade, col, pct };
+        });
+    };
+
     // calcRawPts — fantasy points from stats + scoring settings
     // (replaces diverging implementations in trade-calc, free-agency, league-detail, components)
     window.App.calcRawPts = window.App.calcRawPts || function calcRawPts(stats, scoring) {

@@ -380,18 +380,7 @@ function IntelligenceBriefWidget({
 
     // ── xxl (4×4, ~640×640) — full real-estate dashboard ─────────────
     if (size === 'xxl') {
-        const posAssess = myAssess?.posAssessment || {};
-        const idealRoster = window.App?.LI?.idealRoster || window.App?.PlayerValue?.IDEAL_ROSTER || { QB: 3, RB: 7, WR: 7, TE: 4, K: 2, DL: 7, LB: 6, DB: 6 };
-        const posOrder = ['QB', 'RB', 'WR', 'TE', 'K', 'DL', 'LB', 'DB'];
-        const posBars = posOrder.map(pos => {
-            const pa = posAssess[pos];
-            const count = pa?.count || 0;
-            const ideal = idealRoster[pos] || 3;
-            const status = pa?.status || 'ok';
-            const grade = status === 'surplus' ? 'A' : status === 'ok' ? 'B' : status === 'thin' ? 'C' : 'D';
-            const col = status === 'surplus' ? '#2ECC71' : status === 'ok' ? '#D4AF37' : status === 'thin' ? '#F0A500' : '#E74C3C';
-            return { pos, count, ideal, grade, col, pct: Math.min(100, (count / Math.max(ideal, 1)) * 100) };
-        });
+        const posBars = (window.App?.calcPosGrades?.(myRoster?.roster_id, currentLeague?.rosters, playersData) || []);
 
         const myDHQ = (myRoster?.players || []).reduce((s, pid) => s + (window.App?.LI?.playerScores?.[pid] || 0), 0);
         const kpis = [
@@ -424,7 +413,7 @@ function IntelligenceBriefWidget({
                             React.createElement('div', { style: { height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' } },
                                 React.createElement('div', { style: { width: pb.pct + '%', height: '100%', background: pb.col } }),
                             ),
-                            React.createElement('div', { style: { fontSize: '0.55rem', color: 'var(--silver)', opacity: 0.6, marginTop: '2px', fontFamily: 'JetBrains Mono, monospace' } }, pb.count + '/' + pb.ideal),
+                            React.createElement('div', { style: { fontSize: '0.55rem', color: 'var(--silver)', opacity: 0.6, marginTop: '2px', fontFamily: 'JetBrains Mono, monospace' } }, '#' + pb.rank + '/' + pb.totalTeams),
                         )),
                     ),
                 ),

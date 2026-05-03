@@ -88,34 +88,11 @@
         // ── Position breakdown — league-relative DHQ ranking ────
         const posOrder = ['QB', 'RB', 'WR', 'TE', 'K', 'DL', 'LB', 'DB'];
         const posBreakdown = React.useMemo(() => {
-            const scores = window.App?.LI?.playerScores || {};
-            const normPos = window.App?.normPos || (p => p);
-            const leagueRosters = currentLeague?.rosters || [];
-            const totalTeams = leagueRosters.length || 1;
-
-            return posOrder.map(pos => {
-                const posDhqByTeam = leagueRosters.map(r => {
-                    const sum = (r.players || []).reduce((s, pid) => {
-                        const p = playersData?.[pid];
-                        if (p && normPos(p.position) === pos) return s + (scores[pid] || 0);
-                        return s;
-                    }, 0);
-                    return { rosterId: r.roster_id, sum };
-                }).sort((a, b) => b.sum - a.sum);
-
-                const mySum = posDhqByTeam.find(t => t.rosterId === myRoster?.roster_id)?.sum || 0;
-                const rank = posDhqByTeam.findIndex(t => t.rosterId === myRoster?.roster_id) + 1;
-
-                let grade, col;
-                const pct = totalTeams > 1 ? Math.round((1 - (rank - 1) / totalTeams) * 100) : 50;
-                if (rank <= Math.ceil(totalTeams * 0.2)) { grade = 'A'; col = colors.positive; }
-                else if (rank <= Math.ceil(totalTeams * 0.4)) { grade = 'B'; col = colors.accent; }
-                else if (rank <= Math.ceil(totalTeams * 0.6)) { grade = 'C'; col = colors.warn; }
-                else if (rank <= Math.ceil(totalTeams * 0.8)) { grade = 'D'; col = colors.warn; }
-                else { grade = 'F'; col = colors.negative; }
-
-                return { pos, rank, totalTeams, mySum, grade, col, pct };
-            });
+            const grades = window.App?.calcPosGrades?.(myRoster?.roster_id, currentLeague?.rosters, playersData) || [];
+            return grades.map(g => ({
+                ...g,
+                col: g.grade === 'A' ? colors.positive : g.grade === 'B' ? colors.accent : (g.grade === 'C' || g.grade === 'D') ? colors.warn : colors.negative,
+            }));
         }, [assess, currentLeague, myRoster, playersData]);
 
         // ── SM (1×1) ─────────────────────────────────────────────
