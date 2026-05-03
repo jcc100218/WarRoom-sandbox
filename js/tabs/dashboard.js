@@ -185,37 +185,6 @@ const LEGACY_MODULE_MAP = {
     };
 })();
 
-// ─── StarBtn: reusable star button for any card ───────────────────
-function StarBtn({ id, title, content, sourceModule, style: extraStyle }) {
-    const [starred, setStarred] = React.useState(() => window.WrStarWidget?.isStarred(id) || false);
-    React.useEffect(() => {
-        const handler = () => setStarred(window.WrStarWidget?.isStarred(id) || false);
-        window.addEventListener('wr_starred_changed', handler);
-        return () => window.removeEventListener('wr_starred_changed', handler);
-    }, [id]);
-    return (
-        <button
-            onClick={e => {
-                e.stopPropagation();
-                window.WrStarWidget?.toggle({ id, title, content, sourceModule });
-                setStarred(prev => !prev);
-            }}
-            title={starred ? 'Remove from dashboard' : 'Pin to dashboard'}
-            style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: '0.9rem', lineHeight: 1, padding: '2px 4px',
-                color: starred ? '#D4AF37' : 'rgba(255,255,255,0.2)',
-                transition: 'color 0.15s, transform 0.15s',
-                ...(extraStyle || {}),
-            }}
-            onMouseEnter={e => e.currentTarget.style.color = starred ? '#F0C040' : 'rgba(212,175,55,0.6)'}
-            onMouseLeave={e => e.currentTarget.style.color = starred ? '#D4AF37' : 'rgba(255,255,255,0.2)'}
-        >{starred ? '★' : '☆'}</button>
-    );
-}
-// Expose globally for use in createElement-based files
-window.StarBtn = StarBtn;
-
 // ══════════════════════════════════════════════════════════════════
 // DashboardWidgetPicker — full-screen iPhone-style overlay
 // ══════════════════════════════════════════════════════════════════

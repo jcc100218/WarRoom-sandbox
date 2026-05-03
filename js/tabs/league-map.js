@@ -966,7 +966,6 @@ function LeagueMapTab({
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, color: isMe ? 'var(--gold)' : 'var(--white)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     {team.displayName}{isMe ? ' (You)' : ''}
-                    {typeof StarBtn !== 'undefined' && <StarBtn id={'lmap_team_' + (roster?.roster_id || team.userId)} title={team.displayName + (isMe ? ' (You)' : '')} content={`${(roster?.settings?.wins ?? team.wins)}-${(roster?.settings?.losses ?? team.losses)} · ${totalDHQ > 0 ? (totalDHQ/1000).toFixed(0) + 'k DHQ' : '—'}`} sourceModule="League Map" style={{ marginLeft: 'auto' }} />}
                     {(() => {
                       const champs = window.App?.LI?.championships || {};
                       const champCount = Object.values(champs).filter(c => c.champion === roster?.roster_id).length;

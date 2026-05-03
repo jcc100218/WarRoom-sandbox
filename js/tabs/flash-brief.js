@@ -322,7 +322,6 @@ function IntelligenceBriefWidget({
             React.createElement('div', { style: { fontFamily: 'Rajdhani, sans-serif', fontSize: tight ? '0.62rem' : '0.72rem', color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: tight ? '2px' : '4px', display: 'flex', alignItems: 'center', gap: '6px' } },
                 React.createElement('span', { style: { fontSize: tight ? '0.8rem' : '0.9rem' } }, alexAvatar),
                 'INTELLIGENCE BRIEFING',
-                typeof StarBtn !== 'undefined' ? React.createElement(StarBtn, { id: 'brief_intel_main', title: 'Intelligence Briefing', content: briefText.slice(0, 120) + (briefText.length > 120 ? '…' : ''), sourceModule: 'Intelligence Brief', style: { marginLeft: 'auto' } }) : null,
             ),
             React.createElement('div', { style: { fontSize: tight ? '0.92rem' : '1.2rem', fontWeight: 700, color: 'var(--white)' } }, greetingText),
         );

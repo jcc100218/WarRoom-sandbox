@@ -872,7 +872,6 @@ function MyTeamTab({
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontFamily: 'Rajdhani, sans-serif', fontSize: '1.34rem', color: 'var(--white)', letterSpacing: '0.02em', lineHeight: 1.08, display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.p.full_name || getPlayerName(r.pid)}</span>
-                          {typeof StarBtn !== 'undefined' && <StarBtn id={'myteam_' + r.pid} title={r.p.full_name || getPlayerName(r.pid)} content={`${r.pos} · ${r.p.team || 'FA'} · Age ${r.age || '?'} · ${r.dhq.toLocaleString()} DHQ · ${r.rec}`} sourceModule="My Team" />}
                         </div>
                         <div style={{ fontSize: '0.76rem', color: 'var(--silver)', marginTop: '4px', lineHeight: 1.35 }}>
                           {r.p.team || 'FA'} {'\u00B7'} Age {r.age || '?'} {'\u00B7'} {r.p.years_exp||0}yr exp
